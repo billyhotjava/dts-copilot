@@ -1218,9 +1218,10 @@ let _redirectingToLogin = false;
 function redirectToLogin() {
 	if (_redirectingToLogin) return;
 	_redirectingToLogin = true;
-	// window.location.pathname already includes /analytics prefix
-	const returnPath = window.location.pathname + window.location.search;
-	window.location.replace("/auth/login?returnUrl=" + encodeURIComponent(returnPath));
+	// dts-copilot 独立部署时不跳转登录页，仅在控制台输出警告
+	// 集成到外部平台时，通过 iframe postMessage 或环境变量注入认证信息
+	console.warn("[dts-copilot] 认证失败 (401)，请配置 API Key 或通过管理接口生成 Key");
+	setTimeout(() => { _redirectingToLogin = false; }, 5000);
 }
 
 async function apiFetch(url: string, init: RequestInit, allowRefresh: boolean): Promise<Response> {
