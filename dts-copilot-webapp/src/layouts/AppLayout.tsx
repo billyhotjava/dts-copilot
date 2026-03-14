@@ -616,10 +616,9 @@ export function AppLayout() {
 	if (!isPublicRoute) {
 		const tokens = getPlatformTokens();
 		if (!tokens.accessToken) {
-			// location.pathname is relative to basename (/analytics), reconstruct full path
-			const fullPath = "/analytics" + location.pathname + location.search;
-			window.location.replace("/auth/login?returnUrl=" + encodeURIComponent(fullPath));
-			return null;
+			// dts-copilot 独立部署时跳过认证重定向，直接渲染页面
+			// 如需集成到外部平台，通过 iframe postMessage 传入 token
+			// 暂时允许无认证访问（开发模式）
 		}
 	}
 
