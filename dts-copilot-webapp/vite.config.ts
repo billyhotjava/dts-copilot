@@ -1,7 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 
-const publicBase = process.env.VITE_BASE_PATH || "/analytics/";
+const publicBase = process.env.VITE_BASE_PATH || "/";
 
 export default defineConfig(({ mode }) => {
 	const rawEnv = loadEnv(mode, process.cwd(), "");
@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
 	const normalizedLegacyFlag = String(legacyFlagRaw).trim().toLowerCase();
 	const legacyEnabled = normalizedLegacyFlag !== "0" && normalizedLegacyFlag !== "false";
 	const buildTarget = legacyEnabled ? "chrome95" : "chrome109";
-	const port = Number.parseInt(process.env.PORT ?? "3002", 10);
+	const port = Number.parseInt(process.env.PORT ?? "3003", 10);
 	return {
 		base: publicBase,
 		plugins: [react()],
@@ -22,6 +22,16 @@ export default defineConfig(({ mode }) => {
 			allowedHosts: true,
 			port,
 			strictPort: true,
+			proxy: {
+				"/api/ai": {
+					target: "http://localhost:8091",
+					changeOrigin: true,
+				},
+				"/api": {
+					target: "http://localhost:8092",
+					changeOrigin: true,
+				},
+			},
 		},
 		preview: {
 			host: true,
