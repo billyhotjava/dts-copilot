@@ -1,0 +1,142 @@
+.trace-panel {
+	margin-top: 4px;
+	border: 1px solid #e8e8e8;
+	border-radius: 6px;
+	background: #fafafa;
+	overflow: hidden;
+}
+
+.trace-panel__steps {
+	padding: 4px;
+}
+
+.trace-panel__step {
+	border-bottom: 1px solid #f0f0f0;
+}
+
+.trace-panel__step:last-child {
+	border-bottom: none;
+}
+
+.trace-panel__step-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	padding: 6px 8px;
+	border: none;
+	background: none;
+	cursor: pointer;
+	font-size: 12px;
+	text-align: left;
+	color: #333;
+}
+
+.trace-panel__step-header:hover {
+	background: #f0f0f0;
+}
+
+.trace-panel__status {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	font-size: 10px;
+	font-weight: bold;
+	flex-shrink: 0;
+}
+
+.trace-panel__status--ok {
+	background: #52c41a;
+	color: #fff;
+}
+
+.trace-panel__status--err {
+	background: #ff4d4f;
+	color: #fff;
+}
+
+.trace-panel__tool-name {
+	font-weight: 500;
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.trace-panel__step-num {
+	color: #999;
+	font-size: 11px;
+}
+
+.trace-panel__expand {
+	color: #999;
+	font-size: 10px;
+}
+
+.trace-panel__detail {
+	padding: 4px 8px 8px;
+}
+
+.trace-panel__section {
+	margin-bottom: 6px;
+}
+
+.trace-panel__section-label {
+	font-size: 11px;
+	color: #888;
+	margin-bottom: 2px;
+	font-weight: 500;
+}
+
+.trace-panel__json {
+	font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+	font-size: 11px;
+	line-height: 1.4;
+	background: #fff;
+	border: 1px solid #e8e8e8;
+	border-radius: 4px;
+	padding: 6px 8px;
+	margin: 0;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	word-break: break-all;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.trace-panel__expand-btn {
+	border: none;
+	background: none;
+	color: #1890ff;
+	font-size: 11px;
+	cursor: pointer;
+	padding: 2px 0;
+}
+
+.trace-panel__expand-btn:hover {
+	text-decoration: underline;
+}
+
+.trace-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	border: none;
+	background: none;
+	color: #888;
+	font-size: 11px;
+	cursor: pointer;
+	padding: 2px 0;
+	margin-top: 2px;
+}
+
+.trace-toggle:hover {
+	color: #1890ff;
+}
+
+.trace-toggle__icon {
+	font-size: 10px;
+}

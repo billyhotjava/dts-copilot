@@ -1,0 +1,58 @@
+.dsf-empty {
+	padding: 16px;
+	color: var(--color-text-tertiary);
+	font-size: 13px;
+}
+
+.dsf-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.dsf-field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.dsf-label {
+	font-weight: 600;
+	font-size: 13px;
+	color: var(--color-text-primary);
+}
+
+.dsf-required {
+	color: #cf1322;
+	margin-left: 2px;
+}
+
+.dsf-hint {
+	font-size: 11px;
+	color: var(--color-text-tertiary);
+}
+
+.dsf-input,
+.dsf-select {
+	padding: 6px 10px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm, 4px);
+	font-size: 13px;
+	background: var(--color-bg-primary, #fff);
+	color: var(--color-text-primary);
+	outline: none;
+	transition: border-color 0.15s;
+}
+
+.dsf-input:focus,
+.dsf-select:focus {
+	border-color: var(--color-brand, #509ee3);
+}
+
+.dsf-checkbox-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	cursor: pointer;
+}
