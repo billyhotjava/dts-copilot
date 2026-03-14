@@ -18,7 +18,6 @@ import {
 	PageContainer,
 	PageHeader,
 } from "../../components/PageContainer/PageContainer";
-import { useAppPack } from "../../contexts/AppPackGateway";
 import { SESSION_KEY_PREFIX } from "../../hooks/useCopilotContext";
 import { getEffectiveLocale, t } from "../../i18n";
 import "./ObjectDetailPage.css";
@@ -26,15 +25,14 @@ import "./ObjectDetailPage.css";
 export default function ObjectDetailPage() {
 	const locale = getEffectiveLocale();
 	const { typeId, id } = useParams<{ typeId: string; id: string }>();
-	const { schemas } = useAppPack();
-
 	const [instance, setInstance] = useState<ObjectInstance | null>(null);
 	const [actions, setActions] = useState<ActionTypeDef[]>([]);
 	const [signals, setSignals] = useState<QualitySignal[]>([]);
 	const [graph, setGraph] = useState<GraphView | null>(null);
 	const [loading, setLoading] = useState(true);
 
-	const objectType = schemas?.objectTypes.find((ot) => ot.typeId === typeId);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const objectType: any = undefined;
 	const properties = objectType?.properties ?? [];
 
 	useEffect(() => {
@@ -97,7 +95,7 @@ export default function ObjectDetailPage() {
 	}
 
 	// Build description items from schema properties + instance.properties
-	const descItems = properties.map((prop) => ({
+	const descItems = properties.map((prop: any) => ({
 		key: prop.name,
 		label: prop.label || prop.name,
 		children: formatValue(instance.properties?.[prop.name]),

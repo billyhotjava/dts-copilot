@@ -1,8 +1,8 @@
-import { Link, Outlet, useLocation } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, Navigate, Outlet, useLocation } from "react-router";
 import { getPlatformTokens } from "../api/platformSession";
 import { CopilotSidebar } from "../components/copilot/CopilotSidebar";
 import { ErrorBoundary } from "../components/ErrorBoundary";
-import { AppPackSwitcher } from "../components/nav/AppPackSwitcher";
 import { MobileTabBar } from "../components/nav/MobileTabBar";
 import {
 	SidebarButton,
@@ -12,7 +12,6 @@ import {
 	SidebarProvider,
 	SidebarSection,
 } from "../components/SidebarNav/SidebarNav";
-import { AppPackGateway } from "../contexts/AppPackGateway";
 import { getEffectiveLocale, t } from "../i18n";
 import {
 	Dropdown,
@@ -609,18 +608,53 @@ function HeaderBreadcrumb() {
 
 export function AppLayout() {
 	const location = useLocation();
+	const basePath = import.meta.env.VITE_BASE_PATH?.replace(/\/$/, "") || "";
 
-	// Auth guard: redirect to platform login if no valid token.
-	// Skip for public routes that should be accessible without auth.
+	// Auth guard: platform token OR session cookie.
 	const isPublicRoute = location.pathname.startsWith("/public/");
-	if (!isPublicRoute) {
-		const tokens = getPlatformTokens();
-		if (!tokens.accessToken) {
-			// dts-copilot 独立部署时跳过认证重定向，直接渲染页面
-			// 如需集成到外部平台，通过 iframe postMessage 传入 token
-			// 暂时允许无认证访问（开发模式）
-		}
+	const tokens = getPlatformTokens();
+	const hasPlatformToken = Boolean(tokens.accessToken);
+
+	// For standalone mode (no platform token), verify session via /api/session/properties.
+	const [sessionStatus, setSessionStatus] = useState<"checking" | "ok" | "login" | "setup">(
+		hasPlatformToken || isPublicRoute ? "ok" : "checking",
+	);
+
+	useEffect(() => {
+		if (hasPlatformToken || isPublicRoute || sessionStatus !== "checking") return;
+		let cancelled = false;
+		(async () => {
+			try {
+				const res = await fetch(`${basePath}/api/session/properties`, {
+					credentials: "include",
+					headers: { accept: "application/json" },
+				});
+				if (!res.ok) {
+					if (!cancelled) setSessionStatus("login");
+					return;
+				}
+				const data = await res.json();
+				if (!data["has-user-setup"]) {
+					if (!cancelled) setSessionStatus("setup");
+				} else {
+					if (!cancelled) setSessionStatus("ok");
+				}
+			} catch {
+				if (!cancelled) setSessionStatus("login");
+			}
+		})();
+		return () => { cancelled = true; };
+	}, [hasPlatformToken, isPublicRoute, sessionStatus, basePath]);
+
+	if (sessionStatus === "checking") {
+		return (
+			<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+				正在验证登录状态...
+			</div>
+		);
 	}
+	if (sessionStatus === "setup") return <Navigate to="/auth/setup" replace />;
+	if (sessionStatus === "login") return <Navigate to="/auth/login" replace />;
 
 	const locale = getEffectiveLocale();
 	const userInfo = getUserInfo();
@@ -628,9 +662,13 @@ export function AppLayout() {
 	const privileged = isPrivilegedUser(userRoles, userInfo.personnelLevel);
 	const displayName = userInfo.fullName || userInfo.username || "用户";
 
-	const handleLogout = () => {
+	const handleLogout = async () => {
+		// Revoke session cookie via DELETE /api/session
+		try {
+			await fetch(`${basePath}/api/session`, { method: "DELETE", credentials: "include" });
+		} catch { /* ignore */ }
 		clearSharedUserTokens();
-		window.location.href = "/analytics/";
+		window.location.href = `${basePath}/auth/login`;
 	};
 
 	const handleExpertMode = () => {
@@ -963,8 +1001,7 @@ export function AppLayout() {
 	);
 
 	return (
-		<AppPackGateway>
-			<SidebarProvider>
+		<SidebarProvider>
 				<div className="layout">
 					<SidebarNav logo={Logo} logoCollapsed={LogoCollapsed} footer={null}>
 						{/* Core: all users see Hub/Dashboards/Screens; privileged users see full nav. */}
@@ -1095,8 +1132,7 @@ export function AppLayout() {
 					<main className="main">
 						<header className="main-header">
 							<div className="main-header__left">
-								<AppPackSwitcher />
-								<HeaderBreadcrumb />
+									<HeaderBreadcrumb />
 							</div>
 							<div className="main-header__right">
 								<ThemeToggle showLabel={false} />
@@ -1114,6 +1150,5 @@ export function AppLayout() {
 				</div>
 				<MobileTabBar />
 			</SidebarProvider>
-		</AppPackGateway>
 	);
 }

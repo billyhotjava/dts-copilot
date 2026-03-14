@@ -4,18 +4,35 @@ import type {
 	AiAgentChatResponse,
 	AiAgentChatSession,
 	AiAgentPendingAction,
+	DatabaseListItem,
 	MicroFormSchema,
 } from "../../api/analyticsApi";
+import { getCopilotApiKey } from "../../api/copilotAuth";
 import { AuthError, analyticsApi } from "../../api/analyticsApi";
 import type { CopilotObjectContext } from "../../hooks/useCopilotContext";
+import { Button } from "../../ui/Button/Button";
+import { extractSqlFromMarkdown } from "../../utils/sqlExtractor";
 import { renderObjectRefs } from "./ObjectRefLink";
 import { TracePanel } from "./TracePanel";
+import { canUseCopilot } from "./copilotAccessPolicy";
 import "./CopilotChat.css";
 
 type CopilotSendBody = Parameters<typeof analyticsApi.aiAgentChatSend>[0];
 type FormValues = Record<string, string | number | undefined>;
 
 const SESSION_ID_KEY = "dts-analytics.copilot.sessionId";
+const DATASOURCE_ID_KEY = "dts-analytics.copilotDatasourceId";
+
+function getStoredDatasourceId(): number | null {
+	try {
+		const value = sessionStorage.getItem(DATASOURCE_ID_KEY);
+		if (value == null) return null;
+		const num = Number(value);
+		return Number.isFinite(num) ? num : null;
+	} catch {
+		return null;
+	}
+}
 
 const MICRO_FORM_PRESETS: Record<string, MicroFormSchema> = {
 	validate_sql: {
@@ -149,6 +166,7 @@ function buildInitialApprovalValues(
 }
 
 export function CopilotChat({ objectContext }: Props) {
+	const copilotEnabled = canUseCopilot(getCopilotApiKey());
 	const [sessionId, setSessionId] = useState<string | null>(() =>
 		getStoredSessionId(),
 	);
@@ -159,6 +177,8 @@ export function CopilotChat({ objectContext }: Props) {
 	const [pendingAction, setPendingAction] =
 		useState<AiAgentPendingAction | null>(null);
 	const [approvalValues, setApprovalValues] = useState<FormValues>({});
+	const [databases, setDatabases] = useState<DatabaseListItem[]>([]);
+	const [selectedDbId, setSelectedDbId] = useState<number | null>(() => getStoredDatasourceId());
 	const [error, setError] = useState<string | null>(null);
 	const [expandedTraces, setExpandedTraces] = useState<Set<string>>(new Set());
 	const scrollRef = useRef<HTMLDivElement>(null);
@@ -167,8 +187,14 @@ export function CopilotChat({ objectContext }: Props) {
 		() => normalizeMicroForm(pendingAction),
 		[pendingAction],
 	);
+	const copilotDisabledMessage =
+		"当前页面还没有可用的 copilot API Key，AI Copilot 暂不可用。";
 
 	const reloadSessions = useCallback(async () => {
+		if (!copilotEnabled) {
+			setSessions([]);
+			return [];
+		}
 		try {
 			const rows = await analyticsApi.listAiAgentSessions(50);
 			const list = toArray<AiAgentChatSession>(rows);
@@ -177,9 +203,14 @@ export function CopilotChat({ objectContext }: Props) {
 		} catch {
 			return [];
 		}
-	}, []);
+	}, [copilotEnabled]);
 
 	const reloadMessages = useCallback(async (sid: string) => {
+		if (!copilotEnabled) {
+			setMessages([]);
+			setPendingAction(null);
+			return;
+		}
 		try {
 			const detail = await analyticsApi.getAiAgentSession(sid);
 			setMessages(sortMessages(detail.messages ?? []));
@@ -187,7 +218,7 @@ export function CopilotChat({ objectContext }: Props) {
 		} catch {
 			/* ignore */
 		}
-	}, []);
+	}, [copilotEnabled]);
 
 	useEffect(() => {
 		try {
@@ -200,6 +231,41 @@ export function CopilotChat({ objectContext }: Props) {
 			/* ignore */
 		}
 	}, [sessionId]);
+
+	// Load databases on mount.
+	useEffect(() => {
+		if (!copilotEnabled) return;
+		let active = true;
+		void (async () => {
+			try {
+				const res = await analyticsApi.listDatabases();
+				if (!active) return;
+				const list = toArray<DatabaseListItem>(res.data);
+				setDatabases(list);
+				// Default to stored value if valid, otherwise first database
+				setSelectedDbId((prev) => {
+					if (prev != null && list.some((db) => db.id === prev)) return prev;
+					return list.length > 0 ? list[0].id : null;
+				});
+			} catch {
+				/* ignore */
+			}
+		})();
+		return () => { active = false; };
+	}, [copilotEnabled]);
+
+	// Persist selected datasource to sessionStorage.
+	useEffect(() => {
+		try {
+			if (selectedDbId != null) {
+				sessionStorage.setItem(DATASOURCE_ID_KEY, String(selectedDbId));
+			} else {
+				sessionStorage.removeItem(DATASOURCE_ID_KEY);
+			}
+		} catch {
+			/* ignore */
+		}
+	}, [selectedDbId]);
 
 	// Load sessions and restore initial session context from storage.
 	// This bootstrap should only run on mount; otherwise "new chat" state is overwritten.
@@ -223,13 +289,18 @@ export function CopilotChat({ objectContext }: Props) {
 
 	// Restore messages for current backend session.
 	useEffect(() => {
+		if (!copilotEnabled) {
+			setMessages([]);
+			setPendingAction(null);
+			return;
+		}
 		if (!sessionId) {
 			setMessages([]);
 			setPendingAction(null);
 			return;
 		}
 		void reloadMessages(sessionId);
-	}, [sessionId, reloadMessages]);
+	}, [copilotEnabled, sessionId, reloadMessages]);
 
 	useEffect(() => {
 		setApprovalValues(buildInitialApprovalValues(pendingAction, approvalSchema));
@@ -244,6 +315,10 @@ export function CopilotChat({ objectContext }: Props) {
 	}, [sortedMessages, pendingAction, sending]);
 
 	async function handleSend() {
+		if (!copilotEnabled) {
+			setError(copilotDisabledMessage);
+			return;
+		}
 		const text = input.trim();
 		if (!text || sending) return;
 		setInput("");
@@ -263,6 +338,7 @@ export function CopilotChat({ objectContext }: Props) {
 			const body: CopilotSendBody = {
 				userMessage: text,
 				...(sessionId ? { sessionId } : {}),
+				...(selectedDbId != null ? { datasourceId: String(selectedDbId) } : {}),
 				...(objectContext.typeId
 					? {
 							objectContext: {
@@ -295,6 +371,10 @@ export function CopilotChat({ objectContext }: Props) {
 	}
 
 	async function handleApprove() {
+		if (!copilotEnabled) {
+			setError(copilotDisabledMessage);
+			return;
+		}
 		if (!sessionId || !pendingAction?.actionId) return;
 		setSending(true);
 		setError(null);
@@ -357,6 +437,10 @@ export function CopilotChat({ objectContext }: Props) {
 	}
 
 	async function handleCancel() {
+		if (!copilotEnabled) {
+			setError(copilotDisabledMessage);
+			return;
+		}
 		if (!sessionId || !pendingAction?.actionId) return;
 		setSending(true);
 		try {
@@ -372,6 +456,10 @@ export function CopilotChat({ objectContext }: Props) {
 	}
 
 	async function handleDeleteSession() {
+		if (!copilotEnabled) {
+			setError(copilotDisabledMessage);
+			return;
+		}
 		if (!sessionId || sending) return;
 		setSending(true);
 		setError(null);
@@ -427,7 +515,7 @@ export function CopilotChat({ objectContext }: Props) {
 						}
 						setSessionId(next);
 					}}
-					disabled={sending}
+					disabled={sending || !copilotEnabled}
 				>
 					<option value="">新对话（未保存）</option>
 					{sessions.map((item) => (
@@ -440,7 +528,7 @@ export function CopilotChat({ objectContext }: Props) {
 					type="button"
 					className="copilot-chat__mini-btn"
 					onClick={handleNewChat}
-					disabled={sending}
+					disabled={sending || !copilotEnabled}
 				>
 					新建
 				</button>
@@ -448,15 +536,42 @@ export function CopilotChat({ objectContext }: Props) {
 					type="button"
 					className="copilot-chat__mini-btn copilot-chat__mini-btn--danger"
 					onClick={() => void handleDeleteSession()}
-					disabled={sending || !sessionId}
+					disabled={sending || !sessionId || !copilotEnabled}
 				>
 					删除
 				</button>
 			</div>
 
+			{/* Database selector */}
+			{databases.length > 0 && (
+				<div className="copilot-chat__db-bar">
+					<label className="copilot-chat__db-label" htmlFor="copilot-db-select">
+						数据源
+					</label>
+					<select
+						id="copilot-db-select"
+						className="copilot-chat__db-select"
+						value={selectedDbId ?? ""}
+						onChange={(e) => {
+							const val = Number(e.target.value);
+							setSelectedDbId(Number.isFinite(val) ? val : null);
+						}}
+						disabled={sending || !copilotEnabled}
+					>
+						{databases.map((db) => (
+							<option key={db.id} value={db.id}>
+								{db.name ?? `DB #${db.id}`}{db.engine ? ` (${db.engine})` : ""}
+							</option>
+						))}
+					</select>
+				</div>
+			)}
+
 			{/* Messages */}
 			<div className="copilot-chat__messages" ref={scrollRef}>
-				{sortedMessages.length === 0 ? (
+				{!copilotEnabled ? (
+					<div className="copilot-chat__notice">{copilotDisabledMessage}</div>
+				) : sortedMessages.length === 0 ? (
 					<div className="copilot-chat__empty">
 						Ask me about your data, objects, or actions.
 					</div>
@@ -471,6 +586,7 @@ export function CopilotChat({ objectContext }: Props) {
 								: [];
 						const hasTrace = toolMsgs.length > 0;
 						const traceExpanded = expandedTraces.has(msg.id);
+						const extractedSql = msg.role === "assistant" ? extractSqlFromMarkdown(msg.content ?? "") : null;
 						return (
 							<div
 								key={msg.id}
@@ -481,6 +597,36 @@ export function CopilotChat({ objectContext }: Props) {
 										? renderObjectRefs(msg.content ?? "")
 										: msg.content}
 								</div>
+								{extractedSql && (
+									<div style={{ display: "flex", gap: "var(--spacing-sm)", marginTop: "var(--spacing-xs)" }}>
+										<Button
+											variant="primary"
+											size="sm"
+											onClick={() => {
+												const dbId = selectedDbId != null ? String(selectedDbId) : "";
+												const params = new URLSearchParams({
+													sql: extractedSql,
+													...(dbId ? { db: dbId } : {}),
+													autorun: "1",
+												});
+												window.location.href = `/questions/new?${params.toString()}`;
+											}}
+										>
+											SQL 创建可视化
+										</Button>
+										<Button
+											variant="secondary"
+											size="sm"
+											onClick={() => {
+												if (navigator.clipboard?.writeText) {
+													void navigator.clipboard.writeText(extractedSql);
+												}
+											}}
+										>
+											复制 SQL
+										</Button>
+									</div>
+								)}
 								{hasTrace && (
 									<>
 										<button
@@ -641,14 +787,18 @@ export function CopilotChat({ objectContext }: Props) {
 							handleSend();
 						}
 					}}
-					placeholder="Ask a question..."
-					disabled={sending}
+						placeholder={
+							copilotEnabled
+								? "Ask a question..."
+								: "需要先配置 copilot API Key 才能使用 AI Copilot"
+					}
+					disabled={sending || !copilotEnabled}
 				/>
 				<button
 					type="button"
 					className="copilot-chat__send-btn"
 					onClick={handleSend}
-					disabled={sending || !input.trim()}
+					disabled={sending || !input.trim() || !copilotEnabled}
 				>
 					{sending ? "..." : "→"}
 				</button>

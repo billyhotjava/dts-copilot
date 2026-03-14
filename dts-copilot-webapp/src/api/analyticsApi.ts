@@ -1162,6 +1162,14 @@ export type ScreenComponentData = {
 	interaction?: Record<string, unknown>;
 };
 
+import {
+	normalizeLegacyAiChatResponse,
+	normalizeLegacyAiChatSession,
+	normalizeLegacyAiChatSessionDetail,
+	resolveCopilotUserIdFromSharedStores,
+} from "./aiChatCompatibility";
+import { isCopilotAiRoute, shouldRedirectToLoginOnUnauthorized } from "./authRedirectPolicy";
+import { getCopilotApiKey, getCopilotHeaders } from "./copilotAuth";
 import { getPlatformTokens, refreshPlatformAccessToken } from "./platformSession";
 
 export class HttpError extends Error {
@@ -1218,33 +1226,52 @@ let _redirectingToLogin = false;
 function redirectToLogin() {
 	if (_redirectingToLogin) return;
 	_redirectingToLogin = true;
-	// dts-copilot 独立部署时不跳转登录页，仅在控制台输出警告
-	// 集成到外部平台时，通过 iframe postMessage 或环境变量注入认证信息
-	console.warn("[dts-copilot] 认证失败 (401)，请配置 API Key 或通过管理接口生成 Key");
-	setTimeout(() => { _redirectingToLogin = false; }, 5000);
+	const tokens = getPlatformTokens();
+	if (tokens.accessToken) {
+		// Platform integration mode — don't redirect, just warn.
+		console.warn("[dts-copilot] 认证失败 (401)，平台 token 可能已过期");
+		setTimeout(() => { _redirectingToLogin = false; }, 5000);
+		return;
+	}
+	// Standalone mode — redirect to login page.
+	const basePath = import.meta.env.VITE_BASE_PATH?.replace(/\/$/, "") || "";
+	window.location.href = `${basePath}/auth/login`;
 }
 
 async function apiFetch(url: string, init: RequestInit, allowRefresh: boolean): Promise<Response> {
 	const tokens = getPlatformTokens();
 	const headers = new Headers(init.headers ?? {});
+	const shouldRedirectOnUnauthorized = shouldRedirectToLoginOnUnauthorized(url);
+	const copilotAiRoute = isCopilotAiRoute(url);
 	if (!headers.has("accept")) headers.set("accept", "application/json");
-	if (tokens.accessToken && !headers.has("authorization")) {
+	if (copilotAiRoute) {
+		const copilotHeaders = getCopilotHeaders();
+		for (const [key, value] of Object.entries(copilotHeaders)) {
+			if (!headers.has(key)) {
+				headers.set(key, value);
+			}
+		}
+	} else if (tokens.accessToken && !headers.has("authorization")) {
 		headers.set("authorization", `Bearer ${tokens.accessToken}`);
 	}
 
 	const response = await fetch(url, { ...init, credentials: "include", headers });
-	if (response.status !== 401 || !allowRefresh) {
+	if (response.status !== 401 || !allowRefresh || copilotAiRoute) {
 		return response;
 	}
 
 	if (!tokens.refreshToken) {
-		redirectToLogin();
+		if (shouldRedirectOnUnauthorized) {
+			redirectToLogin();
+		}
 		return response;
 	}
 
 	const refreshed = await refreshPlatformAccessToken(tokens.refreshToken);
 	if (!refreshed?.accessToken) {
-		redirectToLogin();
+		if (shouldRedirectOnUnauthorized) {
+			redirectToLogin();
+		}
 		return response;
 	}
 
@@ -1341,6 +1368,93 @@ async function fetchJson<T>(url: string): Promise<T> {
 		throw buildHttpError(response, text);
 	}
 	return (await response.json()) as T;
+}
+
+function resolveLegacyAiUserId(): string {
+	try {
+		return resolveCopilotUserIdFromSharedStores([
+			window.localStorage.getItem("platformUserStore"),
+			window.localStorage.getItem("userStore"),
+			window.sessionStorage.getItem("dts.copilot.login.username")
+				? JSON.stringify({
+					state: { userInfo: { username: window.sessionStorage.getItem("dts.copilot.login.username") } },
+				})
+				: null,
+		]);
+	} catch {
+		return "standalone-user";
+	}
+}
+
+function isAiCompatFallbackError(error: unknown): boolean {
+	return error instanceof HttpError && [404, 405].includes(error.status);
+}
+
+async function sendAiAgentChatCompat(body: {
+	sessionId?: string;
+	userMessage: string;
+}): Promise<AiAgentChatResponse> {
+	try {
+		const value = await sendJson<AiAgentChatResponse | PlatformApiEnvelope<AiAgentChatResponse>>("/api/ai/agent/chat", body ?? {});
+		return unwrapPlatformApiEnvelope(value);
+	} catch (error) {
+		if (!isAiCompatFallbackError(error)) {
+			throw error;
+		}
+		const legacyBody = {
+			sessionId: body.sessionId,
+			userId: resolveLegacyAiUserId(),
+			message: body.userMessage,
+		};
+		const legacy = await sendJson<Record<string, unknown>>("/api/ai/agent/chat/send", legacyBody);
+		return normalizeLegacyAiChatResponse(legacy) as AiAgentChatResponse;
+	}
+}
+
+async function listAiAgentSessionsCompat(limit = 50): Promise<AiAgentChatSession[]> {
+	try {
+		const value = await fetchJson<AiAgentChatSession[] | PlatformApiEnvelope<AiAgentChatSession[]>>(
+			"/api/ai/agent/sessions?limit=" + encodeURIComponent(String(limit)),
+		);
+		return unwrapPlatformApiEnvelope(value);
+	} catch (error) {
+		if (!isAiCompatFallbackError(error)) {
+			throw error;
+		}
+		const legacy = await fetchJson<Record<string, unknown>[]>(
+			"/api/ai/agent/chat/sessions?userId=" + encodeURIComponent(resolveLegacyAiUserId()),
+		);
+		return legacy.map((item) => normalizeLegacyAiChatSession(item) as AiAgentChatSession).slice(0, limit);
+	}
+}
+
+async function getAiAgentSessionCompat(id: string): Promise<AiAgentChatSessionDetail> {
+	try {
+		const value = await fetchJson<AiAgentChatSessionDetail | PlatformApiEnvelope<AiAgentChatSessionDetail>>(
+			"/api/ai/agent/sessions/" + encodeURIComponent(String(id)),
+		);
+		return unwrapPlatformApiEnvelope(value);
+	} catch (error) {
+		if (!isAiCompatFallbackError(error)) {
+			throw error;
+		}
+		const legacy = await fetchJson<Record<string, unknown>>(
+			"/api/ai/agent/chat/" + encodeURIComponent(String(id)),
+		);
+		return normalizeLegacyAiChatSessionDetail(legacy) as AiAgentChatSessionDetail;
+	}
+}
+
+async function deleteAiAgentSessionCompat(id: string): Promise<void> {
+	try {
+		const value = await requestJson<unknown>("/api/ai/agent/sessions/" + encodeURIComponent(String(id)), "DELETE");
+		unwrapPlatformApiEnvelope(value as PlatformApiEnvelope<unknown>);
+	} catch (error) {
+		if (!isAiCompatFallbackError(error)) {
+			throw error;
+		}
+		await requestJson<void>("/api/ai/agent/chat/" + encodeURIComponent(String(id)), "DELETE");
+	}
 }
 
 async function sendJson<T>(url: string, body: unknown): Promise<T> {
@@ -1625,8 +1739,7 @@ export const analyticsApi = {
 			extras?: Record<string, string>;
 		};
 	}) =>
-		sendJson<AiAgentChatResponse | PlatformApiEnvelope<AiAgentChatResponse>>("/api/ai/agent/chat", body ?? {})
-			.then(unwrapPlatformApiEnvelope),
+		sendAiAgentChatCompat(body ?? {}),
 	aiAgentChatApprove: (
 		sessionId: string,
 		actionId: string,
@@ -1641,19 +1754,9 @@ export const analyticsApi = {
 	aiAgentChatCancel: (sessionId: string, actionId: string) =>
 		sendJson<AiAgentChatResponse | PlatformApiEnvelope<AiAgentChatResponse>>("/api/ai/agent/chat/cancel", { sessionId, actionId })
 			.then(unwrapPlatformApiEnvelope),
-	listAiAgentSessions: (limit = 50) =>
-		fetchJson<AiAgentChatSession[] | PlatformApiEnvelope<AiAgentChatSession[]>>(
-			"/api/ai/agent/sessions?limit=" + encodeURIComponent(String(limit)),
-		).then(unwrapPlatformApiEnvelope),
-	getAiAgentSession: (id: string) =>
-		fetchJson<AiAgentChatSessionDetail | PlatformApiEnvelope<AiAgentChatSessionDetail>>(
-			"/api/ai/agent/sessions/" + encodeURIComponent(String(id)),
-		).then(unwrapPlatformApiEnvelope),
-	deleteAiAgentSession: (id: string) =>
-		requestJson<unknown>("/api/ai/agent/sessions/" + encodeURIComponent(String(id)), "DELETE")
-			.then((value) => {
-				unwrapPlatformApiEnvelope(value as PlatformApiEnvelope<unknown>);
-			}),
+	listAiAgentSessions: (limit = 50) => listAiAgentSessionsCompat(limit),
+	getAiAgentSession: (id: string) => getAiAgentSessionCompat(id),
+	deleteAiAgentSession: (id: string) => deleteAiAgentSessionCompat(id),
 	listPlatformMetrics: () => fetchJson<PlatformMetric[]>("/api/analytics/platform/metrics"),
 	listVisibleTables: () => fetchJson<Array<number | VisibleTable>>("/api/analytics/platform/visible-tables"),
 	getTrash: () => fetchJson<TrashResponse>("/api/analytics/trash"),

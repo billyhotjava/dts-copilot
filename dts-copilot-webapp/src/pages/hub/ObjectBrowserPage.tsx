@@ -7,19 +7,18 @@ import {
 	PageContainer,
 	PageHeader,
 } from "../../components/PageContainer/PageContainer";
-import { useAppPack } from "../../contexts/AppPackGateway";
 import { getEffectiveLocale, t } from "../../i18n";
 import "./ObjectBrowserPage.css";
 
 export default function ObjectBrowserPage() {
 	const locale = getEffectiveLocale();
 	const { typeId } = useParams<{ typeId: string }>();
-	const { schemas } = useAppPack();
 	const [instances, setInstances] = useState<ObjectInstance[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [search, setSearch] = useState("");
 
-	const objectType = schemas?.objectTypes.find((ot) => ot.typeId === typeId);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const objectType: any = undefined;
 	const title =
 		objectType?.displayName ?? typeId ?? t(locale, "hub.objectBrowser");
 
@@ -64,7 +63,7 @@ export default function ObjectBrowserPage() {
 		// Add property columns from schema
 		const propCols: ColumnsType<ObjectInstance> = (objectType?.properties ?? [])
 			.slice(0, 5)
-			.map((prop) => ({
+			.map((prop: any) => ({
 				title: prop.label || prop.name,
 				key: `prop-${prop.name}`,
 				width: 140,

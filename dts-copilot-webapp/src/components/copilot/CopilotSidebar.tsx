@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { getCopilotApiKey } from "../../api/copilotAuth";
 import { useCopilotContext } from "../../hooks/useCopilotContext";
 import { CopilotChat } from "./CopilotChat";
+import { canUseCopilot, resolveInitialCopilotExpanded } from "./copilotAccessPolicy";
 import "./CopilotSidebar.css";
 
 const STORAGE_KEY = "dts-analytics.copilotExpanded";
@@ -58,8 +60,16 @@ const CollapseIcon = ({ collapsed }: { collapsed: boolean }) => (
 );
 
 export function CopilotSidebar() {
-	const [expanded, setExpanded] = useState(getStoredExpanded);
+	const apiKey = getCopilotApiKey();
+	const copilotEnabled = canUseCopilot(apiKey);
+	const [expanded, setExpanded] = useState(() =>
+		resolveInitialCopilotExpanded(getStoredExpanded(), apiKey),
+	);
 	const objectContext = useCopilotContext();
+
+	useEffect(() => {
+		setExpanded((prev) => resolveInitialCopilotExpanded(prev, apiKey));
+	}, [apiKey]);
 
 	useEffect(() => {
 		try {
@@ -99,7 +109,7 @@ export function CopilotSidebar() {
 					className="copilot-sidebar__expand-btn"
 					onClick={() => setExpanded(true)}
 					aria-label="Expand AI Copilot"
-					title="AI Copilot"
+					title={copilotEnabled ? "AI Copilot" : "AI Copilot 需要配置 copilot API Key"}
 				>
 					<AiIcon />
 				</button>

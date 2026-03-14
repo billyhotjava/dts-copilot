@@ -40,7 +40,7 @@ export function ErrorNotice({ locale, error }: Props) {
 			<div className="muted">{t(locale, "error")}</div>
 			<div style={{ marginTop: 8 }}>{t(locale, "auth.expired")}</div>
 			<div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-				<a className="btn" href="/" rel="noreferrer">
+				<a className="btn" href={`${import.meta.env.VITE_BASE_PATH?.replace(/\/$/, "") || ""}/auth/login`} rel="noreferrer">
 					{t(locale, "auth.back")}
 				</a>
 				<button

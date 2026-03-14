@@ -35,6 +35,33 @@
 	cursor: pointer;
 }
 
+.copilot-chat__db-bar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 12px;
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-bg-primary, #fff);
+	font-size: 12px;
+}
+
+.copilot-chat__db-label {
+	color: var(--color-text-secondary);
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.copilot-chat__db-select {
+	flex: 1;
+	min-width: 0;
+	border: 1px solid var(--color-border);
+	border-radius: 8px;
+	padding: 3px 6px;
+	font-size: 12px;
+	background: var(--color-bg-primary, #fff);
+	color: var(--color-text-primary, #1f2329);
+}
+
 .copilot-chat__mini-btn--danger {
 	color: #cf1322;
 	border-color: #ffccc7;
@@ -82,6 +109,17 @@
 	text-align: center;
 	color: var(--color-text-tertiary);
 	font-size: 13px;
+}
+
+.copilot-chat__notice {
+	padding: 12px;
+	margin: 12px 0;
+	border: 1px solid #ffe58f;
+	border-radius: 8px;
+	background: #fffbe6;
+	color: #ad6800;
+	font-size: 12px;
+	line-height: 1.5;
 }
 
 .copilot-chat__msg {

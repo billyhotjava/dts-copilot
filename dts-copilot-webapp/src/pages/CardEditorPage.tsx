@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import {
 	analyticsApi,
@@ -101,6 +101,7 @@ export default function CardEditorPage() {
 	const [saveState, setSaveState] = useState<LoadState<CardDetail> | null>(null);
 	const [displayType, setDisplayType] = useState<VisualizationType>("table");
 	const [showSql, setShowSql] = useState(false);
+	const autorunRef = useRef(false);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -254,6 +255,17 @@ export default function CardEditorPage() {
 			setRunState({ state: "error", error: e });
 		}
 	};
+
+	// Auto-execute query when autorun=1 URL parameter is present
+	useEffect(() => {
+		if (autorunRef.current) return;
+		const sp = new URLSearchParams(location.search);
+		if (sp.get("autorun") !== "1") return;
+		if (!sql.trim() || !databaseId) return;
+		if (mode !== "sql") return;
+		autorunRef.current = true;
+		void run();
+	}, [sql, databaseId, mode, location.search]);
 
 	const save = async () => {
 		if (!databaseId) return;

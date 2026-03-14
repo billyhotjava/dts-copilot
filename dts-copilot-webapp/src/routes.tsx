@@ -18,6 +18,9 @@ const lazyComponent = (importer: () => Promise<{ default: unknown }>) => async (
 export function createRoutes() {
 	return createBrowserRouter(
 		[
+			// Auth routes — fullscreen, no layout
+			{ path: "/auth/login", lazy: lazyComponent(() => import("./pages/auth/LoginPage")) },
+			{ path: "/auth/setup", lazy: lazyComponent(() => import("./pages/auth/SetupPage")) },
 			// Fullscreen routes — no sidebar/layout wrapper
 			{ path: "/screens/new", lazy: lazyComponent(() => import("./pages/screens/ScreenDesignerPage")) },
 			{ path: "/screens/:id/edit", lazy: lazyComponent(() => import("./pages/screens/ScreenDesignerPage")) },

@@ -10,7 +10,6 @@ import {
 	PageContainer,
 	PageHeader,
 } from "../../components/PageContainer/PageContainer";
-import { useAppPack } from "../../contexts/AppPackGateway";
 import { getEffectiveLocale, t } from "../../i18n";
 import "./ObjectHubPage.css";
 
@@ -20,7 +19,7 @@ interface SearchResult extends ObjectInstance {
 
 export default function ObjectHubPage() {
 	const locale = getEffectiveLocale();
-	const { packId } = useAppPack();
+	const packId: string | null = null;
 	const [summary, setSummary] = useState<HubSummary | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [searching, setSearching] = useState(false);
