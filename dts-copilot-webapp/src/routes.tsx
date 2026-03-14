@@ -53,6 +53,7 @@ export function createRoutes() {
 					{ path: "/data/new", lazy: lazyComponent(() => import("./pages/DatabaseNewPage")) },
 					{ path: "/data/:dbId/edit", lazy: lazyComponent(() => import("./pages/DatabaseEditPage")) },
 					{ path: "/data/:dbId", lazy: lazyComponent(() => import("./pages/DatabaseDetailPage")) },
+					{ path: "/admin/settings/copilot", lazy: lazyComponent(() => import("./pages/admin/CopilotSettingsPage")) },
 					{ path: "/data/:dbId/tables/:tableId", lazy: lazyComponent(() => import("./pages/TableDetailPage")) },
 					{
 						path: "/data/:dbId/tables/:tableId/fields/:fieldId",

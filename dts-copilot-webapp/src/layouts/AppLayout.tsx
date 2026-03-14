@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, Outlet, useLocation } from "react-router";
+import { analyticsApi, type CurrentUser } from "../api/analyticsApi";
 import { getPlatformTokens } from "../api/platformSession";
 import { CopilotSidebar } from "../components/copilot/CopilotSidebar";
 import { ErrorBoundary } from "../components/ErrorBoundary";
@@ -19,6 +20,7 @@ import {
 	DropdownSeparator,
 } from "../ui/Dropdown/Dropdown";
 import { ThemeToggle } from "../ui/ThemeToggle/ThemeToggle";
+import { resolvePrivilegedAccess } from "./privilegedAccessPolicy";
 import "./layout.css";
 
 // ── Icons ──────────────────────────────────────────────────────────────
@@ -313,6 +315,24 @@ const ExpertModeIcon = () => (
 	</svg>
 );
 
+const SettingsIcon = () => (
+	<svg
+		width="20"
+		height="20"
+		role="img"
+		aria-label="settings"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
+		<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+		<circle cx="12" cy="12" r="3" />
+	</svg>
+);
+
 const UserIcon = () => (
 	<svg
 		width="20"
@@ -415,49 +435,6 @@ type AppUserInfo = {
 	personnelLevel: unknown;
 };
 
-function toNumber(value: unknown): number | null {
-	if (typeof value === "number" && Number.isFinite(value)) {
-		return value;
-	}
-	if (typeof value === "string") {
-		const trimmed = value.trim();
-		if (!trimmed) return null;
-		const normalized = trimmed.toLowerCase();
-		if (
-			[
-				"low",
-				"employee",
-				"staff",
-				"normal",
-				"basic",
-				"viewer",
-				"read",
-				"readonly",
-			].includes(normalized)
-		) {
-			return 1;
-		}
-		if (
-			[
-				"high",
-				"advanced",
-				"admin",
-				"op",
-				"authorized",
-				"manager",
-				"senior",
-				"owner",
-				"full",
-			].includes(normalized)
-		) {
-			return 2;
-		}
-		const parsed = Number.parseInt(trimmed, 10);
-		return Number.isFinite(parsed) ? parsed : null;
-	}
-	return null;
-}
-
 function getUserInfo(): AppUserInfo {
 	try {
 		const store = readSharedStore();
@@ -489,20 +466,6 @@ function getUserInfo(): AppUserInfo {
 
 // ── Role-based access ──────────────────────────────────────────────────
 
-/** Roles that grant full sidebar access (Admin/OP/Institutional) */
-const PRIVILEGED_ROLES = [
-	"ROLE_SYS_ADMIN",
-	"ROLE_AUTH_ADMIN",
-	"ROLE_ADMIN",
-	"ROLE_OP_ADMIN",
-	"ROLE_SECURITY_AUDITOR",
-	"INST_DATA_VIEWER",
-	"INST_DATA_DEV",
-	"INST_DATA_OWNER",
-	"DEPT_DATA_DEV",
-	"DEPT_DATA_OWNER",
-];
-
 function getUserRoles(): string[] {
 	try {
 		const store = readSharedStore();
@@ -519,14 +482,6 @@ function getUserRoles(): string[] {
 	} catch {
 		return [];
 	}
-}
-
-function isPrivilegedUser(roles: string[], personnelLevel: unknown): boolean {
-	const level = toNumber(personnelLevel);
-	if (level === null) {
-		return roles.some((r) => PRIVILEGED_ROLES.includes(r));
-	}
-	return level > 1 || roles.some((r) => PRIVILEGED_ROLES.includes(r));
 }
 
 // ── Breadcrumb ─────────────────────────────────────────────────────────
@@ -556,6 +511,7 @@ const ROUTE_NAV_MAP: { path: string; section: string; nav?: string }[] = [
 	},
 	{ path: "/metric-lens", section: "nav.section.tools", nav: "nav.metricLens" },
 	{ path: "/search", section: "nav.section.tools", nav: "nav.search" },
+	{ path: "/admin/settings", section: "nav.section.admin", nav: "nav.systemSettings" },
 ];
 
 function HeaderBreadcrumb() {
@@ -619,6 +575,7 @@ export function AppLayout() {
 	const [sessionStatus, setSessionStatus] = useState<"checking" | "ok" | "login" | "setup">(
 		hasPlatformToken || isPublicRoute ? "ok" : "checking",
 	);
+	const [sessionUser, setSessionUser] = useState<CurrentUser | null>(null);
 
 	useEffect(() => {
 		if (hasPlatformToken || isPublicRoute || sessionStatus !== "checking") return;
@@ -646,6 +603,26 @@ export function AppLayout() {
 		return () => { cancelled = true; };
 	}, [hasPlatformToken, isPublicRoute, sessionStatus, basePath]);
 
+	useEffect(() => {
+		if (hasPlatformToken || isPublicRoute || sessionStatus !== "ok") return;
+		let cancelled = false;
+		analyticsApi
+			.getCurrentUser()
+			.then((user) => {
+				if (!cancelled) {
+					setSessionUser(user);
+				}
+			})
+			.catch(() => {
+				if (!cancelled) {
+					setSessionUser(null);
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [hasPlatformToken, isPublicRoute, sessionStatus]);
+
 	if (sessionStatus === "checking") {
 		return (
 			<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
@@ -659,8 +636,17 @@ export function AppLayout() {
 	const locale = getEffectiveLocale();
 	const userInfo = getUserInfo();
 	const userRoles = getUserRoles();
-	const privileged = isPrivilegedUser(userRoles, userInfo.personnelLevel);
-	const displayName = userInfo.fullName || userInfo.username || "用户";
+	const privileged = resolvePrivilegedAccess({
+		roles: userRoles,
+		personnelLevel: userInfo.personnelLevel,
+		isSuperuser: sessionUser?.is_superuser === true,
+	});
+	const sessionUserName =
+		sessionUser?.common_name ||
+		[sessionUser?.first_name, sessionUser?.last_name].filter(Boolean).join(" ") ||
+		sessionUser?.email ||
+		"";
+	const displayName = userInfo.fullName || userInfo.username || sessionUserName || "用户";
 
 	const handleLogout = async () => {
 		// Revoke session cookie via DELETE /api/session
@@ -1119,6 +1105,11 @@ export function AppLayout() {
 								<SidebarDivider />
 
 								<SidebarSection title={t(locale, "nav.section.admin")}>
+									<SidebarItem
+										to="/admin/settings/copilot"
+										icon={<SettingsIcon />}
+										label={t(locale, "nav.systemSettings")}
+									/>
 									<SidebarButton
 										icon={<ExpertModeIcon />}
 										label={t(locale, "nav.expertMode")}

@@ -4,6 +4,7 @@ export type CurrentUser = {
 	first_name?: string;
 	last_name?: string;
 	common_name?: string;
+	is_superuser?: boolean;
 };
 
 export type CollectionListItem = {
@@ -525,6 +526,86 @@ export type VisibleTable = {
 
 export type PublicScreenDetail = ScreenDetail & {
 	public_uuid?: string | null;
+};
+
+export type CopilotSiteSettings = {
+	siteName?: string;
+};
+
+export type CopilotProviderTemplate = {
+	name: string;
+	displayName?: string;
+	defaultBaseUrl?: string;
+	defaultModel?: string;
+	defaultTemperature?: number;
+	defaultMaxTokens?: number;
+	defaultTimeoutSeconds?: number;
+};
+
+export type CopilotProvider = {
+	id: number;
+	name?: string;
+	baseUrl?: string;
+	model?: string;
+	temperature?: number | null;
+	maxTokens?: number | null;
+	timeoutSeconds?: number | null;
+	isDefault?: boolean;
+	enabled?: boolean;
+	priority?: number | null;
+	providerType?: string | null;
+	hasApiKey?: boolean;
+	apiKeyMasked?: string | null;
+	createdAt?: string;
+	updatedAt?: string;
+};
+
+export type CopilotProviderPayload = {
+	name: string;
+	baseUrl: string;
+	apiKey?: string;
+	model: string;
+	temperature?: number | null;
+	maxTokens?: number | null;
+	timeoutSeconds?: number | null;
+	isDefault?: boolean;
+	enabled?: boolean;
+	priority?: number | null;
+	providerType?: string | null;
+};
+
+export type CopilotProviderTestResult = {
+	reachable?: boolean;
+	provider?: string;
+	baseUrl?: string;
+	models?: unknown;
+	modelsError?: string;
+};
+
+export type CopilotApiKeyItem = {
+	id: number;
+	prefix?: string;
+	name?: string;
+	description?: string | null;
+	status?: string;
+	rateLimit?: number | null;
+	createdBy?: string | null;
+	createdAt?: string;
+	expiresAt?: string | null;
+	lastUsedAt?: string | null;
+	usageCount?: number | null;
+};
+
+export type CopilotApiKeyReveal = CopilotApiKeyItem & {
+	rawKey?: string;
+	message?: string;
+};
+
+export type CopilotApiKeyCreatePayload = {
+	name: string;
+	description?: string;
+	createdBy?: string;
+	expiresInDays?: number | null;
 };
 
 // Screen Designer Types
@@ -1549,6 +1630,39 @@ async function requestBinary(
 export const analyticsApi = {
 	getCurrentUser: () => fetchJson<CurrentUser>("/api/analytics/user/current"),
 	getHealth: () => fetchJson<{ status?: string }>("/api/analytics/health"),
+	getCopilotSiteSettings: () => fetchJson<CopilotSiteSettings>("/api/admin/copilot/settings/site"),
+	updateCopilotSiteSettings: (body: CopilotSiteSettings) =>
+		requestJson<CopilotSiteSettings>("/api/admin/copilot/settings/site", "PUT", body),
+	listCopilotProviders: () => fetchJson<CopilotProvider[]>("/api/admin/copilot/providers"),
+	listCopilotProviderTemplates: () =>
+		fetchJson<CopilotProviderTemplate[]>("/api/admin/copilot/providers/templates"),
+	createCopilotProvider: (body: CopilotProviderPayload) =>
+		sendJson<CopilotProvider>("/api/admin/copilot/providers", body),
+	updateCopilotProvider: (id: string | number, body: CopilotProviderPayload) =>
+		requestJson<CopilotProvider>("/api/admin/copilot/providers/" + encodeURIComponent(String(id)), "PUT", body),
+	deleteCopilotProvider: (id: string | number) =>
+		requestJson<{ id?: number; deleted?: boolean }>(
+			"/api/admin/copilot/providers/" + encodeURIComponent(String(id)),
+			"DELETE",
+		),
+	testCopilotProvider: (id: string | number) =>
+		sendJson<CopilotProviderTestResult>(
+			"/api/admin/copilot/providers/" + encodeURIComponent(String(id)) + "/test",
+			{},
+		),
+	listCopilotApiKeys: () => fetchJson<CopilotApiKeyItem[]>("/api/admin/copilot/api-keys"),
+	createCopilotApiKey: (body: CopilotApiKeyCreatePayload) =>
+		sendJson<CopilotApiKeyReveal>("/api/admin/copilot/api-keys", body),
+	rotateCopilotApiKey: (id: string | number) =>
+		requestJson<CopilotApiKeyReveal>(
+			"/api/admin/copilot/api-keys/" + encodeURIComponent(String(id)) + "/rotate",
+			"PUT",
+		),
+	revokeCopilotApiKey: (id: string | number) =>
+		requestJson<{ id?: number; revoked?: boolean }>(
+			"/api/admin/copilot/api-keys/" + encodeURIComponent(String(id)),
+			"DELETE",
+		),
 	listDatabases: () => fetchJson<DatabaseListResponse>("/api/analytics/database"),
 	listPlatformDataSources: () => fetchJson<PlatformDataSourceItem[]>("/api/analytics/platform/data-sources"),
 	listTables: (dbId: string | number) =>
