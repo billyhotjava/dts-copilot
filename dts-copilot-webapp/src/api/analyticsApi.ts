@@ -540,6 +540,10 @@ export type CopilotProviderTemplate = {
 	defaultTemperature?: number;
 	defaultMaxTokens?: number;
 	defaultTimeoutSeconds?: number;
+	region?: string;
+	recommended?: boolean;
+	sortOrder?: number;
+	requiresApiKey?: boolean;
 };
 
 export type CopilotProvider = {
@@ -1628,7 +1632,7 @@ async function requestBinary(
 }
 
 export const analyticsApi = {
-	getCurrentUser: () => fetchJson<CurrentUser>("/api/analytics/user/current"),
+	getCurrentUser: () => fetchJson<CurrentUser>("/api/user/current"),
 	getHealth: () => fetchJson<{ status?: string }>("/api/analytics/health"),
 	getCopilotSiteSettings: () => fetchJson<CopilotSiteSettings>("/api/admin/copilot/settings/site"),
 	updateCopilotSiteSettings: (body: CopilotSiteSettings) =>

@@ -43,6 +43,13 @@
 	color: var(--color-text-primary, #0f172a);
 }
 
+.copilot-settings__hint {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--color-text-secondary, #64748b);
+}
+
 .copilot-settings__switch-group {
 	display: flex;
 	flex-wrap: wrap;

@@ -12,6 +12,13 @@ import { EmptyState, PageContainer, PageHeader, PageSection } from "../../compon
 import { Button, ButtonGroup } from "../../ui/Button/Button";
 import { Card, CardBody, CardHeader } from "../../ui/Card/Card";
 import { Input, TextArea } from "../../ui/Input/Input";
+import {
+	PROVIDER_TYPE_CUSTOM,
+	applyProviderTypeSelection,
+	buildProviderTypeGroups,
+	createRecommendedProviderFormDefaults,
+	isProviderFormPristine,
+} from "./providerTemplateCatalog";
 import "./CopilotSettingsPage.css";
 
 type ProviderFormState = {
@@ -147,30 +154,16 @@ export default function CopilotSettingsPage() {
 		void loadAll();
 	}, []);
 
-	const applyTemplate = (templateName: string) => {
-		if (!templateName) return;
-		const template = templates.find((item) => item.name === templateName);
-		if (!template) return;
-		setProviderForm((current) => ({
-			...current,
-			name: current.name || template.displayName || template.name,
-			baseUrl: template.defaultBaseUrl ?? current.baseUrl,
-			model: template.defaultModel ?? current.model,
-			temperature:
-				template.defaultTemperature != null
-					? String(template.defaultTemperature)
-					: current.temperature,
-			maxTokens:
-				template.defaultMaxTokens != null
-					? String(template.defaultMaxTokens)
-					: current.maxTokens,
-			timeoutSeconds:
-				template.defaultTimeoutSeconds != null
-					? String(template.defaultTimeoutSeconds)
-					: current.timeoutSeconds,
-			providerType: template.name,
-		}));
-	};
+	useEffect(() => {
+		if (templates.length === 0) return;
+		setProviderForm((current) =>
+			isProviderFormPristine(current)
+				? createRecommendedProviderFormDefaults(templates, EMPTY_PROVIDER_FORM)
+				: current,
+		);
+	}, [templates]);
+
+	const providerTypeGroups = buildProviderTypeGroups(templates);
 
 	const saveSite = async () => {
 		setSiteSaving(true);
@@ -186,11 +179,23 @@ export default function CopilotSettingsPage() {
 	};
 
 	const resetProviderForm = () => {
-		setProviderForm(EMPTY_PROVIDER_FORM);
+		setProviderForm(createRecommendedProviderFormDefaults(templates, EMPTY_PROVIDER_FORM));
 	};
 
 	const editProvider = (provider: CopilotProvider) => {
-		setProviderForm(toProviderForm(provider));
+		const next = toProviderForm(provider);
+		const knownType = templates.some((item) => item.name === next.providerType);
+		setProviderForm(
+			next.providerType && !knownType
+				? { ...next, providerType: PROVIDER_TYPE_CUSTOM }
+				: next,
+		);
+	};
+
+	const handleProviderTypeChange = (providerType: string) => {
+		setProviderForm((current) =>
+			applyProviderTypeSelection(current, providerType, templates),
+		);
 	};
 
 	const saveProvider = async () => {
@@ -327,37 +332,38 @@ export default function CopilotSettingsPage() {
 					<Card>
 						<CardHeader
 							title={providerForm.id != null ? "编辑 Provider" : "新增 Provider"}
-							subtitle="保存后仅展示密钥掩码；留空 API Key 表示不修改。"
+							subtitle="新建时默认套用推荐模板；保存后仅展示密钥掩码，留空 API Key 表示不修改。"
 						/>
 						<CardBody className="copilot-settings__form-grid">
 							<div className="copilot-settings__field">
-								<label className="copilot-settings__label" htmlFor="provider-template">
-									Provider 模板
+								<label className="copilot-settings__label" htmlFor="provider-type">
+									Provider Type
 								</label>
 								<select
-									id="provider-template"
+									id="provider-type"
 									className="copilot-settings__select"
-									defaultValue=""
-									onChange={(event) => applyTemplate(event.target.value)}
+									value={providerForm.providerType || ""}
+									onChange={(event) => handleProviderTypeChange(event.target.value)}
 								>
-									<option value="">选择模板填充默认值</option>
-									{templates.map((item) => (
-										<option key={item.name} value={item.name}>
-											{item.displayName ?? item.name}
-										</option>
+									<option value="">请选择 Provider Type</option>
+									{providerTypeGroups.map((group) => (
+										<optgroup key={group.key} label={group.label}>
+											{group.options.map((item) => (
+												<option key={item.value} value={item.value}>
+													{item.label}
+												</option>
+											))}
+										</optgroup>
 									))}
 								</select>
+								<p className="copilot-settings__hint">
+									新建 Provider 默认使用推荐模板；选择 Custom 后可完全手工填写。
+								</p>
 							</div>
 							<Input
 								label="名称"
 								value={providerForm.name}
 								onChange={(event) => setProviderForm((current) => ({ ...current, name: event.target.value }))}
-							/>
-							<Input
-								label="Provider Type"
-								value={providerForm.providerType}
-								onChange={(event) => setProviderForm((current) => ({ ...current, providerType: event.target.value }))}
-								placeholder="DEEPSEEK / OPENAI / OLLAMA"
 							/>
 							<Input
 								label="Base URL"
