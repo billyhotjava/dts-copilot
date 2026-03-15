@@ -296,7 +296,7 @@ export async function loadScreenPluginManifests(force = false): Promise<ScreenPl
 
     loadingPromise = analyticsApi.listScreenPlugins()
         .then((data) => {
-            const remoteManifests = normalizeManifests(data, 'remote:/api/analytics/screen-plugins');
+            const remoteManifests = normalizeManifests(data, 'remote:/analytics/api/screen-plugins');
             const localManifests = loadLocalManifests();
             const manifests = mergeManifests(remoteManifests, localManifests);
             manifestCache = manifests;

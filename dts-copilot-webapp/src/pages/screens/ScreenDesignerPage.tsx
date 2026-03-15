@@ -301,49 +301,29 @@ function ScreenDesignerContent() {
 
     return (
         <ScreenRuntimeProvider definitions={state.config.globalVariables}>
-            <div className={`screen-designer ${focusMode ? 'is-focus-mode' : ''}`}>
-                {/* Top: Header */}
-                <ScreenHeader />
+            <div
+                data-testid="analytics-screen-designer"
+                className={`screen-designer ${focusMode ? 'is-focus-mode' : ''}`}
+            >
+                <ScreenHeader
+                    focusMode={focusMode}
+                    onToggleFocusMode={() => setFocusMode((prev) => !prev)}
+                    showLibraryPanel={showLibraryPanel}
+                    onToggleLibraryPanel={() => setShowLibraryPanel((prev) => !prev)}
+                    showInspectorPanel={showInspectorPanel}
+                    onToggleInspectorPanel={() => setShowInspectorPanel((prev) => !prev)}
+                />
 
                 <div className="screen-designer-body">
-                    {/* Left: Component Library */}
-                    {!focusMode && showLibraryPanel ? <ComponentLibraryPanel /> : null}
-
-                    {/* Center: Canvas */}
-                    <div className="canvas-area">
-                        <div className="designer-focus-actions">
-                            <button
-                                type="button"
-                                className="header-btn"
-                                onClick={() => setFocusMode((prev) => !prev)}
-                                title="快捷键：Ctrl/Cmd + \\"
-                            >
-                                {focusMode ? '退出聚焦' : '聚焦模式'}
-                            </button>
-                            {!focusMode ? (
-                                <>
-                                    <button
-                                        type="button"
-                                        className={`header-btn ${showLibraryPanel ? '' : 'is-muted'}`}
-                                        onClick={() => setShowLibraryPanel((prev) => !prev)}
-                                        title="快捷键：Ctrl/Cmd + Alt + 1"
-                                    >
-                                        {showLibraryPanel ? '左栏开' : '左栏关'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`header-btn ${showInspectorPanel ? '' : 'is-muted'}`}
-                                        onClick={() => setShowInspectorPanel((prev) => !prev)}
-                                        title="快捷键：Ctrl/Cmd + Alt + 2"
-                                    >
-                                        {showInspectorPanel ? '右栏开' : '右栏关'}
-                                    </button>
-                                </>
-                            ) : null}
+                    {!focusMode && showLibraryPanel ? (
+                        <div className="designer-side-rail designer-side-rail--library">
+                            <ComponentLibraryPanel />
                         </div>
+                    ) : null}
+
+                    <div className="canvas-area">
                         <CanvasToolbar />
                         <DesignerCanvas />
-                        {/* Multi-page manager bar (shown when pages exist or user creates pages) */}
                         {(hasMultiPages || pages.length > 0) && (
                             <PageManagerPanel
                                 pages={pages}
@@ -358,29 +338,30 @@ function ScreenDesignerContent() {
                         )}
                     </div>
 
-                    {/* Right: Property / Layer tabs */}
                     {!focusMode && showInspectorPanel ? (
-                        <div className="designer-right-panel">
-                            <div className="designer-right-panel-tabs">
-                                <button
-                                    type="button"
-                                    className={`designer-right-panel-tab ${rightPanelTab === 'property' ? 'active' : ''}`}
-                                    onClick={() => setRightPanelTab('property')}
-                                    title="组件属性配置"
-                                >
-                                    属性
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`designer-right-panel-tab ${rightPanelTab === 'layer' ? 'active' : ''}`}
-                                    onClick={() => setRightPanelTab('layer')}
-                                    title="图层管理"
-                                >
-                                    图层
-                                </button>
-                            </div>
-                            <div className="designer-right-panel-content">
-                                {rightPanelTab === 'property' ? <PropertyPanel /> : <LayerPanel />}
+                        <div className="designer-side-rail designer-side-rail--inspector">
+                            <div className="designer-right-panel">
+                                <div className="designer-right-panel-tabs">
+                                    <button
+                                        type="button"
+                                        className={`designer-right-panel-tab ${rightPanelTab === 'property' ? 'active' : ''}`}
+                                        onClick={() => setRightPanelTab('property')}
+                                        title="组件属性配置"
+                                    >
+                                        属性
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`designer-right-panel-tab ${rightPanelTab === 'layer' ? 'active' : ''}`}
+                                        onClick={() => setRightPanelTab('layer')}
+                                        title="图层管理"
+                                    >
+                                        图层
+                                    </button>
+                                </div>
+                                <div className="designer-right-panel-content">
+                                    {rightPanelTab === 'property' ? <PropertyPanel /> : <LayerPanel />}
+                                </div>
                             </div>
                         </div>
                     ) : null}

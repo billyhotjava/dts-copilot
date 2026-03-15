@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router";
+import { APP_HOME_PATH } from "../appShellConfig";
 import { PageContainer } from "../components/PageContainer/PageContainer";
 import { Card, CardBody } from "../ui/Card/Card";
 import { Button } from "../ui/Button/Button";
@@ -38,9 +39,9 @@ export default function NotFoundPage() {
 						<p className="text-muted" style={{ marginTop: "var(--spacing-md)", marginBottom: "var(--spacing-xl)", maxWidth: 400 }}>
 							{t(locale, "notfound.desc")}
 						</p>
-						<Link to="/">
+						<Link to={APP_HOME_PATH}>
 							<Button variant="primary" icon={<HomeIcon />}>
-								{t(locale, "nav.home")}
+								{t(locale, "nav.dashboards")}
 							</Button>
 						</Link>
 					</div>

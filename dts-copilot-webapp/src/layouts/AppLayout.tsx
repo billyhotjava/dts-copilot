@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, Outlet, useLocation } from "react-router";
 import { analyticsApi, type CurrentUser } from "../api/analyticsApi";
+import { setCopilotSessionAccess } from "../api/copilotAuth";
+import { APP_HOME_PATH } from "../appShellConfig";
 import { getPlatformTokens } from "../api/platformSession";
 import { CopilotSidebar } from "../components/copilot/CopilotSidebar";
 import { ErrorBoundary } from "../components/ErrorBoundary";
@@ -24,31 +26,6 @@ import { resolvePrivilegedAccess } from "./privilegedAccessPolicy";
 import "./layout.css";
 
 // ── Icons ──────────────────────────────────────────────────────────────
-
-const HubIcon = () => (
-	<svg
-		width="20"
-		height="20"
-		role="img"
-		aria-label="application home"
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-	>
-		<circle cx="12" cy="12" r="3" />
-		<path d="M12 2v4" />
-		<path d="M12 18v4" />
-		<path d="m4.93 4.93 2.83 2.83" />
-		<path d="m16.24 16.24 2.83 2.83" />
-		<path d="M2 12h4" />
-		<path d="M18 12h4" />
-		<path d="m4.93 19.07 2.83-2.83" />
-		<path d="m16.24 4.93 2.83-2.83" />
-	</svg>
-);
 
 const AnalyzeIcon = () => (
 	<svg
@@ -487,18 +464,15 @@ function getUserRoles(): string[] {
 // ── Breadcrumb ─────────────────────────────────────────────────────────
 
 const ROUTE_NAV_MAP: { path: string; section: string; nav?: string }[] = [
-	{ path: "/", section: "nav.section.core", nav: "nav.hub" },
-	{ path: "/objects", section: "nav.section.core", nav: "nav.hub" },
-	{ path: "/home", section: "nav.section.core", nav: "nav.home" },
-	{ path: "/analyze", section: "nav.section.core", nav: "nav.analyze" },
-	{ path: "/questions", section: "nav.section.core", nav: "nav.questions" },
 	{ path: "/dashboards", section: "nav.section.core", nav: "nav.dashboards" },
-	{ path: "/collections", section: "nav.section.core", nav: "nav.collections" },
+	{ path: "/screens", section: "nav.section.core", nav: "nav.screens" },
 	{ path: "/data", section: "nav.section.data", nav: "nav.data" },
 	{ path: "/models", section: "nav.section.data", nav: "nav.models" },
 	{ path: "/metrics", section: "nav.section.data", nav: "nav.metrics" },
 	{ path: "/trash", section: "nav.section.data", nav: "nav.trash" },
-	{ path: "/screens", section: "nav.section.tools", nav: "nav.screens" },
+	{ path: "/analyze", section: "nav.section.tools", nav: "nav.analyze" },
+	{ path: "/questions", section: "nav.section.tools", nav: "nav.questions" },
+	{ path: "/collections", section: "nav.section.tools", nav: "nav.collections" },
 	{
 		path: "/explore-sessions",
 		section: "nav.section.tools",
@@ -623,6 +597,13 @@ export function AppLayout() {
 		};
 	}, [hasPlatformToken, isPublicRoute, sessionStatus]);
 
+	useEffect(() => {
+		if (hasPlatformToken || isPublicRoute) {
+			return;
+		}
+		setCopilotSessionAccess(sessionStatus === "ok");
+	}, [hasPlatformToken, isPublicRoute, sessionStatus]);
+
 	if (sessionStatus === "checking") {
 		return (
 			<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
@@ -653,6 +634,7 @@ export function AppLayout() {
 		try {
 			await fetch(`${basePath}/api/session`, { method: "DELETE", credentials: "include" });
 		} catch { /* ignore */ }
+		setCopilotSessionAccess(false);
 		clearSharedUserTokens();
 		window.location.href = `${basePath}/auth/login`;
 	};
@@ -663,7 +645,7 @@ export function AppLayout() {
 
 	const Logo = (
 		<Link
-			to="/"
+			to={APP_HOME_PATH}
 			className="sidebar-logo-link"
 			style={{
 				display: "flex",
@@ -824,7 +806,7 @@ export function AppLayout() {
 
 	const LogoCollapsed = (
 		<Link
-			to="/"
+			to={APP_HOME_PATH}
 			className="sidebar-logo-link"
 			style={{
 				display: "flex",
@@ -990,46 +972,19 @@ export function AppLayout() {
 		<SidebarProvider>
 				<div className="layout">
 					<SidebarNav logo={Logo} logoCollapsed={LogoCollapsed} footer={null}>
-						{/* Core: all users see Hub/Dashboards/Screens; privileged users see full nav. */}
+						{/* Core: all users see dashboards and screens */}
 						<SidebarSection title={t(locale, "nav.section.core")}>
-							{privileged && (
-								<SidebarItem
-									to="/"
-									icon={<HubIcon />}
-									label={t(locale, "nav.hub")}
-									end
-								/>
-							)}
-							{privileged && (
-								<>
-									<SidebarItem
-										to="/dashboards"
-										icon={<DashboardIcon />}
-										label={t(locale, "nav.dashboards")}
-										end
-									/>
-									<SidebarItem
-										to="/screens"
-										icon={<ScreenIcon />}
-										label={t(locale, "nav.screens")}
-									/>
-								</>
-							)}
-							{!privileged && (
-								<>
-									<SidebarItem
-										to="/dashboards"
-										icon={<DashboardIcon />}
-										label={t(locale, "nav.dashboards")}
-										end
-									/>
-									<SidebarItem
-										to="/screens"
-										icon={<ScreenIcon />}
-										label={t(locale, "nav.screens")}
-									/>
-								</>
-							)}
+							<SidebarItem
+								to={APP_HOME_PATH}
+								icon={<DashboardIcon />}
+								label={t(locale, "nav.dashboards")}
+								end
+							/>
+							<SidebarItem
+								to="/screens"
+								icon={<ScreenIcon />}
+								label={t(locale, "nav.screens")}
+							/>
 						</SidebarSection>
 
 						{/* Data + Tools: privileged users only */}
@@ -1137,7 +1092,7 @@ export function AppLayout() {
 						</div>
 					</main>
 
-					<CopilotSidebar />
+					<CopilotSidebar hasSessionAccess={sessionStatus === "ok"} />
 				</div>
 				<MobileTabBar />
 			</SidebarProvider>

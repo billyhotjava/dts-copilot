@@ -24,8 +24,16 @@ import {
     resolveInteractionUrlTemplate, resolveFilterOptions, resolveTabOptions,
     resolveComponentVariableVisibility, resolveFilterOptionsFromData,
     normalizeFilterDebounceMs, normalizeCarouselItems, resolveCarouselItemsFromData,
+    resolveFilterDefaultValue, resolveDateRangeDefaultValues,
 } from '../renderers/shared/chartUtils';
-import type { ComponentInteractionMapping } from '../types';
+import {
+    buildTableRowActionParams,
+    normalizeScreenActionType,
+    resolvePreferredDrillValue,
+    resolveActionMappingValues,
+    resolveActionTemplateText,
+} from '../renderers/shared/actionUtils';
+import type { ComponentInteractionMapping, ScreenComponentAction } from '../types';
 import {
     compareTableValues, resolveTableConditionalStyle,
     normalizeColumnAlign, formatTableCell, clampColumnWidth, normalizeColumnFormatter,
@@ -366,12 +374,14 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
         return out;
     }, [sourceBindings, runtime.values]);
 
-    // Drill-down state (only active in preview mode for drillable chart types)
-    const drillActive = mode === "preview" && DRILLABLE_TYPES.has(type) && drillDown?.enabled === true;
+    // Drill runtime state should remain available for template-defined drill paths
+    // even when the current component is static and only uses breadcrumb/context state.
+    const drillRuntimeEnabled = mode === "preview" && drillDown?.enabled === true;
+    const drillActive = drillRuntimeEnabled && DRILLABLE_TYPES.has(type);
     const rootCardId = dataSourceType === "card" ? dataSource?.cardConfig?.cardId : undefined;
     const drillState = useDrillDown(
-        drillActive ? rootCardId : undefined,
-        drillActive ? drillDown : undefined,
+        drillRuntimeEnabled ? rootCardId : undefined,
+        drillRuntimeEnabled ? drillDown : undefined,
     );
 
     const mergedQueryParameters = useMemo(() => {
@@ -381,13 +391,13 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
             if (!name) continue;
             merged.set(name, String(item.value ?? ""));
         }
-        for (const item of (drillActive ? (drillState.queryParameters ?? []) : [])) {
+        for (const item of (drillRuntimeEnabled ? (drillState.queryParameters ?? []) : [])) {
             const name = (item.name || "").trim();
             if (!name) continue;
             merged.set(name, String(item.value ?? ""));
         }
         return Array.from(merged.entries()).map(([name, value]) => ({ name, value }));
-    }, [bindingParameters, drillActive, drillState.queryParameters]);
+    }, [bindingParameters, drillRuntimeEnabled, drillState.queryParameters]);
 
     const queryContext = useMemo(() => ({
         source: "screen-component",
@@ -402,7 +412,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
     // Card data source hook — pass drill overrides when active
     const { data: cardData, loading: cardLoading, error: cardError } = useCardDataSource(
         visibleByVariableRule ? dataSource : undefined,
-        drillActive ? drillState.effectiveCardId : undefined,
+        drillRuntimeEnabled ? drillState.effectiveCardId : undefined,
         mergedQueryParameters.length > 0 ? mergedQueryParameters : undefined,
         queryContext,
     );
@@ -417,7 +427,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
             const mapped = applyFieldMapping(type, fieldMapping, cardData);
             return { ...config, ...mapped };
         }
-        const mapped = mapCardDataToConfig(type, cardData);
+        const mapped = mapCardDataToConfig(type, cardData, config);
         return { ...config, ...mapped };
     }, [config, cardData, type]);
 
@@ -531,12 +541,19 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
         return String((effectiveConfig.variableKey as string) ?? '').trim();
     }, [effectiveConfig, type]);
     const filterInputRuntimeValue = filterInputVariableKey ? (runtime.values[filterInputVariableKey] ?? '') : '';
+    const filterInputDefaultValue = String(effectiveConfig.defaultValue ?? '').trim();
     const [filterInputDraft, setFilterInputDraft] = useState(filterInputRuntimeValue);
     const filterVariableTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
     useEffect(() => {
         setFilterInputDraft(filterInputRuntimeValue);
     }, [filterInputRuntimeValue, filterInputVariableKey]);
+
+    useEffect(() => {
+        if (type !== 'filter-input' || !filterInputVariableKey || filterInputRuntimeValue) return;
+        if (!filterInputDefaultValue) return;
+        runtime.setVariable(filterInputVariableKey, filterInputDefaultValue, `filter-input:init:${component.id}`);
+    }, [component.id, filterInputDefaultValue, filterInputRuntimeValue, filterInputVariableKey, runtime, type]);
 
     useEffect(() => () => {
         for (const timer of filterVariableTimersRef.current.values()) {
@@ -574,6 +591,76 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
         }
     }, [component.id, runtime, tabDefaultValue, tabOptions, tabRuntimeValue, tabVariableKey, type]);
 
+    const filterSelectVariableKey = useMemo(() => {
+        if (type !== 'filter-select') return '';
+        return String((effectiveConfig.variableKey as string) ?? '').trim();
+    }, [effectiveConfig, type]);
+    const filterSelectOptions = useMemo(() => {
+        if (type !== 'filter-select') return [] as Array<{ label: string; value: string }>;
+        const sourceMode = String(effectiveConfig.optionSourceMode ?? 'manual').trim().toLowerCase();
+        if (sourceMode === 'data') {
+            const dynamicOptions = resolveFilterOptionsFromData(cardData, effectiveConfig);
+            if (dynamicOptions.length > 0) {
+                return dynamicOptions;
+            }
+        }
+        return resolveFilterOptions(effectiveConfig.options);
+    }, [cardData, effectiveConfig, type]);
+    const filterSelectRuntimeValue = filterSelectVariableKey ? String(runtime.values[filterSelectVariableKey] ?? '') : '';
+    const filterSelectDefaultValue = String(effectiveConfig.defaultValue ?? '').trim();
+
+    useEffect(() => {
+        if (type !== 'filter-select' || !filterSelectVariableKey || filterSelectRuntimeValue) return;
+        const fallbackValue = resolveFilterDefaultValue('', filterSelectDefaultValue, filterSelectOptions);
+        if (!fallbackValue) return;
+        runtime.setVariable(filterSelectVariableKey, fallbackValue, `filter-select:init:${component.id}`);
+    }, [
+        component.id,
+        filterSelectDefaultValue,
+        filterSelectOptions,
+        filterSelectRuntimeValue,
+        filterSelectVariableKey,
+        runtime,
+        type,
+    ]);
+
+    const filterDateStartKey = useMemo(() => {
+        if (type !== 'filter-date-range') return '';
+        return String((effectiveConfig.startKey as string) ?? '').trim();
+    }, [effectiveConfig, type]);
+    const filterDateEndKey = useMemo(() => {
+        if (type !== 'filter-date-range') return '';
+        return String((effectiveConfig.endKey as string) ?? '').trim();
+    }, [effectiveConfig, type]);
+    const filterDateStartValue = filterDateStartKey ? String(runtime.values[filterDateStartKey] ?? '') : '';
+    const filterDateEndValue = filterDateEndKey ? String(runtime.values[filterDateEndKey] ?? '') : '';
+
+    useEffect(() => {
+        if (type !== 'filter-date-range') return;
+        const defaults = resolveDateRangeDefaultValues(
+            filterDateStartValue,
+            filterDateEndValue,
+            effectiveConfig.defaultStartValue,
+            effectiveConfig.defaultEndValue,
+        );
+        if (filterDateStartKey && !filterDateStartValue && defaults.startValue) {
+            runtime.setVariable(filterDateStartKey, defaults.startValue, `filter-date-range:init:${component.id}:start`);
+        }
+        if (filterDateEndKey && !filterDateEndValue && defaults.endValue) {
+            runtime.setVariable(filterDateEndKey, defaults.endValue, `filter-date-range:init:${component.id}:end`);
+        }
+    }, [
+        component.id,
+        effectiveConfig.defaultEndValue,
+        effectiveConfig.defaultStartValue,
+        filterDateEndKey,
+        filterDateEndValue,
+        filterDateStartKey,
+        filterDateStartValue,
+        runtime,
+        type,
+    ]);
+
     const scheduleFilterVariableUpdate = (
         key: string,
         value: string,
@@ -605,7 +692,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
             ? (component.interaction.mappings ?? []).filter((m): m is ComponentInteractionMapping => !!m && !!m.variableKey && !!m.sourcePath)
             : []
     ), [component.interaction, mode]);
-    const interactionJump = useMemo(() => {
+    const interactionJump = useMemo<{ template: string; openMode: 'self' | 'new-tab' } | null>(() => {
         if (mode !== 'preview' || component.interaction?.enabled !== true || component.interaction?.jumpEnabled !== true) {
             return null;
         }
@@ -616,13 +703,140 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
             openMode: component.interaction.jumpOpenMode === 'self' ? 'self' : 'new-tab',
         };
     }, [component.interaction, mode]);
+    const componentActions = useMemo(() => (
+        mode === 'preview'
+            ? (component.actions ?? []).filter((action): action is ScreenComponentAction => normalizeScreenActionType(action?.type) !== null)
+            : []
+    ), [component.actions, mode]);
+
+    const navigateToResolvedUrl = useCallback((targetUrl: string, openMode: 'self' | 'new-tab', source: string) => {
+        runtime.trackEvent({
+            kind: 'jump',
+            key: 'jumpUrl',
+            value: targetUrl,
+            source,
+            meta: `openMode=${openMode}`,
+        });
+        if (openMode === 'self') {
+            if (targetUrl.startsWith('/') || (() => { try { return new URL(targetUrl).origin === window.location.origin; } catch { return false; } })()) {
+                window.location.assign(targetUrl);
+            }
+            return;
+        }
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    }, [runtime]);
+
+    const executeComponentActions = useCallback((params: Record<string, unknown>) => {
+        if (mode !== 'preview' || componentActions.length === 0) {
+            return;
+        }
+        for (const action of componentActions) {
+            const actionType = normalizeScreenActionType(action.type);
+            if (!actionType) {
+                continue;
+            }
+            const mappedValues = resolveActionMappingValues(params, action.mappings);
+            for (const [key, value] of Object.entries(mappedValues)) {
+                runtime.setVariable(key, value, `action:${component.id}:${actionType}`);
+            }
+            if (actionType === 'set-variable') {
+                runtime.trackEvent({
+                    kind: 'action',
+                    key: actionType,
+                    value: Object.keys(mappedValues).join(','),
+                    source: `action:${component.id}`,
+                    meta: action.label || undefined,
+                });
+                continue;
+            }
+            if (actionType === 'drill-down') {
+                if (!drillRuntimeEnabled || !drillState.canDrillDown) {
+                    continue;
+                }
+                const clickedValue = resolvePreferredDrillValue(params);
+                if (!clickedValue) {
+                    continue;
+                }
+                runtime.trackEvent({
+                    kind: 'drill-down',
+                    key: 'drillValue',
+                    value: clickedValue,
+                    source: `action:${component.id}`,
+                    meta: action.label || undefined,
+                });
+                drillState.handleDrill(clickedValue);
+                continue;
+            }
+            if (actionType === 'drill-up') {
+                if (!drillRuntimeEnabled || drillState.breadcrumbs.length <= 0) {
+                    continue;
+                }
+                const nextDepth = Math.max(0, drillState.breadcrumbs.length - 2);
+                runtime.trackEvent({
+                    kind: 'drill-up',
+                    key: 'drillDepth',
+                    value: String(nextDepth),
+                    source: `action:${component.id}`,
+                    meta: action.label || undefined,
+                });
+                drillState.handleRollUp(nextDepth);
+                continue;
+            }
+            if (actionType === 'jump-url') {
+                const template = String(action.jumpUrlTemplate || '').trim();
+                const targetUrl = resolveInteractionUrlTemplate(template, params);
+                if (!targetUrl) {
+                    continue;
+                }
+                navigateToResolvedUrl(targetUrl, action.jumpOpenMode === 'self' ? 'self' : 'new-tab', `action:${component.id}`);
+                continue;
+            }
+            if (actionType === 'open-panel') {
+                const title = resolveActionTemplateText(action.panelTitle || action.label || '详情', params);
+                const body = resolveActionTemplateText(action.panelBodyTemplate || '', params);
+                runtime.trackEvent({
+                    kind: 'panel',
+                    key: 'open-panel',
+                    value: title,
+                    source: `panel:${component.id}`,
+                    meta: action.label || undefined,
+                });
+                runtime.openPanel(title || '详情', body, component.name || component.id);
+                continue;
+            }
+            if (actionType === 'emit-intent') {
+                const intentName = String(action.intentName || action.label || 'intent').trim() || 'intent';
+                const payload = resolveActionTemplateText(action.intentPayloadTemplate || '', params) || JSON.stringify(mappedValues);
+                runtime.trackEvent({
+                    kind: 'intent',
+                    key: intentName,
+                    value: payload,
+                    source: `intent:${component.id}`,
+                    meta: action.label || undefined,
+                });
+            }
+        }
+    }, [
+        component.id,
+        component.name,
+        componentActions,
+        drillRuntimeEnabled,
+        drillState.breadcrumbs.length,
+        drillState.canDrillDown,
+        drillState.handleDrill,
+        drillState.handleRollUp,
+        mode,
+        navigateToResolvedUrl,
+        runtime,
+    ]);
 
     // ECharts click handler for drill-down + variable interaction
     const echartsClickHandler = useMemo(() => {
         const canDrill = drillActive && drillState.canDrillDown;
         const canInteract = interactionMappings.length > 0;
         const canJump = !!interactionJump;
-        if (!canDrill && !canInteract && !canJump) return undefined;
+        const canAction = componentActions.length > 0;
+        if (!canDrill && !canInteract && !canJump && !canAction) return undefined;
 
         return {
             click: (params: Record<string, unknown>) => {
@@ -654,22 +868,13 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
 
                 if (canJump && interactionJump) {
                     const targetUrl = resolveInteractionUrlTemplate(interactionJump.template, params);
-                    if (!targetUrl) return;
-                    runtime.trackEvent({
-                        kind: 'jump',
-                        key: 'jumpUrl',
-                        value: targetUrl,
-                        source: `interaction:${component.id}`,
-                        meta: `openMode=${interactionJump.openMode}`,
-                    });
-                    if (interactionJump.openMode === 'self') {
-                        // Only allow same-origin navigation for 'self' to prevent open redirect
-                        if (targetUrl.startsWith('/') || (() => { try { return new URL(targetUrl).origin === window.location.origin; } catch { return false; } })()) {
-                            window.location.assign(targetUrl);
-                        }
-                    } else {
-                        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+                    if (targetUrl) {
+                        navigateToResolvedUrl(targetUrl, interactionJump.openMode, `interaction:${component.id}`);
                     }
+                }
+
+                if (canAction) {
+                    executeComponentActions(params);
                 }
             },
         };
@@ -679,8 +884,11 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
         drillState.breadcrumbs.length,
         drillState.canDrillDown,
         drillState.handleDrill,
+        executeComponentActions,
         interactionJump,
         interactionMappings,
+        componentActions.length,
+        navigateToResolvedUrl,
         runtime,
     ]);
 
@@ -1281,28 +1489,35 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
             opacity: 0.92,
             padding: 0,
         } : null;
-        const dependencyPlaceholder = (label: string) => (
+        const renderUnavailableState = (title: string, detail?: string) => (
             <div style={{
                 width: '100%',
                 height: '100%',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
+                gap: 6,
                 background: t.placeholder.background,
                 border: t.placeholder.border,
-                borderRadius: 4,
+                borderRadius: 8,
                 color: t.placeholder.color,
                 fontSize: 12,
+                textAlign: 'center',
+                padding: 12,
             }}>
-                {label}加载中...
+                <strong style={{ fontSize: 12, fontWeight: 600 }}>{title}</strong>
+                {detail ? (
+                    <span style={{ fontSize: 11, opacity: 0.82, lineHeight: 1.5 }}>{detail}</span>
+                ) : null}
             </div>
         );
 
         if (ECHART_COMPONENT_TYPES.has(type) && !EChartsComponent) {
-            return dependencyPlaceholder('图表引擎');
+            return renderUnavailableState('图表引擎未就绪', '正在加载 ECharts 运行时，请稍候。');
         }
         if (DATAV_COMPONENT_TYPES.has(type) && !dataViewModule) {
-            return dependencyPlaceholder('DataV');
+            return renderUnavailableState('DataV 运行时未就绪', '正在加载 DataV 组件运行时，请稍候。');
         }
 
         const EChart = EChartsComponent as ReactEChartsComponent;
@@ -1610,9 +1825,129 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                         anchor: { show: true, showAbove: true, size: 18, itemStyle: { borderWidth: 6 } },
                         title: { show: true, offsetCenter: [0, '70%'], fontSize: (c.titleFontSize as number) || 14, color: t.gauge.titleColor },
                         detail: { valueAnimation: true, fontSize: 28, offsetCenter: [0, '45%'], color: t.gauge.detailColor, formatter: '{value}%' },
-                        data: [{ value: c.value as number, name: c.title as string }],
+                        data: [{ value: c.value != null ? Number(c.value) : 0, name: c.title as string }],
                     }],
                 });
+
+            case 'gantt-chart': {
+                /* eslint-disable @typescript-eslint/no-explicit-any */
+                const tasks = Array.isArray(c.tasks) ? (c.tasks as Array<Record<string, any>>) : [];
+                if (!tasks.length) {
+                    return renderEChartWithHandles({ ...themeOptions, title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: t.textSecondary, fontSize: 14 } } });
+                }
+
+                const sorted = [...tasks].sort((a, b) => String(a.planDate ?? '').localeCompare(String(b.planDate ?? '')));
+                const categories = sorted.map((tk) => String(tk.name ?? ''));
+
+                const allDates = sorted.flatMap((tk) => [tk.planDate, tk.actualDate].filter(Boolean).map(String));
+                if (!allDates.length) {
+                    return renderEChartWithHandles({ ...themeOptions, title: { text: '无有效日期数据', left: 'center', top: 'center', textStyle: { color: t.textSecondary, fontSize: 14 } } });
+                }
+                const minDate = allDates.reduce((a, b) => (a < b ? a : b));
+                const maxDate = allDates.reduce((a, b) => (a > b ? a : b));
+                const today = new Date().toISOString().slice(0, 10);
+
+                const getBarColor = (tk: Record<string, any>) => {
+                    if (tk.isCompleted && !tk.isOverdue) return '#52c41a';
+                    if (tk.isCompleted && tk.isOverdue) return '#faad14';
+                    if (tk.isIncomplete) return '#ff4d4f';
+                    return '#1890ff';
+                };
+
+                // Build bar data: each bar is [startTime, endTime, categoryIndex]
+                // Using xAxis=time, yAxis=category, bar series type for compatibility
+                const barSeries: any[] = [];
+                sorted.forEach((tk, idx) => {
+                    const start = new Date(String(tk.planDate)).getTime();
+                    const end = tk.actualDate ? new Date(String(tk.actualDate)).getTime() : Date.now();
+                    barSeries.push({
+                        value: [start, idx, end - start, tk.delayDays],
+                        itemStyle: { color: getBarColor(tk) },
+                        _task: tk,
+                    });
+                });
+
+                const xMax = maxDate > today ? maxDate : today;
+                const ganttOption: Record<string, unknown> = {
+                    ...themeOptions,
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: (params: any) => {
+                            const tk = params.data?._task;
+                            if (!tk) return '';
+                            return [
+                                `<b>${tk.name}</b>`,
+                                `类型: ${tk.type}`,
+                                `责任人: ${tk.owner}`,
+                                `计划: ${tk.planDate}`,
+                                tk.actualDate ? `实际: ${tk.actualDate}` : '实际: 未完成',
+                                tk.delayDays ? `超期: ${tk.delayDays}天` : '',
+                                `风险: ${tk.riskLevel}`,
+                            ].filter(Boolean).join('<br/>');
+                        },
+                    },
+                    grid: { left: 120, right: 40, top: 30, bottom: 50 },
+                    xAxis: {
+                        type: 'time',
+                        min: minDate,
+                        max: xMax,
+                        axisLabel: { color: t.textSecondary, fontSize: 11 },
+                        splitLine: { lineStyle: { color: t.echarts.splitLineColor, type: 'dashed' } },
+                    },
+                    yAxis: {
+                        type: 'category',
+                        data: categories,
+                        inverse: true,
+                        axisLabel: {
+                            color: t.textPrimary,
+                            fontSize: 11,
+                            width: 100,
+                            overflow: 'truncate' as const,
+                        },
+                        splitLine: { show: false },
+                    },
+                    dataZoom: [{ type: 'inside', xAxisIndex: 0 }],
+                    series: [
+                        {
+                            type: 'custom',
+                            renderItem: (_params: any, api: any) => {
+                                const startVal = api.value(0);
+                                const catIdx = api.value(1);
+                                const duration = api.value(2);
+                                const endVal = startVal + duration;
+                                const startPx = api.coord([startVal, catIdx]);
+                                const endPx = api.coord([endVal, catIdx]);
+                                const categoryHeight = typeof api.size === 'function' ? api.size([0, 1])[1] : 30;
+                                const barHeight = categoryHeight * 0.6;
+                                const style = typeof api.style === 'function' ? api.style() : {};
+                                return {
+                                    type: 'rect',
+                                    shape: {
+                                        x: startPx[0],
+                                        y: startPx[1] - barHeight / 2,
+                                        width: Math.max(endPx[0] - startPx[0], 4),
+                                        height: barHeight,
+                                        r: [2, 2, 2, 2],
+                                    },
+                                    style,
+                                };
+                            },
+                            encode: { x: [0], y: 1 },
+                            data: barSeries,
+                            markLine: {
+                                silent: true,
+                                symbol: 'none',
+                                lineStyle: { color: '#ff4d4f', type: 'dashed', width: 2 },
+                                data: [{ xAxis: new Date(today).getTime() }],
+                                label: { formatter: '今日', position: 'start', color: '#ff4d4f', fontSize: 11 },
+                            },
+                        },
+                    ],
+                };
+                /* eslint-enable @typescript-eslint/no-explicit-any */
+
+                return renderEChartWithHandles(ganttOption, echartsClickHandler);
+            }
 
             case 'radar-chart':
                 return renderEChartWithHandles({
@@ -2199,7 +2534,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                             color: resolveTextColor(c.valueColor as string | undefined, t.numberCard.valueColor),
                         }}>
                             {c.prefix as string}
-                            {(c.value as number).toLocaleString()}
+                            {c.value != null ? Number(c.value).toLocaleString('zh-CN') : '-'}
                             {c.suffix as string}
                         </div>
                     </div>
@@ -2565,6 +2900,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
 
             case 'filter-input': {
                 const label = String(c.label ?? '筛选');
+                const scopeHint = String(c.scopeHint ?? '').trim();
                 const variableKey = String(c.variableKey ?? '').trim();
                 const placeholder = String(c.placeholder ?? '请输入');
                 const value = variableKey ? filterInputDraft : '';
@@ -2576,6 +2912,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                 return (
                     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div style={{ fontSize: 12, color: labelColor }}>{label}</div>
+                        {scopeHint ? <div style={{ fontSize: 10, color: t.textSecondary }}>{scopeHint}</div> : null}
                         <input
                             type="text"
                             value={value}
@@ -2607,14 +2944,10 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
 
             case 'filter-select': {
                 const label = String(c.label ?? '筛选');
-                const variableKey = String(c.variableKey ?? '').trim();
+                const scopeHint = String(c.scopeHint ?? '').trim();
+                const variableKey = filterSelectVariableKey;
                 const placeholder = String(c.placeholder ?? '请选择');
-                const optionSourceMode = String(c.optionSourceMode ?? 'manual').trim().toLowerCase();
-                const staticOptions = resolveFilterOptions(c.options);
-                const dataOptions = optionSourceMode === 'data'
-                    ? resolveFilterOptionsFromData(cardData, c)
-                    : [];
-                const options = dataOptions.length > 0 ? dataOptions : staticOptions;
+                const options = filterSelectOptions;
                 const value = variableKey ? (runtime.values[variableKey] ?? '') : '';
                 const labelColor = String(c.labelColor || t.textSecondary);
                 const inputTextColor = String(c.inputTextColor || t.textPrimary);
@@ -2623,6 +2956,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                 return (
                     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div style={{ fontSize: 12, color: labelColor }}>{label}</div>
+                        {scopeHint ? <div style={{ fontSize: 10, color: t.textSecondary }}>{scopeHint}</div> : null}
                         <select
                             value={value}
                             onChange={(e) => variableKey && runtime.setVariable(variableKey, e.target.value, `filter-select:${component.id}`)}
@@ -2648,8 +2982,9 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
 
             case 'filter-date-range': {
                 const label = String(c.label ?? '日期区间');
-                const startKey = String(c.startKey ?? '').trim();
-                const endKey = String(c.endKey ?? '').trim();
+                const scopeHint = String(c.scopeHint ?? '').trim();
+                const startKey = filterDateStartKey;
+                const endKey = filterDateEndKey;
                 const startValue = startKey ? (runtime.values[startKey] ?? '') : '';
                 const endValue = endKey ? (runtime.values[endKey] ?? '') : '';
                 const labelColor = String(c.labelColor || t.textSecondary);
@@ -2659,6 +2994,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                 return (
                     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div style={{ fontSize: 12, color: labelColor }}>{label}</div>
+                        {scopeHint ? <div style={{ fontSize: 10, color: t.textSecondary }}>{scopeHint}</div> : null}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 16px 1fr', alignItems: 'center', gap: 4 }}>
                             <input
                                 type="date"
@@ -2838,7 +3174,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
             case 'border-box': {
                 const boxType = (c.boxType as number) || 1;
                 const BorderBoxComponent = borderBoxComponents?.[boxType] || borderBoxComponents?.[1];
-                if (!BorderBoxComponent) return dependencyPlaceholder('DataV');
+                if (!BorderBoxComponent) return renderUnavailableState('DataV 运行时未就绪');
                 const colors = c.color as string[] | undefined;
                 return (
                     <BorderBoxComponent color={colors}>
@@ -2853,7 +3189,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
             case 'decoration': {
                 const decorationType = (c.decorationType as number) || 1;
                 const DecorationComponent = decorationComponents?.[decorationType] || decorationComponents?.[1];
-                if (!DecorationComponent) return dependencyPlaceholder('DataV');
+                if (!DecorationComponent) return renderUnavailableState('DataV 运行时未就绪');
                 const colors = c.color as string[] | undefined;
                 return (
                     <DecorationComponent color={colors} style={{ width: '100%', height: '100%' }} />
@@ -2864,13 +3200,44 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
             case 'scroll-board': {
                 const { header: displayHeader, data: displayData, columnMeta } = resolveBoundTableData(c, { defaultAlign: 'center' });
                 const filteredConfig = { ...c, header: displayHeader, data: displayData, _columnMeta: columnMeta };
+                const canRunScrollBoardActions = mode === 'preview' && componentActions.length > 0;
+                const canRunScrollBoardDefaultDrill = mode === 'preview' && !canRunScrollBoardActions && drillRuntimeEnabled && drillState.canDrillDown;
+                const handleScrollBoardRowClick = (row: string[]) => {
+                    const params = buildTableRowActionParams(displayHeader, row);
+                    if (canRunScrollBoardActions) {
+                        executeComponentActions(params);
+                        return;
+                    }
+                    if (!canRunScrollBoardDefaultDrill) {
+                        return;
+                    }
+                    const clickedValue = resolvePreferredDrillValue(params);
+                    if (!clickedValue) {
+                        return;
+                    }
+                    runtime.trackEvent({
+                        kind: 'drill-down',
+                        key: 'drillValue',
+                        value: clickedValue,
+                        source: `drill:${component.id}:scroll-board`,
+                        meta: `depth=${drillState.breadcrumbs.length}`,
+                    });
+                    drillState.handleDrill(clickedValue);
+                };
 
                 // DataV ScrollBoard 硬编码 color:#fff 且无法通过 CSS/style 覆盖
                 // 非 legacy-dark 主题使用自定义表格组件
                 if (theme && theme !== 'legacy-dark') {
-                    return <ThemedScrollTable config={filteredConfig} tokens={t} />;
+                    return (
+                        <ThemedScrollTable
+                            config={filteredConfig}
+                            tokens={t}
+                            isRowInteractive={canRunScrollBoardActions || canRunScrollBoardDefaultDrill}
+                            onRowClick={handleScrollBoardRowClick}
+                        />
+                    );
                 }
-                if (!ScrollBoard) return dependencyPlaceholder('DataV');
+                if (!ScrollBoard) return renderUnavailableState('DataV 运行时未就绪');
                 const allHaveWidth = columnMeta.length > 0 && columnMeta.every((col) => typeof col.width === 'number');
                 const columnWidth = allHaveWidth
                     ? columnMeta.map((col) => Math.max(40, Math.round((width * Number(col.width)) / 100)))
@@ -2922,6 +3289,8 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                 const pageRows = enablePagination
                     ? sortedRows.slice((safePage - 1) * pageSize, safePage * pageSize)
                     : sortedRows;
+                const canRunTableActions = mode === 'preview' && componentActions.length > 0;
+                const canRunTableDefaultDrill = mode === 'preview' && !canRunTableActions && drillRuntimeEnabled && drillState.canDrillDown;
 
                 return (
                     <div style={{ width: '100%', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -2999,7 +3368,32 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                             )}
                             <tbody>
                                 {pageRows.map((row, rowIndex) => (
-                                    <tr key={rowIndex} style={{ background: rowIndex % 2 === 0 ? oddRowBackground : evenRowBackground }}>
+                                    <tr
+                                        key={rowIndex}
+                                        onClick={() => {
+                                            const params = buildTableRowActionParams(displayHeader, row);
+                                            if (canRunTableActions) {
+                                                executeComponentActions(params);
+                                                return;
+                                            }
+                                            if (canRunTableDefaultDrill) {
+                                                const clickedValue = resolvePreferredDrillValue(params);
+                                                if (!clickedValue) return;
+                                                runtime.trackEvent({
+                                                    kind: 'drill-down',
+                                                    key: 'drillValue',
+                                                    value: clickedValue,
+                                                    source: `drill:${component.id}:table`,
+                                                    meta: `depth=${drillState.breadcrumbs.length}`,
+                                                });
+                                                drillState.handleDrill(clickedValue);
+                                            }
+                                        }}
+                                        style={{
+                                            background: rowIndex % 2 === 0 ? oddRowBackground : evenRowBackground,
+                                            cursor: canRunTableActions || canRunTableDefaultDrill ? 'pointer' : 'default',
+                                        }}
+                                    >
                                         {displayHeader.map((_, colIndex) => {
                                             const conditional = resolveTableConditionalStyle(
                                                 conditionalRules,
@@ -3084,7 +3478,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                 );
             }
             case 'scroll-ranking':
-                if (!ScrollRankingBoard) return dependencyPlaceholder('DataV');
+                if (!ScrollRankingBoard) return renderUnavailableState('DataV 运行时未就绪');
                 return (
                     <ScrollRankingBoard
                         config={{
@@ -3098,7 +3492,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                 );
 
             case 'water-level':
-                if (!WaterLevelPond) return dependencyPlaceholder('DataV');
+                if (!WaterLevelPond) return renderUnavailableState('DataV 运行时未就绪');
                 return (
                     <WaterLevelPond
                         config={{
@@ -3110,7 +3504,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                 );
 
             case 'digital-flop':
-                if (!DigitalFlop) return dependencyPlaceholder('DataV');
+                if (!DigitalFlop) return renderUnavailableState('DataV 运行时未就绪');
                 return (
                     <DigitalFlop
                         config={{
@@ -3355,22 +3749,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
             }
 
             default:
-                return (
-                    <div style={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: t.placeholder.background,
-                        border: `1px dashed ${t.placeholder.color}`,
-                        borderRadius: 4,
-                        color: t.placeholder.color,
-                        fontSize: 12,
-                    }}>
-                        {type}
-                    </div>
-                );
+                return renderUnavailableState('组件类型未注册', `当前运行态未找到 ${type} 的渲染器。`);
         }
     }, [
         type,
@@ -3407,7 +3786,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
         <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
             {content}
             {/* Drill-down breadcrumb overlay */}
-            {drillActive && drillState.breadcrumbs.length > 1 && (
+            {drillRuntimeEnabled && drillState.breadcrumbs.length > 1 && (
                 <div style={{
                     position: 'absolute', top: 4, left: 4,
                     display: 'flex', alignItems: 'center', gap: 2,
@@ -3480,7 +3859,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                 }} title="插件未加载，已使用基础组件渲染">
-                    插件未加载，已降级
+                    插件未注册，已降级到基础组件
                 </div>
                 )}
             </div>

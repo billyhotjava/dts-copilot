@@ -5,6 +5,8 @@
   flex-direction: column;
   width: var(--sidebar-width);
   height: 100vh;
+  position: sticky;
+  top: 0;
   background: var(--color-bg-sidebar);
   color: var(--color-sidebar-text);
   transition: width var(--transition-normal);
@@ -68,7 +70,8 @@
 }
 
 .mb-sidebar--collapsed .mb-sidebar__toggle {
-  display: none;
+  /* Keep toggle visible in collapsed state so users can re-expand */
+  opacity: 0.8;
 }
 
 /* Custom Header */

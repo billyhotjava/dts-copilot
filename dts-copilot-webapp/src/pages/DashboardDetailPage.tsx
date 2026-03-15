@@ -12,7 +12,6 @@ import { Badge } from "../ui/Badge/Badge";
 import { Spinner } from "../ui/Loading/Spinner";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
 import { writeTextToClipboard } from "../hooks/clipboard";
-import { usePageContext } from "../hooks/usePageContext";
 import "./page.css";
 
 type LoadState<T> =
@@ -30,7 +29,6 @@ type DashboardParam = {
 export default function DashboardDetailPage() {
 	const { id } = useParams();
 	const locale: Locale = useMemo(() => getEffectiveLocale(), []);
-	usePageContext({ module: "analytics/dashboard", resourceType: "dashboard" });
 	const [state, setState] = useState<LoadState<DashboardDetail>>({ state: "loading" });
 	const [paramOptions, setParamOptions] = useState<Record<string, string[]>>({});
 	const [paramValues, setParamValues] = useState<Record<string, string>>({});
@@ -187,6 +185,7 @@ export default function DashboardDetailPage() {
 
 	return (
 		<PageContainer maxWidth="full">
+			<div data-testid="analytics-dashboard-detail">
 			{state.state === "loading" && (
 				<div className="loading-container">
 					<Spinner size="lg" />
@@ -197,10 +196,10 @@ export default function DashboardDetailPage() {
 				<>
 					<PageHeader
 						title={state.value.name ?? "-"}
-						subtitle={state.value.description ?? ""}
 						actions={
 							<>
 								<Button
+									data-testid="analytics-dashboard-share"
 									variant="secondary"
 									icon={<ShareIcon />}
 									loading={shareBusy}
@@ -354,6 +353,7 @@ export default function DashboardDetailPage() {
 					</CollapsibleCard>
 				</>
 			)}
+			</div>
 		</PageContainer>
 	);
 }

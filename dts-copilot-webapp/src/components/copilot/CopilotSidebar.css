@@ -8,10 +8,37 @@
   transition: width 0.2s ease;
   overflow: hidden;
   flex-shrink: 0;
+  height: 100%;
 }
 
 .copilot-sidebar--expanded {
+  /* width is set inline via JS for drag-resize; fallback here */
   width: 320px;
+}
+
+/* Drag resize handle */
+.copilot-resize-handle {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  transition: background-color 0.15s;
+}
+
+.copilot-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -2px;
+  width: 8px;
+}
+
+.copilot-resize-handle:hover,
+.copilot-resize-handle:active {
+  background: var(--color-brand, #509ee3);
 }
 
 .copilot-sidebar--collapsed {
@@ -137,9 +164,9 @@
   }
 }
 
-/* Smaller width on medium screens */
-@media (min-width: 768px) and (max-width: 1279px) {
-  .copilot-sidebar--expanded {
-    width: 280px;
+/* On medium screens, hide resize handle for mobile drawer mode */
+@media (max-width: 767px) {
+  .copilot-resize-handle {
+    display: none;
   }
 }

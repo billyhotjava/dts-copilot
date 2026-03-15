@@ -7,12 +7,10 @@ import type {
 	DatabaseListItem,
 	MicroFormSchema,
 } from "../../api/analyticsApi";
-import { getCopilotApiKey } from "../../api/copilotAuth";
+import { getCopilotApiKey, hasCopilotSessionAccess } from "../../api/copilotAuth";
 import { AuthError, analyticsApi } from "../../api/analyticsApi";
-import type { CopilotObjectContext } from "../../hooks/useCopilotContext";
 import { Button } from "../../ui/Button/Button";
 import { extractSqlFromMarkdown } from "../../utils/sqlExtractor";
-import { renderObjectRefs } from "./ObjectRefLink";
 import { TracePanel } from "./TracePanel";
 import { canUseCopilot } from "./copilotAccessPolicy";
 import "./CopilotChat.css";
@@ -101,7 +99,7 @@ function getStoredSessionId(): string | null {
 }
 
 interface Props {
-	objectContext: CopilotObjectContext;
+	hasSessionAccess?: boolean;
 }
 
 function resolveUiError(error: unknown, fallback: string): string {
@@ -165,8 +163,11 @@ function buildInitialApprovalValues(
 	return values;
 }
 
-export function CopilotChat({ objectContext }: Props) {
-	const copilotEnabled = canUseCopilot(getCopilotApiKey());
+export function CopilotChat({ hasSessionAccess = false }: Props) {
+	const copilotEnabled = canUseCopilot(
+		getCopilotApiKey(),
+		hasSessionAccess || hasCopilotSessionAccess(),
+	);
 	const [sessionId, setSessionId] = useState<string | null>(() =>
 		getStoredSessionId(),
 	);
@@ -188,7 +189,7 @@ export function CopilotChat({ objectContext }: Props) {
 		[pendingAction],
 	);
 	const copilotDisabledMessage =
-		"当前页面还没有可用的 copilot API Key，AI Copilot 暂不可用。";
+		"当前页面还没有可用的 Copilot 访问权限，请先登录或配置 copilot API Key。";
 
 	const reloadSessions = useCallback(async () => {
 		if (!copilotEnabled) {
@@ -339,15 +340,6 @@ export function CopilotChat({ objectContext }: Props) {
 				userMessage: text,
 				...(sessionId ? { sessionId } : {}),
 				...(selectedDbId != null ? { datasourceId: String(selectedDbId) } : {}),
-				...(objectContext.typeId
-					? {
-							objectContext: {
-								typeId: objectContext.typeId,
-								instanceId: objectContext.instanceId,
-								displayName: objectContext.displayName,
-							},
-						}
-					: {}),
 			};
 
 			const res = (await analyticsApi.aiAgentChatSend(
@@ -491,18 +483,6 @@ export function CopilotChat({ objectContext }: Props) {
 
 	return (
 		<div className="copilot-chat">
-			{/* Context bar */}
-			{objectContext.typeId && (
-				<div className="copilot-chat__context-bar">
-					<span className="copilot-chat__context-icon">📋</span>
-					<span className="copilot-chat__context-text">
-						{objectContext.typeId}
-						{objectContext.instanceId &&
-							` / ${objectContext.displayName || objectContext.instanceId}`}
-					</span>
-				</div>
-			)}
-
 			<div className="copilot-chat__session-bar">
 				<select
 					className="copilot-chat__session-select"
@@ -573,7 +553,7 @@ export function CopilotChat({ objectContext }: Props) {
 					<div className="copilot-chat__notice">{copilotDisabledMessage}</div>
 				) : sortedMessages.length === 0 ? (
 					<div className="copilot-chat__empty">
-						Ask me about your data, objects, or actions.
+						Ask me about your data, dashboards, or SQL.
 					</div>
 				) : null}
 				{sortedMessages
@@ -593,9 +573,7 @@ export function CopilotChat({ objectContext }: Props) {
 								className={`copilot-chat__msg copilot-chat__msg--${msg.role}`}
 							>
 								<div className="copilot-chat__msg-content">
-									{msg.role === "assistant"
-										? renderObjectRefs(msg.content ?? "")
-										: msg.content}
+									{msg.content}
 								</div>
 								{extractedSql && (
 									<div style={{ display: "flex", gap: "var(--spacing-sm)", marginTop: "var(--spacing-xs)" }}>
@@ -790,7 +768,7 @@ export function CopilotChat({ objectContext }: Props) {
 						placeholder={
 							copilotEnabled
 								? "Ask a question..."
-								: "需要先配置 copilot API Key 才能使用 AI Copilot"
+								: "需要先登录或配置 copilot API Key 才能使用 AI Copilot"
 					}
 					disabled={sending || !copilotEnabled}
 				/>

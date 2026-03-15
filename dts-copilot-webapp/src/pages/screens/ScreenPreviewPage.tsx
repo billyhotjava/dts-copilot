@@ -4,8 +4,9 @@ import { analyticsApi } from '../../api/analyticsApi';
 import { ComponentRenderer } from './components/ComponentRenderer';
 import { DeviceModeSwitcher } from './components/DeviceModeSwitcher';
 import { PreviewScaleControl } from './components/PreviewScaleControl';
+import { RuntimeActionPanel } from './components/RuntimeActionPanel';
 import { ScreenRuntimeProvider } from './ScreenRuntimeContext';
-import type { ScreenConfig, ScreenTheme, CarouselConfig } from './types';
+import type { ScreenConfig, ScreenTheme } from './types';
 import { resolveScreenTheme } from './screenThemes';
 import { normalizeScreenConfig } from './specV2';
 import { buildComponentMap, isComponentEffectivelyVisible } from './componentHierarchy';
@@ -18,6 +19,7 @@ import {
     syncDeviceModeToWindowUrl,
     type DeviceMode,
 } from './deviceMode';
+import './ScreenRuntimeShell.css';
 
 const PREVIEW_BATCH_SIZE = 20;
 
@@ -32,7 +34,9 @@ export default function ScreenPreviewPage() {
     const [deviceMode, setDeviceMode] = useState<DeviceMode>('pc');
     const [forcedDeviceMode, setForcedDeviceMode] = useState<DeviceMode | null>(null);
     const [visibleCount, setVisibleCount] = useState(PREVIEW_BATCH_SIZE);
+    const [fabOpen, setFabOpen] = useState(false);
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+    const fabRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
         setForcedDeviceMode(parseForcedDeviceModeFromWindow());
@@ -45,7 +49,7 @@ export default function ScreenPreviewPage() {
             return;
         }
 
-        analyticsApi.getScreen(id, { mode: 'published', fallbackDraft: true })
+        analyticsApi.getScreen(id, { mode: 'draft' })
             .then((data) => {
                 const normalized = normalizeScreenConfig(data, { id: data.id });
                 if (normalized.warnings.length > 0) {
@@ -232,34 +236,47 @@ export default function ScreenPreviewPage() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [adjustScale, setAbsoluteScale, setFitScale]);
 
+    // Close FAB panel on click outside
+    useEffect(() => {
+        if (!fabOpen) return;
+        const handleClick = (e: MouseEvent) => {
+            if (fabRef.current && !fabRef.current.contains(e.target as Node)) {
+                setFabOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [fabOpen]);
+
     // ── Early returns MUST be after all hooks ──
     if (loading) {
         return (
-            <div style={{
-                position: 'fixed', inset: 0, display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                background: '#000', color: '#fff', fontSize: 16,
-            }}>
-                <span>加载中...</span>
+            <div className="screen-runtime screen-runtime--fullscreen screen-runtime--dark">
+                <div className="screen-runtime__feedback">
+                    <div className="screen-runtime__feedback-card">
+                        <h1>正在加载预览</h1>
+                        <p>正在准备已发布运行态画布和设备适配信息。</p>
+                    </div>
+                </div>
             </div>
         );
     }
 
     if (error || !screen) {
         return (
-            <div style={{
-                position: 'fixed', inset: 0, display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                background: '#000', color: '#fff', fontSize: 16,
-            }}>
-                <span>{error || '未找到大屏'}</span>
+            <div className="screen-runtime screen-runtime--fullscreen screen-runtime--dark">
+                <div className="screen-runtime__feedback">
+                    <div className="screen-runtime__feedback-card">
+                        <h1>预览不可用</h1>
+                        <p>{error || '未找到大屏'}</p>
+                    </div>
+                </div>
             </div>
         );
     }
 
     const rawTheme = (screen as { theme?: string }).theme as ScreenTheme | undefined;
     const screenTheme = resolveScreenTheme(rawTheme, screen.backgroundColor);
-    const outerBg = screenTheme === 'glacier' ? '#e5e7eb' : '#000';
     const screenWidth = contentBounds.width;
     const screenHeight = contentBounds.height;
     const stageWidth = Math.max(1, screenWidth * scale);
@@ -274,46 +291,15 @@ export default function ScreenPreviewPage() {
     return (
         <ScreenRuntimeProvider definitions={screen.globalVariables ?? []}>
         <div
-            style={{
-                position: 'fixed',
-                inset: 0,
-                background: outerBg,
-                padding: 12,
-                boxSizing: 'border-box',
-            }}
+            data-testid="analytics-screen-preview"
+            className={`screen-runtime screen-runtime--fullscreen ${screenTheme === 'glacier' ? 'screen-runtime--light' : 'screen-runtime--dark'}`}
         >
-            <div ref={scrollContainerRef} style={{ width: '100%', height: '100%', overflowX: 'auto', overflowY: 'auto' }}>
-                <PreviewScaleControl
-                    scalePercent={scalePercent}
-                    onFit={setFitScale}
-                    onReset100={() => setAbsoluteScale(1)}
-                    onZoomOut={() => adjustScale(-0.1)}
-                    onZoomIn={() => adjustScale(0.1)}
-                    onSetScalePercent={(percent) => {
-                        const safePercent = Number.isFinite(percent) ? Math.max(20, Math.min(200, Math.round(percent))) : 100;
-                        setAbsoluteScale(safePercent / 100);
-                    }}
-                />
-                <div
-                    style={{
-                        minWidth: '100%',
-                        minHeight: '100%',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        justifyContent: 'flex-start',
-                        padding: 8,
-                        boxSizing: 'border-box',
-                    }}
-                >
-                    <div
-                        style={{
-                            position: 'relative',
-                            width: stageWidth,
-                            height: stageHeight,
-                            flex: '0 0 auto',
-                        }}
-                    >
+            <div ref={scrollContainerRef} className="screen-runtime__scroll">
+                <div className="screen-runtime__viewport">
+                    <div className="screen-runtime__stage" style={{ width: stageWidth, height: stageHeight }}>
+                        <div className="screen-runtime__canvas-shell">
                         <div
+                            className="screen-runtime__canvas"
                             style={{
                                 width: screenWidth,
                                 height: screenHeight,
@@ -332,13 +318,16 @@ export default function ScreenPreviewPage() {
                                 .map((component) => (
                                     <div
                                         key={component.id}
-                                            style={{
-                                                position: 'absolute',
-                                                left: component.x - contentBounds.minLeft,
-                                                top: component.y - contentBounds.minTop,
-                                                width: component.width,
-                                                height: component.height,
-                                                zIndex: component.zIndex,
+                                        data-component-id={component.id}
+                                        data-component-name={component.name}
+                                        data-component-type={component.type}
+                                        style={{
+                                            position: 'absolute',
+                                            left: component.x - contentBounds.minLeft,
+                                            top: component.y - contentBounds.minTop,
+                                            width: component.width,
+                                            height: component.height,
+                                            zIndex: component.zIndex,
                                         }}
                                     >
                                         <ComponentRenderer component={component} mode="preview" theme={screenTheme} />
@@ -346,84 +335,82 @@ export default function ScreenPreviewPage() {
                                 ))}
 
                             {visibleCount < visibleSortedComponents.length && (
-                                <div
-                                    style={{
-                                        position: 'absolute',
-                                        right: 12,
-                                        bottom: 12,
-                                        background: 'rgba(0,0,0,0.55)',
-                                        color: '#fff',
-                                        fontSize: 12,
-                                        padding: '4px 8px',
-                                        borderRadius: 6,
-                                        zIndex: 9999,
-                                    }}
-                                >
+                                <div className="screen-runtime__loading-chip">
                                     组件加载中 {visibleCount}/{visibleSortedComponents.length}
                                 </div>
                             )}
                         </div>
+                        </div>
                     </div>
                 </div>
-                <DeviceModeSwitcher
-                    position="fixed"
-                    deviceMode={deviceMode}
-                    forcedDeviceMode={forcedDeviceMode}
-                    onSetForcedMode={setForcedMode}
-                />
                 {/* Carousel page indicator */}
                 {carousel.pageCount > 1 && (
-                    <div style={{
-                        position: 'fixed',
-                        bottom: 16,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '6px 14px',
-                        background: 'rgba(0,0,0,0.5)',
-                        borderRadius: 20,
-                        zIndex: 9999,
-                    }}>
-                        <button
-                            type="button"
-                            onClick={carousel.prevPage}
-                            style={{
-                                background: 'none', border: 'none', color: '#fff',
-                                cursor: 'pointer', fontSize: 14, padding: '0 4px', opacity: 0.7,
-                            }}
-                        >
-                            ‹
-                        </button>
+                    <div className="screen-runtime__pager">
+                        <button type="button" onClick={carousel.prevPage} className="runtime-control-btn screen-runtime__pager-nav">‹</button>
                         {Array.from({ length: carousel.pageCount }, (_, i) => (
                             <button
                                 key={i}
                                 type="button"
                                 onClick={() => carousel.goToPage(i)}
-                                style={{
-                                    width: i === carousel.pageIndex ? 20 : 8,
-                                    height: 8,
-                                    borderRadius: 4,
-                                    border: 'none',
-                                    background: i === carousel.pageIndex ? '#3b82f6' : 'rgba(255,255,255,0.4)',
-                                    cursor: 'pointer',
-                                    padding: 0,
-                                    transition: 'width 0.3s, background 0.3s',
-                                }}
+                                className={`runtime-control-btn screen-runtime__pager-dot ${i === carousel.pageIndex ? 'is-active' : ''}`}
                                 title={`第 ${i + 1} 页`}
                             />
                         ))}
-                        <button
-                            type="button"
-                            onClick={carousel.nextPage}
-                            style={{
-                                background: 'none', border: 'none', color: '#fff',
-                                cursor: 'pointer', fontSize: 14, padding: '0 4px', opacity: 0.7,
-                            }}
-                        >
-                            ›
-                        </button>
+                        <button type="button" onClick={carousel.nextPage} className="runtime-control-btn screen-runtime__pager-nav">›</button>
+                    </div>
+                )}
+                <RuntimeActionPanel />
+            </div>
+
+            {/* Floating controls FAB */}
+            <div ref={fabRef} className="preview-fab">
+                <button
+                    type="button"
+                    className="preview-fab__trigger"
+                    onClick={() => setFabOpen((prev) => !prev)}
+                    title="预览控制面板"
+                >
+                    ⚙
+                </button>
+                {fabOpen && (
+                    <div className="preview-fab__panel">
+                        <div className="preview-fab__section">
+                            <div className="preview-fab__section-title">屏幕信息</div>
+                            <div className="preview-fab__info-name">{screen.name || '未命名大屏'}</div>
+                            <div className="preview-fab__info-badges">
+                                <span className="screen-runtime__badge is-info">Published</span>
+                                <span className="screen-runtime__badge">{screenWidth} × {screenHeight}</span>
+                                <span className="screen-runtime__badge">{visibleSortedComponents.length} 组件</span>
+                                {carousel.pageCount > 1 ? (
+                                    <span className="screen-runtime__badge">{carousel.pageIndex + 1}/{carousel.pageCount} 页</span>
+                                ) : null}
+                            </div>
+                        </div>
+                        <div className="preview-fab__divider" />
+                        <div className="preview-fab__section">
+                            <div className="preview-fab__section-title">缩放</div>
+                            <PreviewScaleControl
+                                scalePercent={scalePercent}
+                                onFit={setFitScale}
+                                onReset100={() => setAbsoluteScale(1)}
+                                onZoomOut={() => adjustScale(-0.1)}
+                                onZoomIn={() => adjustScale(0.1)}
+                                onSetScalePercent={(percent) => {
+                                    const safePercent = Number.isFinite(percent) ? Math.max(20, Math.min(200, Math.round(percent))) : 100;
+                                    setAbsoluteScale(safePercent / 100);
+                                }}
+                            />
+                        </div>
+                        <div className="preview-fab__divider" />
+                        <div className="preview-fab__section">
+                            <div className="preview-fab__section-title">设备模式</div>
+                            <DeviceModeSwitcher
+                                position="inline"
+                                deviceMode={deviceMode}
+                                forcedDeviceMode={forcedDeviceMode}
+                                onSetForcedMode={setForcedMode}
+                            />
+                        </div>
                     </div>
                 )}
             </div>

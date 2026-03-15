@@ -16,3 +16,9 @@ test('preserves stored expansion when bearer token exists', () => {
 	assert.equal(resolveInitialCopilotExpanded(true, 'token-123'), true)
 	assert.equal(resolveInitialCopilotExpanded(false, 'token-123'), false)
 })
+
+test('allows copilot when current app session is available even without api key', () => {
+	assert.equal(canUseCopilot('', true), true)
+	assert.equal(resolveInitialCopilotExpanded(true, '', true), true)
+	assert.equal(resolveInitialCopilotExpanded(false, '', true), false)
+})

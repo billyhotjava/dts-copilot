@@ -444,8 +444,22 @@ export type DatasetCachePolicy = {
 export type DatabaseValidateResponse = Record<string, unknown>;
 export type DatabaseCreateResponse = Record<string, unknown>;
 
+export type ManagedDataSourceCreatePayload = {
+	name: string;
+	type: string;
+	jdbcUrl?: string;
+	host?: string;
+	port?: number;
+	database?: string;
+	serviceName?: string;
+	sid?: string;
+	username?: string;
+	password?: string;
+	description?: string;
+};
+
 export type PlatformDataSourceItem = {
-	id: string;
+	id: string | number;
 	name?: string;
 	type?: string;
 	jdbcUrl?: string;
@@ -1254,7 +1268,7 @@ import {
 	resolveCopilotUserIdFromSharedStores,
 } from "./aiChatCompatibility";
 import { isCopilotAiRoute, shouldRedirectToLoginOnUnauthorized } from "./authRedirectPolicy";
-import { getCopilotApiKey, getCopilotHeaders } from "./copilotAuth";
+import { getCopilotApiKey, getCopilotHeaders, hasCopilotSessionAccess } from "./copilotAuth";
 import { getPlatformTokens, refreshPlatformAccessToken } from "./platformSession";
 
 export class HttpError extends Error {
@@ -1323,11 +1337,19 @@ function redirectToLogin() {
 	window.location.href = `${basePath}/auth/login`;
 }
 
+function normalizeLegacyAnalyticsApiPath(url: string): string {
+	if (!url.startsWith("/api/analytics/")) {
+		return url;
+	}
+	return "/api/" + url.slice("/api/analytics/".length);
+}
+
 async function apiFetch(url: string, init: RequestInit, allowRefresh: boolean): Promise<Response> {
+	const normalizedUrl = normalizeLegacyAnalyticsApiPath(url);
 	const tokens = getPlatformTokens();
 	const headers = new Headers(init.headers ?? {});
-	const shouldRedirectOnUnauthorized = shouldRedirectToLoginOnUnauthorized(url);
-	const copilotAiRoute = isCopilotAiRoute(url);
+	const shouldRedirectOnUnauthorized = shouldRedirectToLoginOnUnauthorized(normalizedUrl);
+	const copilotAiRoute = isCopilotAiRoute(normalizedUrl);
 	if (!headers.has("accept")) headers.set("accept", "application/json");
 	if (copilotAiRoute) {
 		const copilotHeaders = getCopilotHeaders();
@@ -1340,7 +1362,7 @@ async function apiFetch(url: string, init: RequestInit, allowRefresh: boolean): 
 		headers.set("authorization", `Bearer ${tokens.accessToken}`);
 	}
 
-	const response = await fetch(url, { ...init, credentials: "include", headers });
+	const response = await fetch(normalizedUrl, { ...init, credentials: "include", headers });
 	if (response.status !== 401 || !allowRefresh || copilotAiRoute) {
 		return response;
 	}
@@ -1363,7 +1385,7 @@ async function apiFetch(url: string, init: RequestInit, allowRefresh: boolean): 
 	const retryHeaders = new Headers(init.headers ?? {});
 	if (!retryHeaders.has("accept")) retryHeaders.set("accept", "application/json");
 	retryHeaders.set("authorization", `Bearer ${refreshed.accessToken}`);
-	return await fetch(url, { ...init, credentials: "include", headers: retryHeaders });
+	return await fetch(normalizedUrl, { ...init, credentials: "include", headers: retryHeaders });
 }
 
 async function readErrorText(response: Response): Promise<string> {
@@ -1475,10 +1497,48 @@ function isAiCompatFallbackError(error: unknown): boolean {
 	return error instanceof HttpError && [404, 405].includes(error.status);
 }
 
+function shouldUseSessionCopilotProxy(): boolean {
+	return !getCopilotApiKey() && hasCopilotSessionAccess();
+}
+
+async function sendAiAgentChatViaSessionProxy(body: {
+	sessionId?: string;
+	userMessage: string;
+	datasourceId?: string;
+}): Promise<AiAgentChatResponse> {
+	const legacy = await sendJson<Record<string, unknown>>("/api/copilot/chat/send", {
+		sessionId: body.sessionId,
+		userMessage: body.userMessage,
+		datasourceId: body.datasourceId,
+	});
+	return normalizeLegacyAiChatResponse(legacy) as AiAgentChatResponse;
+}
+
+async function listAiAgentSessionsViaSessionProxy(limit = 50): Promise<AiAgentChatSession[]> {
+	const legacy = await fetchJson<Record<string, unknown>[]>(
+		"/api/copilot/chat/sessions?limit=" + encodeURIComponent(String(limit)),
+	);
+	return legacy.map((item) => normalizeLegacyAiChatSession(item) as AiAgentChatSession);
+}
+
+async function getAiAgentSessionViaSessionProxy(id: string): Promise<AiAgentChatSessionDetail> {
+	const legacy = await fetchJson<Record<string, unknown>>(
+		"/api/copilot/chat/" + encodeURIComponent(String(id)),
+	);
+	return normalizeLegacyAiChatSessionDetail(legacy) as AiAgentChatSessionDetail;
+}
+
+async function deleteAiAgentSessionViaSessionProxy(id: string): Promise<void> {
+	await requestJson<void>("/api/copilot/chat/" + encodeURIComponent(String(id)), "DELETE");
+}
+
 async function sendAiAgentChatCompat(body: {
 	sessionId?: string;
 	userMessage: string;
 }): Promise<AiAgentChatResponse> {
+	if (shouldUseSessionCopilotProxy()) {
+		return sendAiAgentChatViaSessionProxy(body);
+	}
 	try {
 		const value = await sendJson<AiAgentChatResponse | PlatformApiEnvelope<AiAgentChatResponse>>("/api/ai/agent/chat", body ?? {});
 		return unwrapPlatformApiEnvelope(value);
@@ -1497,6 +1557,9 @@ async function sendAiAgentChatCompat(body: {
 }
 
 async function listAiAgentSessionsCompat(limit = 50): Promise<AiAgentChatSession[]> {
+	if (shouldUseSessionCopilotProxy()) {
+		return listAiAgentSessionsViaSessionProxy(limit);
+	}
 	try {
 		const value = await fetchJson<AiAgentChatSession[] | PlatformApiEnvelope<AiAgentChatSession[]>>(
 			"/api/ai/agent/sessions?limit=" + encodeURIComponent(String(limit)),
@@ -1514,6 +1577,9 @@ async function listAiAgentSessionsCompat(limit = 50): Promise<AiAgentChatSession
 }
 
 async function getAiAgentSessionCompat(id: string): Promise<AiAgentChatSessionDetail> {
+	if (shouldUseSessionCopilotProxy()) {
+		return getAiAgentSessionViaSessionProxy(id);
+	}
 	try {
 		const value = await fetchJson<AiAgentChatSessionDetail | PlatformApiEnvelope<AiAgentChatSessionDetail>>(
 			"/api/ai/agent/sessions/" + encodeURIComponent(String(id)),
@@ -1531,6 +1597,10 @@ async function getAiAgentSessionCompat(id: string): Promise<AiAgentChatSessionDe
 }
 
 async function deleteAiAgentSessionCompat(id: string): Promise<void> {
+	if (shouldUseSessionCopilotProxy()) {
+		await deleteAiAgentSessionViaSessionProxy(id);
+		return;
+	}
 	try {
 		const value = await requestJson<unknown>("/api/ai/agent/sessions/" + encodeURIComponent(String(id)), "DELETE");
 		unwrapPlatformApiEnvelope(value as PlatformApiEnvelope<unknown>);
@@ -1669,6 +1739,8 @@ export const analyticsApi = {
 		),
 	listDatabases: () => fetchJson<DatabaseListResponse>("/api/analytics/database"),
 	listPlatformDataSources: () => fetchJson<PlatformDataSourceItem[]>("/api/analytics/platform/data-sources"),
+	createManagedDataSource: (body: ManagedDataSourceCreatePayload) =>
+		sendJson<PlatformDataSourceItem>("/api/platform/data-sources", body),
 	listTables: (dbId: string | number) =>
 		fetchJson<TableSummary[]>(`/api/analytics/table?db_id=${encodeURIComponent(String(dbId))}`),
 	getTable: (tableId: string | number) =>

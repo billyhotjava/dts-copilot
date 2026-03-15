@@ -5,8 +5,9 @@ import { ComponentRenderer } from './components/ComponentRenderer';
 import { DeviceModeSwitcher } from './components/DeviceModeSwitcher';
 import { GlobalVariablePanel } from './components/GlobalVariablePanel';
 import { PreviewScaleControl } from './components/PreviewScaleControl';
+import { RuntimeActionPanel } from './components/RuntimeActionPanel';
 import { ScreenRuntimeProvider } from './ScreenRuntimeContext';
-import type { ScreenConfig, ScreenTheme, CarouselConfig } from './types';
+import type { ScreenConfig, ScreenTheme } from './types';
 import { resolveScreenTheme } from './screenThemes';
 import { normalizeScreenConfig } from './specV2';
 import { buildComponentMap, isComponentEffectivelyVisible } from './componentHierarchy';
@@ -19,6 +20,7 @@ import {
     syncDeviceModeToWindowUrl,
     type DeviceMode,
 } from './deviceMode';
+import './ScreenRuntimeShell.css';
 
 export default function PublicScreenPage() {
     const { uuid } = useParams<{ uuid: string }>();
@@ -30,7 +32,9 @@ export default function PublicScreenPage() {
     const [manualScale, setManualScale] = useState<number | null>(null);
     const [deviceMode, setDeviceMode] = useState<DeviceMode>('pc');
     const [forcedDeviceMode, setForcedDeviceMode] = useState<DeviceMode | null>(null);
+    const [fabOpen, setFabOpen] = useState(false);
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+    const fabRef = useRef<HTMLDivElement | null>(null);
 
     // Embed mode: ?embed=1 hides all controls; ?hideControls=1 hides only zoom controls
     const searchParams = useMemo(() => new URLSearchParams(window.location.search), []);
@@ -206,6 +210,18 @@ export default function PublicScreenPage() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [adjustScale, setAbsoluteScale, setFitScale]);
 
+    // Close FAB panel on click outside
+    useEffect(() => {
+        if (!fabOpen) return;
+        const handleClick = (e: MouseEvent) => {
+            if (fabRef.current && !fabRef.current.contains(e.target as Node)) {
+                setFabOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [fabOpen]);
+
     const globalVariables = screen?.globalVariables ?? [];
     // Apply URL variable overrides to global variable definitions
     const effectiveGlobalVars = useMemo(() => {
@@ -219,24 +235,26 @@ export default function PublicScreenPage() {
     // ── Early returns MUST be after all hooks ──
     if (loading) {
         return (
-            <div style={{
-                position: 'fixed', inset: 0, display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                background: '#000', color: '#fff', fontSize: 16,
-            }}>
-                <span>加载中...</span>
+            <div className="screen-runtime screen-runtime--fullscreen screen-runtime--dark">
+                <div className="screen-runtime__feedback">
+                    <div className="screen-runtime__feedback-card">
+                        <h1>正在加载公开大屏</h1>
+                        <p>正在准备公开访问所需的画布和运行态参数。</p>
+                    </div>
+                </div>
             </div>
         );
     }
 
     if (error || !screen) {
         return (
-            <div style={{
-                position: 'fixed', inset: 0, display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                background: '#000', color: '#fff', fontSize: 16,
-            }}>
-                <span>{error || '未找到大屏'}</span>
+            <div className="screen-runtime screen-runtime--fullscreen screen-runtime--dark">
+                <div className="screen-runtime__feedback">
+                    <div className="screen-runtime__feedback-card">
+                        <h1>公开链接不可用</h1>
+                        <p>{error || '未找到大屏'}</p>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -245,7 +263,6 @@ export default function PublicScreenPage() {
     const screenTheme = resolveScreenTheme(rawTheme, screen.backgroundColor);
     const carouselTransition = screen.carouselConfig?.transition ?? 'fade';
     const carouselDuration = screen.carouselConfig?.transitionDuration ?? 800;
-    const outerBg = screenTheme === 'glacier' ? '#e5e7eb' : '#000';
     const screenWidth = contentBounds.width;
     const screenHeight = contentBounds.height;
     const stageWidth = Math.max(1, screenWidth * scale);
@@ -259,49 +276,13 @@ export default function PublicScreenPage() {
 
     return (
         <ScreenRuntimeProvider definitions={effectiveGlobalVars}>
-            <div
-                style={{
-                    position: 'fixed',
-                    inset: 0,
-                    background: outerBg,
-                    padding: isEmbedMode ? 0 : 12,
-                    boxSizing: 'border-box',
-                }}
-            >
-                <div ref={scrollContainerRef} style={{ width: '100%', height: '100%', overflowX: 'auto', overflowY: 'auto' }}>
-                    {!hideControls && (
-                        <PreviewScaleControl
-                            scalePercent={scalePercent}
-                            onFit={setFitScale}
-                            onReset100={() => setAbsoluteScale(1)}
-                            onZoomOut={() => adjustScale(-0.1)}
-                            onZoomIn={() => adjustScale(0.1)}
-                            onSetScalePercent={(percent) => {
-                                const safePercent = Number.isFinite(percent) ? Math.max(20, Math.min(200, Math.round(percent))) : 100;
-                                setAbsoluteScale(safePercent / 100);
-                            }}
-                        />
-                    )}
-                    <div
-                        style={{
-                            minWidth: '100%',
-                            minHeight: '100%',
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            justifyContent: 'flex-start',
-                            padding: 8,
-                            boxSizing: 'border-box',
-                        }}
-                    >
-                        <div
-                            style={{
-                                position: 'relative',
-                                width: stageWidth,
-                                height: stageHeight,
-                                flex: '0 0 auto',
-                            }}
-                        >
+            <div className={`screen-runtime screen-runtime--fullscreen ${screenTheme === 'glacier' ? 'screen-runtime--light' : 'screen-runtime--dark'} ${isEmbedMode ? 'screen-runtime--embed' : ''}`}>
+                <div ref={scrollContainerRef} className="screen-runtime__scroll">
+                    <div className="screen-runtime__viewport">
+                        <div className="screen-runtime__stage" style={{ width: stageWidth, height: stageHeight }}>
+                            <div className="screen-runtime__canvas-shell">
                             <div
+                                className={`screen-runtime__canvas ${carousel.transitioning ? 'is-transitioning' : ''}`}
                                 style={{
                                     width: screenWidth,
                                     height: screenHeight,
@@ -327,6 +308,9 @@ export default function PublicScreenPage() {
                                     .map((component) => (
                                         <div
                                             key={component.id}
+                                            data-component-id={component.id}
+                                            data-component-name={component.name}
+                                            data-component-type={component.type}
                                             style={{
                                                 position: 'absolute',
                                                 left: component.x - contentBounds.minLeft,
@@ -340,71 +324,94 @@ export default function PublicScreenPage() {
                                         </div>
                                     ))}
                             </div>
+                            </div>
                         </div>
                     </div>
+                    {/* Carousel page indicator */}
+                    {carousel.pageCount > 1 && (
+                        <div className="screen-runtime__pager">
+                            <button type="button" onClick={carousel.prevPage} className="runtime-control-btn screen-runtime__pager-nav">‹</button>
+                            {Array.from({ length: carousel.pageCount }, (_, i) => (
+                                <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => carousel.goToPage(i)}
+                                    className={`runtime-control-btn screen-runtime__pager-dot ${i === carousel.pageIndex ? 'is-active' : ''}`}
+                                    title={`第 ${i + 1} 页`}
+                                />
+                            ))}
+                            <button type="button" onClick={carousel.nextPage} className="runtime-control-btn screen-runtime__pager-nav">›</button>
+                        </div>
+                    )}
+                    <RuntimeActionPanel />
                 </div>
-                {!isEmbedMode && <GlobalVariablePanel />}
+
+                {/* Floating controls FAB */}
                 {!isEmbedMode && (
-                    <DeviceModeSwitcher
-                        position="fixed"
-                        deviceMode={deviceMode}
-                        forcedDeviceMode={forcedDeviceMode}
-                        onSetForcedMode={setForcedMode}
-                    />
-                )}
-                {/* Carousel page indicator */}
-                {carousel.pageCount > 1 && (
-                    <div style={{
-                        position: 'fixed',
-                        bottom: 16,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '6px 14px',
-                        background: 'rgba(0,0,0,0.5)',
-                        borderRadius: 20,
-                        zIndex: 9999,
-                    }}>
+                    <div ref={fabRef} className="preview-fab">
                         <button
                             type="button"
-                            onClick={carousel.prevPage}
-                            style={{
-                                background: 'none', border: 'none', color: '#fff',
-                                cursor: 'pointer', fontSize: 14, padding: '0 4px', opacity: 0.7,
-                            }}
+                            className="preview-fab__trigger"
+                            onClick={() => setFabOpen((prev) => !prev)}
+                            title="控制面板"
                         >
-                            ‹
+                            ⚙
                         </button>
-                        {Array.from({ length: carousel.pageCount }, (_, i) => (
-                            <button
-                                key={i}
-                                type="button"
-                                onClick={() => carousel.goToPage(i)}
-                                style={{
-                                    width: i === carousel.pageIndex ? 20 : 8,
-                                    height: 8,
-                                    borderRadius: 4,
-                                    border: 'none',
-                                    background: i === carousel.pageIndex ? '#3b82f6' : 'rgba(255,255,255,0.4)',
-                                    cursor: 'pointer',
-                                    padding: 0,
-                                    transition: 'width 0.3s, background 0.3s',
-                                }}
-                                title={`第 ${i + 1} 页`}
-                            />
-                        ))}
-                        <button
-                            type="button"
-                            onClick={carousel.nextPage}
-                            style={{
-                                background: 'none', border: 'none', color: '#fff',
-                                cursor: 'pointer', fontSize: 14, padding: '0 4px', opacity: 0.7,
-                            }}
-                        >
-                            ›
-                        </button>
+                        {fabOpen && (
+                            <div className="preview-fab__panel">
+                                <div className="preview-fab__section">
+                                    <div className="preview-fab__section-title">屏幕信息</div>
+                                    <div className="preview-fab__info-name">{screen.name || '未命名大屏'}</div>
+                                    <div className="preview-fab__info-badges">
+                                        <span className="screen-runtime__badge is-info">公开访问</span>
+                                        <span className="screen-runtime__badge">{screenWidth} × {screenHeight}</span>
+                                        <span className="screen-runtime__badge">{visibleSortedComponents.length} 组件</span>
+                                        {carousel.pageCount > 1 ? (
+                                            <span className="screen-runtime__badge">{carousel.pageIndex + 1}/{carousel.pageCount} 页</span>
+                                        ) : null}
+                                        {Object.keys(urlVariableOverrides).length > 0 ? (
+                                            <span className="screen-runtime__badge is-warning">URL 参数覆盖 {Object.keys(urlVariableOverrides).length}</span>
+                                        ) : null}
+                                    </div>
+                                </div>
+                                <div className="preview-fab__divider" />
+                                <div className="preview-fab__section">
+                                    <div className="preview-fab__section-title">缩放</div>
+                                    {!hideControls && (
+                                        <PreviewScaleControl
+                                            scalePercent={scalePercent}
+                                            onFit={setFitScale}
+                                            onReset100={() => setAbsoluteScale(1)}
+                                            onZoomOut={() => adjustScale(-0.1)}
+                                            onZoomIn={() => adjustScale(0.1)}
+                                            onSetScalePercent={(percent) => {
+                                                const safePercent = Number.isFinite(percent) ? Math.max(20, Math.min(200, Math.round(percent))) : 100;
+                                                setAbsoluteScale(safePercent / 100);
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                                <div className="preview-fab__divider" />
+                                <div className="preview-fab__section">
+                                    <div className="preview-fab__section-title">设备模式</div>
+                                    <DeviceModeSwitcher
+                                        position="inline"
+                                        deviceMode={deviceMode}
+                                        forcedDeviceMode={forcedDeviceMode}
+                                        onSetForcedMode={setForcedMode}
+                                    />
+                                </div>
+                                {globalVariables.length > 0 && (
+                                    <>
+                                        <div className="preview-fab__divider" />
+                                        <div className="preview-fab__section">
+                                            <div className="preview-fab__section-title">运行时变量</div>
+                                            <GlobalVariablePanel />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

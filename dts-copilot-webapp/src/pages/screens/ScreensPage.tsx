@@ -320,7 +320,7 @@ export default function ScreensPage() {
             return;
         }
         const payload = {
-            engine: aiResult.engine || 'platform-llm-v1',
+            engine: aiResult.engine || 'heuristic-v1',
             prompt: aiResult.prompt || aiPrompt.trim(),
             intent: aiResult.intent || {},
             semanticModelHints: aiResult.semanticModelHints || {},
@@ -429,19 +429,14 @@ export default function ScreensPage() {
     };
 
     return (
-        <div className="page-container">
+        <div className="page-container" data-testid="analytics-screens-page">
             <div className="page-header">
-                <div className="page-header-left">
-                    <h1 className="page-title">大屏管理</h1>
-                    <p className="page-subtitle">创建、管理和发布数据可视化大屏</p>
-                </div>
-                <div className="page-header-actions">
-                    <button className="header-btn header-btn-secondary" onClick={handleOpenAiGenerator}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a4 4 0 0 0-4 4c0 4.5 4 6 4 12a4 4 0 0 0 4-4c0-4.5-4-6-4-12Z" /><path d="m9 16 3 3 3-3" /></svg>
-                        AI 生成
+                <h1 className="page-title">大屏管理</h1>
+                <div style={{ display: 'flex', gap: 10 }}>
+                    <button className="primary-btn" onClick={handleOpenAiGenerator}>
+                        自动生成
                     </button>
-                    <button className="header-btn header-btn-primary" onClick={handleCreate}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    <button className="primary-btn" data-testid="analytics-screen-create" onClick={handleCreate}>
                         新建大屏
                     </button>
                 </div>
@@ -450,21 +445,13 @@ export default function ScreensPage() {
             <div className="page-content">
                 <div className="screens-toolbar">
                     <div className="screens-toolbar-left">
-                        <div className="screens-search-wrapper">
-                            <svg className="screens-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                            <input
-                                ref={searchInputRef}
-                                className="screens-toolbar-input"
-                                value={searchKeyword}
-                                onChange={(e) => setSearchKeyword(e.target.value)}
-                                placeholder="搜索大屏名称或描述（/）"
-                            />
-                            {searchKeyword && (
-                                <button className="screens-search-clear" onClick={() => setSearchKeyword('')}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                                </button>
-                            )}
-                        </div>
+                        <input
+                            ref={searchInputRef}
+                            className="screens-toolbar-input"
+                            value={searchKeyword}
+                            onChange={(e) => setSearchKeyword(e.target.value)}
+                            placeholder="搜索大屏名称或描述（/）"
+                        />
                         <select
                             className="screens-toolbar-select"
                             value={publishFilter}
@@ -508,17 +495,11 @@ export default function ScreensPage() {
                             }}
                             title="恢复默认筛选与排序"
                         >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
                             重置
                         </button>
                     </div>
                     <div className="screens-toolbar-stats">
-                        <span className="stat-pill">总计 <strong>{screens.length}</strong></span>
-                        <span className="stat-pill stat-published">已发布 <strong>{publishedCount}</strong></span>
-                        <span className="stat-pill stat-draft">未发布 <strong>{draftCount}</strong></span>
-                        {visibleScreens.length !== screens.length && (
-                            <span className="stat-pill stat-filtered">当前 <strong>{visibleScreens.length}</strong></span>
-                        )}
+                        总计 {screens.length} · 已发布 {publishedCount} · 未发布 {draftCount} · 当前 {visibleScreens.length}
                     </div>
                 </div>
                 {loading ? (
@@ -528,77 +509,68 @@ export default function ScreensPage() {
                     </div>
                 ) : error ? (
                     <div className="error-state">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                         <span>{error}</span>
-                        <button className="header-btn header-btn-secondary" onClick={loadScreens}>重试</button>
+                        <button onClick={loadScreens}>重试</button>
                     </div>
                 ) : screens.length === 0 ? (
                     <div className="empty-state">
-                        <div className="empty-state-icon">
-                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>
-                        </div>
+                        <div className="empty-state-icon">屏</div>
                         <div className="empty-state-text">暂无大屏</div>
-                        <div className="empty-state-hint">点击下方 "新建大屏" 创建您的第一个数据可视化大屏</div>
-                        <button className="header-btn header-btn-primary" onClick={handleCreate}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                        <div className="empty-state-hint">点击"新建大屏"创建您的第一个数据大屏</div>
+                        <button className="primary-btn" onClick={handleCreate}>
                             新建大屏
                         </button>
                     </div>
                 ) : visibleScreens.length === 0 ? (
                     <div className="empty-state">
-                        <div className="empty-state-icon">
-                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="8" y1="11" x2="14" y2="11" /></svg>
-                        </div>
+                        <div className="empty-state-icon">筛</div>
                         <div className="empty-state-text">没有匹配结果</div>
                         <div className="empty-state-hint">尝试清空搜索词或调整状态筛选</div>
                         <button
-                            className="header-btn header-btn-secondary"
+                            className="primary-btn"
                             onClick={() => {
                                 setSearchKeyword('');
                                 setPublishFilter('all');
                             }}
                         >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
                             重置筛选
                         </button>
                     </div>
                 ) : (
                     <div className="screens-grid">
                         {visibleScreens.map((screen) => (
-                            <div key={screen.id} className="screen-card">
+                            <div key={screen.id} className="screen-card" data-testid={`analytics-screen-card-${screen.id}`}>
                                 <div
                                     className="screen-card-preview"
+                                    data-testid={`analytics-screen-edit-${screen.id}`}
                                     onClick={() => handleEdit(screen.id)}
                                 >
-                                    <div className="screen-card-grid-bg" />
                                     <div className="screen-card-placeholder">
-                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" opacity="0.4"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>
+                                        <svg width="48" height="36" viewBox="0 0 48 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <rect x="2" y="2" width="44" height="28" rx="3" stroke="currentColor" strokeWidth="2.5" />
+                                            <line x1="18" y1="34" x2="30" y2="34" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                                            <line x1="24" y1="30" x2="24" y2="34" stroke="currentColor" strokeWidth="2.5" />
+                                        </svg>
                                     </div>
                                     <div className="screen-card-size">
                                         {screen.width || 1920} × {screen.height || 1080}
                                     </div>
                                 </div>
                                 <div className="screen-card-info">
-                                    <div className="screen-card-name-row">
-                                        <h3 className="screen-card-name">{screen.name || '未命名大屏'}</h3>
-                                        <span className={`screen-status-tag ${screen.publishedVersionNo ? 'published' : 'draft'}`}>
-                                            {screen.publishedVersionNo ? `v${screen.publishedVersionNo}` : '草稿'}
-                                        </span>
-                                    </div>
+                                    <h3 className="screen-card-name">{screen.name || '未命名大屏'}</h3>
                                     <p className="screen-card-desc">
                                         {screen.description || '无描述'}
                                     </p>
                                     <div className="screen-card-meta">
-                                        <div className="screen-card-meta-item">
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                                            <span>更新 {formatDate(screen.updatedAt)}</span>
+                                        <div className="screen-card-status-row">
+                                            <span className={`screen-status-tag ${screen.publishedVersionNo ? 'published' : 'draft'}`}>
+                                                {screen.publishedVersionNo ? `已发布 v${screen.publishedVersionNo}` : '未发布'}
+                                            </span>
+                                            {screen.publishedAt ? (
+                                                <span>发布: {formatDate(screen.publishedAt)}</span>
+                                            ) : null}
                                         </div>
-                                        {screen.publishedAt ? (
-                                            <div className="screen-card-meta-item">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
-                                                <span>发布 {formatDate(screen.publishedAt)}</span>
-                                            </div>
-                                        ) : null}
+                                        <span>更新: {formatDate(screen.updatedAt)}</span>
                                         {screen.publishedVersionNo ? (
                                             <div className="screen-card-link-row">
                                                 <a
@@ -608,7 +580,6 @@ export default function ScreensPage() {
                                                     className="screen-card-link"
                                                     title="打开预览链接"
                                                 >
-                                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                                                     预览链接
                                                 </a>
                                                 <button
@@ -619,7 +590,7 @@ export default function ScreensPage() {
                                                     }}
                                                     title="复制预览链接"
                                                 >
-                                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                                                    复制
                                                 </button>
                                             </div>
                                         ) : null}
@@ -628,18 +599,18 @@ export default function ScreensPage() {
                                 <div className="screen-card-actions">
                                     <button
                                         className="action-btn edit"
+                                        data-testid={`analytics-screen-edit-button-${screen.id}`}
                                         onClick={() => handleEdit(screen.id)}
                                         title="编辑大屏"
                                     >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                         编辑
                                     </button>
                                     <button
                                         className="action-btn preview"
+                                        data-testid={`analytics-screen-preview-${screen.id}`}
                                         onClick={() => handlePreview(screen.id)}
                                         title="预览大屏"
                                     >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
                                         预览
                                     </button>
                                     <div className="screen-card-menu">
@@ -648,7 +619,6 @@ export default function ScreensPage() {
                                             onClick={() => setActiveCardMenuId((prev) => (prev === screen.id ? null : screen.id))}
                                             title="更多操作"
                                         >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
                                             更多
                                         </button>
                                         {activeCardMenuId === screen.id ? (
@@ -662,7 +632,6 @@ export default function ScreensPage() {
                                                     }}
                                                     disabled={sharingId === screen.id}
                                                 >
-                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
                                                     {sharingId === screen.id ? '生成分享链接中...' : '生成分享链接'}
                                                 </button>
                                                 <button
@@ -673,7 +642,6 @@ export default function ScreensPage() {
                                                         void handleCopyPreviewUrl(screen.id);
                                                     }}
                                                 >
-                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
                                                     复制预览链接
                                                 </button>
                                                 <button
@@ -685,10 +653,8 @@ export default function ScreensPage() {
                                                     }}
                                                     disabled={savingTemplateId === screen.id}
                                                 >
-                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
                                                     {savingTemplateId === screen.id ? '保存模板中...' : '保存为模板'}
                                                 </button>
-                                                <div className="screen-card-menu-divider" />
                                                 <button
                                                     type="button"
                                                     className="screen-card-menu-item delete"
@@ -697,7 +663,6 @@ export default function ScreensPage() {
                                                         void handleDelete(screen.id);
                                                     }}
                                                 >
-                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                                                     删除大屏
                                                 </button>
                                             </div>
@@ -711,85 +676,60 @@ export default function ScreensPage() {
             </div>
 
             <style>{`
-                /* ===== Page Header ===== */
                 .page-header {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    gap: var(--spacing-lg, 24px);
-                    flex-wrap: wrap;
+                    padding: 16px 20px 8px;
                 }
 
-                .page-header-left {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 4px;
-                }
-
-                .page-subtitle {
+                .page-title {
                     margin: 0;
-                    font-size: var(--font-size-sm, 12px);
-                    color: var(--color-text-secondary);
-                    font-weight: 400;
+                    font-size: 20px;
+                    font-weight: 600;
+                    color: var(--color-text-primary);
                 }
 
-                .page-header-actions {
-                    display: flex;
-                    gap: 10px;
-                    align-items: center;
-                }
-
-                .header-btn {
+                .primary-btn {
                     display: inline-flex;
                     align-items: center;
-                    gap: 6px;
-                    padding: 8px 18px;
-                    border-radius: var(--radius-md, 8px);
-                    font-size: var(--font-size-sm, 12px);
-                    font-weight: var(--font-weight-medium, 500);
+                    justify-content: center;
+                    height: 32px;
+                    padding: 0 16px;
+                    font-size: 14px;
+                    font-weight: 400;
+                    line-height: 1.5;
+                    border: 1px solid var(--color-primary, #1677ff);
+                    border-radius: 6px;
+                    background: var(--color-primary, #1677ff);
+                    color: #fff;
                     cursor: pointer;
-                    border: 1px solid transparent;
-                    transition: all var(--transition-normal, 0.2s ease);
+                    transition: all 0.2s;
                     white-space: nowrap;
                 }
 
-                .header-btn svg {
-                    flex-shrink: 0;
+                .primary-btn:hover {
+                    opacity: 0.85;
                 }
 
-                .header-btn-primary {
-                    background: var(--color-brand, #509EE3);
-                    color: #fff;
-                    border-color: var(--color-brand, #509EE3);
-                    box-shadow: 0 1px 3px rgba(80, 158, 227, 0.25);
+                .primary-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
                 }
 
-                .header-btn-primary:hover {
-                    background: var(--color-brand-dark, #2E6FAF);
-                    border-color: var(--color-brand-dark, #2E6FAF);
-                    box-shadow: 0 4px 12px rgba(80, 158, 227, 0.3);
-                    transform: translateY(-1px);
+                .screens-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                    gap: 20px;
+                    padding: 20px;
                 }
 
-                .header-btn-secondary {
-                    background: var(--color-bg-primary, #fff);
-                    color: var(--color-text-primary);
-                    border-color: var(--color-border);
-                }
-
-                .header-btn-secondary:hover {
-                    border-color: var(--color-brand, #509EE3);
-                    background: var(--color-bg-hover);
-                    color: var(--color-brand, #509EE3);
-                }
-
-                /* ===== Toolbar ===== */
                 .screens-toolbar {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    gap: 12px;
-                    padding: 16px 20px 0;
+                    gap: 10px;
+                    padding: 12px 20px 0;
                     flex-wrap: wrap;
                 }
 
@@ -800,353 +740,126 @@ export default function ScreensPage() {
                     flex-wrap: wrap;
                 }
 
-                .screens-search-wrapper {
-                    position: relative;
-                    display: flex;
-                    align-items: center;
-                }
-
-                .screens-search-icon {
-                    position: absolute;
-                    left: 10px;
-                    color: var(--color-text-tertiary);
-                    pointer-events: none;
-                }
-
                 .screens-toolbar-input {
                     min-width: 240px;
                     max-width: 340px;
                     width: 34vw;
                     border: 1px solid var(--color-border);
-                    border-radius: var(--radius-md, 8px);
-                    padding: 8px 32px 8px 32px;
-                    background: var(--color-bg-primary, #fff);
+                    border-radius: 8px;
+                    padding: 8px 10px;
+                    background: var(--color-surface);
                     color: var(--color-text-primary);
                     font-size: 13px;
-                    transition: border-color var(--transition-fast, 0.1s ease), box-shadow var(--transition-fast, 0.1s ease);
-                    outline: none;
-                }
-
-                .screens-toolbar-input:focus {
-                    border-color: var(--color-brand, #509EE3);
-                    box-shadow: var(--shadow-focus, 0 0 0 3px rgba(80, 158, 227, 0.25));
-                }
-
-                .screens-toolbar-input::placeholder {
-                    color: var(--color-text-tertiary);
-                }
-
-                .screens-search-clear {
-                    position: absolute;
-                    right: 6px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    border: none;
-                    background: transparent;
-                    color: var(--color-text-tertiary);
-                    cursor: pointer;
-                    padding: 4px;
-                    border-radius: var(--radius-xs, 4px);
-                }
-
-                .screens-search-clear:hover {
-                    color: var(--color-text-primary);
-                    background: var(--color-bg-hover);
                 }
 
                 .screens-toolbar-select {
                     border: 1px solid var(--color-border);
-                    border-radius: var(--radius-md, 8px);
+                    border-radius: 8px;
                     padding: 8px 10px;
-                    background: var(--color-bg-primary, #fff);
+                    background: var(--color-surface);
                     color: var(--color-text-primary);
                     font-size: 13px;
-                    outline: none;
-                    cursor: pointer;
-                    transition: border-color var(--transition-fast, 0.1s ease);
                 }
 
-                .screens-toolbar-select:focus {
-                    border-color: var(--color-brand, #509EE3);
+                .screens-toolbar-stats {
+                    font-size: 12px;
+                    color: var(--color-text-secondary);
                 }
 
                 .screens-toolbar-reset {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 4px;
                     border: 1px solid var(--color-border);
-                    border-radius: var(--radius-md, 8px);
-                    padding: 8px 12px;
-                    background: var(--color-bg-primary, #fff);
-                    color: var(--color-text-secondary);
+                    border-radius: 8px;
+                    padding: 8px 10px;
+                    background: var(--color-surface);
+                    color: var(--color-text-primary);
                     font-size: 13px;
                     cursor: pointer;
-                    transition: all var(--transition-fast, 0.1s ease);
                 }
 
                 .screens-toolbar-reset:hover {
-                    border-color: var(--color-brand, #509EE3);
-                    background: var(--color-bg-hover);
-                    color: var(--color-brand, #509EE3);
+                    border-color: var(--color-primary);
+                    background: var(--color-primary-light);
                 }
-
-                /* ===== Stats Pills ===== */
-                .screens-toolbar-stats {
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    flex-wrap: wrap;
-                }
-
-                .stat-pill {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 3px;
-                    padding: 3px 10px;
-                    border-radius: var(--radius-full, 999px);
-                    font-size: 11px;
-                    color: var(--color-text-secondary);
-                    background: var(--color-bg-tertiary, #F5F5F5);
-                    border: 1px solid var(--color-border);
-                }
-
-                .stat-pill strong {
-                    font-weight: var(--font-weight-semibold, 600);
-                    color: var(--color-text-primary);
-                }
-
-                .stat-pill.stat-published {
-                    color: #166534;
-                    background: rgba(34, 197, 94, 0.08);
-                    border-color: rgba(34, 197, 94, 0.2);
-                }
-
-                .stat-pill.stat-published strong {
-                    color: #166534;
-                }
-
-                .stat-pill.stat-draft {
-                    color: #9a3412;
-                    background: rgba(245, 158, 11, 0.08);
-                    border-color: rgba(245, 158, 11, 0.2);
-                }
-
-                .stat-pill.stat-draft strong {
-                    color: #9a3412;
-                }
-
-                .stat-pill.stat-filtered {
-                    color: var(--color-brand, #509EE3);
-                    background: var(--color-bg-hover);
-                    border-color: var(--color-brand-alpha-20, rgba(80, 158, 227, 0.2));
-                }
-
-                .stat-pill.stat-filtered strong {
-                    color: var(--color-brand, #509EE3);
-                }
-
-                [data-theme="dark"] .stat-pill.stat-published {
-                    color: #86efac;
-                    background: rgba(34, 197, 94, 0.12);
-                    border-color: rgba(34, 197, 94, 0.25);
-                }
-                [data-theme="dark"] .stat-pill.stat-published strong { color: #86efac; }
-
-                [data-theme="dark"] .stat-pill.stat-draft {
-                    color: #fbbf24;
-                    background: rgba(245, 158, 11, 0.12);
-                    border-color: rgba(245, 158, 11, 0.25);
-                }
-                [data-theme="dark"] .stat-pill.stat-draft strong { color: #fbbf24; }
-
-                /* ===== Screen Cards Grid ===== */
-                .screens-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                    gap: 20px;
-                    padding: 20px;
-                }
-
+                
                 .screen-card {
                     position: relative;
-                    background: var(--color-bg-primary, #fff);
+                    background: var(--color-surface-secondary);
                     border: 1px solid var(--color-border);
-                    border-radius: var(--radius-lg, 12px);
+                    border-radius: 8px;
                     overflow: visible;
-                    transition: all var(--transition-normal, 0.2s ease);
-                    box-shadow: var(--shadow-sm);
+                    transition: all 0.2s ease;
                 }
-
+                
                 .screen-card:hover {
-                    border-color: var(--color-brand-alpha-25, rgba(80, 158, 227, 0.25));
-                    box-shadow: 0 8px 24px rgba(80, 158, 227, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
-                    transform: translateY(-2px);
+                    border-color: var(--color-primary);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
                 }
-
-                [data-theme="dark"] .screen-card {
-                    background: var(--color-bg-card, #232323);
-                }
-
-                [data-theme="dark"] .screen-card:hover {
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--color-brand-alpha-25);
-                }
-
-                /* ===== Card Preview ===== */
+                
                 .screen-card-preview {
                     position: relative;
-                    height: 170px;
-                    background: linear-gradient(135deg, #0c1929 0%, #162a44 50%, #0d1f35 100%);
+                    height: 160px;
+                    background:
+                        linear-gradient(135deg, rgba(84, 123, 255, 0.08) 0%, rgba(34, 197, 94, 0.06) 50%, rgba(168, 85, 247, 0.06) 100%),
+                        var(--color-surface-secondary, #f1f5f9);
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     cursor: pointer;
-                    border-top-left-radius: var(--radius-lg, 12px);
-                    border-top-right-radius: var(--radius-lg, 12px);
+                    border-top-left-radius: 8px;
+                    border-top-right-radius: 8px;
                     overflow: hidden;
-                    transition: all var(--transition-normal, 0.2s ease);
-                }
-
-                .screen-card:hover .screen-card-preview {
-                    background: linear-gradient(135deg, #0e1d30 0%, #1a3352 50%, #10243d 100%);
-                }
-
-                .screen-card-grid-bg {
-                    position: absolute;
-                    inset: 0;
-                    background-image:
-                        linear-gradient(rgba(80, 158, 227, 0.06) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(80, 158, 227, 0.06) 1px, transparent 1px);
-                    background-size: 20px 20px;
-                    opacity: 0.8;
-                    transition: opacity var(--transition-normal, 0.2s ease);
-                }
-
-                .screen-card:hover .screen-card-grid-bg {
-                    opacity: 1;
-                    background-image:
-                        linear-gradient(rgba(80, 158, 227, 0.1) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(80, 158, 227, 0.1) 1px, transparent 1px);
+                    border-bottom: 1px solid var(--color-border);
                 }
 
                 .screen-card-placeholder {
-                    position: relative;
-                    z-index: 1;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: rgba(80, 158, 227, 0.5);
-                    transition: color var(--transition-normal, 0.2s ease);
+                    font-size: 32px;
+                    opacity: 0.18;
+                    font-weight: 700;
+                    letter-spacing: 0.1em;
+                    color: var(--color-text-primary);
                 }
-
-                .screen-card:hover .screen-card-placeholder {
-                    color: rgba(80, 158, 227, 0.7);
-                }
-
+                
                 .screen-card-size {
                     position: absolute;
-                    bottom: 10px;
-                    right: 10px;
-                    padding: 3px 8px;
-                    background: rgba(0, 0, 0, 0.55);
-                    color: rgba(255, 255, 255, 0.85);
-                    border-radius: var(--radius-xs, 4px);
-                    font-size: 10px;
-                    font-weight: var(--font-weight-medium, 500);
-                    letter-spacing: 0.5px;
-                    z-index: 1;
+                    bottom: 8px;
+                    right: 8px;
+                    padding: 4px 8px;
+                    background: var(--color-surface-secondary, rgba(255, 255, 255, 0.85));
+                    color: var(--color-text-secondary);
+                    border: 1px solid var(--color-border);
+                    border-radius: 4px;
+                    font-size: 11px;
+                    font-weight: 600;
                     backdrop-filter: blur(4px);
                 }
-
-                /* ===== Card Info ===== */
+                
                 .screen-card-info {
-                    padding: 14px 16px;
+                    padding: 16px;
                 }
-
-                .screen-card-name-row {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 8px;
-                    margin-bottom: 6px;
-                }
-
+                
                 .screen-card-name {
-                    margin: 0;
-                    font-size: var(--font-size-md, 14px);
-                    font-weight: var(--font-weight-semibold, 600);
+                    margin: 0 0 8px 0;
+                    font-size: 16px;
+                    font-weight: 600;
                     color: var(--color-text-primary);
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                    min-width: 0;
                 }
-
+                
                 .screen-card-desc {
-                    margin: 0 0 10px 0;
-                    font-size: var(--font-size-sm, 12px);
-                    color: var(--color-text-tertiary);
+                    margin: 0 0 8px 0;
+                    font-size: 12px;
+                    color: var(--color-text-secondary);
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap;
                 }
-
+                
                 .screen-card-meta {
                     font-size: 11px;
                     color: var(--color-text-tertiary);
                     display: grid;
-                    gap: 5px;
+                    gap: 4px;
                 }
 
-                .screen-card-meta-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 5px;
-                }
-
-                .screen-card-meta-item svg {
-                    flex-shrink: 0;
-                    opacity: 0.55;
-                }
-
-                /* ===== Status Tags ===== */
-                .screen-status-tag {
-                    display: inline-flex;
-                    align-items: center;
-                    border-radius: var(--radius-full, 999px);
-                    padding: 2px 8px;
-                    font-size: 10px;
-                    font-weight: var(--font-weight-semibold, 600);
-                    border: 1px solid transparent;
-                    flex-shrink: 0;
-                    letter-spacing: 0.3px;
-                }
-
-                .screen-status-tag.published {
-                    color: #166534;
-                    background: rgba(34, 197, 94, 0.1);
-                    border-color: rgba(34, 197, 94, 0.3);
-                }
-
-                .screen-status-tag.draft {
-                    color: #9a3412;
-                    background: rgba(245, 158, 11, 0.1);
-                    border-color: rgba(245, 158, 11, 0.28);
-                }
-
-                [data-theme="dark"] .screen-status-tag.published {
-                    color: #86efac;
-                    background: rgba(34, 197, 94, 0.15);
-                    border-color: rgba(34, 197, 94, 0.3);
-                }
-
-                [data-theme="dark"] .screen-status-tag.draft {
-                    color: #fbbf24;
-                    background: rgba(245, 158, 11, 0.15);
-                    border-color: rgba(245, 158, 11, 0.3);
-                }
-
-                /* ===== Card Link Row ===== */
                 .screen-card-link-row {
                     display: flex;
                     align-items: center;
@@ -1154,97 +867,97 @@ export default function ScreensPage() {
                 }
 
                 .screen-card-link {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 4px;
-                    color: var(--color-brand, #509EE3);
+                    color: var(--color-primary);
                     text-decoration: none;
-                    font-size: 11px;
-                    transition: color var(--transition-fast, 0.1s ease);
+                    max-width: 170px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
                 }
 
                 .screen-card-link:hover {
-                    color: var(--color-brand-dark, #2E6FAF);
                     text-decoration: underline;
                 }
 
                 .screen-card-link-copy {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
                     border: 1px solid var(--color-border);
-                    border-radius: var(--radius-xs, 4px);
-                    background: var(--color-bg-primary, #fff);
-                    color: var(--color-text-secondary);
-                    padding: 3px;
+                    border-radius: 6px;
+                    background: var(--color-surface);
+                    color: var(--color-text-primary);
+                    font-size: 11px;
+                    padding: 2px 6px;
                     cursor: pointer;
-                    transition: all var(--transition-fast, 0.1s ease);
                 }
 
                 .screen-card-link-copy:hover {
-                    border-color: var(--color-brand, #509EE3);
-                    background: var(--color-bg-hover);
-                    color: var(--color-brand, #509EE3);
+                    border-color: var(--color-primary);
+                    background: var(--color-primary-light);
                 }
 
-                /* ===== Card Actions ===== */
+                .screen-card-status-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                }
+
+                .screen-status-tag {
+                    display: inline-flex;
+                    align-items: center;
+                    border-radius: 999px;
+                    padding: 2px 8px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    border: 1px solid transparent;
+                }
+
+                .screen-status-tag.published {
+                    color: #166534;
+                    background: rgba(34, 197, 94, 0.12);
+                    border-color: rgba(34, 197, 94, 0.35);
+                }
+
+                .screen-status-tag.draft {
+                    color: #9a3412;
+                    background: rgba(245, 158, 11, 0.12);
+                    border-color: rgba(245, 158, 11, 0.32);
+                }
+                
                 .screen-card-actions {
                     display: flex;
-                    gap: 6px;
-                    padding: 10px 14px;
+                    gap: 8px;
+                    padding: 12px 16px;
                     border-top: 1px solid var(--color-border);
                     align-items: center;
                 }
-
+                
                 .action-btn {
                     flex: 1 1 0;
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 4px;
-                    padding: 7px 6px;
+                    padding: 8px;
                     border: 1px solid var(--color-border);
-                    border-radius: var(--radius-sm, 6px);
-                    background: var(--color-bg-primary, #fff);
-                    color: var(--color-text-primary);
+                    border-radius: 6px;
+                    background: var(--color-surface);
                     cursor: pointer;
                     font-size: 12px;
-                    font-weight: var(--font-weight-medium, 500);
-                    transition: all var(--transition-fast, 0.1s ease);
+                    font-weight: 500;
+                    transition: all 0.2s ease;
                 }
-
-                .action-btn svg {
-                    flex-shrink: 0;
-                    opacity: 0.65;
-                }
-
+                
                 .action-btn:hover {
-                    border-color: var(--color-brand, #509EE3);
-                    background: var(--color-bg-hover);
-                    color: var(--color-brand, #509EE3);
-                }
-
-                .action-btn:hover svg {
-                    opacity: 1;
+                    border-color: var(--color-primary);
+                    background: var(--color-primary-light);
                 }
 
                 .action-btn.more.active {
-                    border-color: var(--color-brand, #509EE3);
-                    background: var(--color-bg-hover);
-                    color: var(--color-brand, #509EE3);
+                    border-color: var(--color-primary);
+                    background: var(--color-primary-light);
                 }
-
+                
                 .action-btn.delete:hover {
                     border-color: #ef4444;
-                    background: rgba(239, 68, 68, 0.08);
-                    color: #ef4444;
+                    background: rgba(239, 68, 68, 0.1);
                 }
 
-                [data-theme="dark"] .action-btn {
-                    background: var(--color-bg-card, #232323);
-                }
-
-                /* ===== Card Menu ===== */
                 .screen-card-menu {
                     position: relative;
                     flex: 1 1 0;
@@ -1259,132 +972,67 @@ export default function ScreensPage() {
                     position: absolute;
                     right: 0;
                     top: calc(100% + 6px);
-                    min-width: 180px;
+                    min-width: 160px;
                     z-index: 900;
-                    background: var(--color-bg-primary, #ffffff);
+                    background: #ffffff;
+                    background: var(--color-surface, #ffffff);
+                    background-color: var(--color-surface, #ffffff);
                     color: var(--color-text-primary);
+                    opacity: 1;
                     border: 1px solid var(--color-border);
-                    border-radius: var(--radius-md, 8px);
-                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0,0,0,0.08);
-                    padding: 5px;
+                    border-radius: 8px;
+                    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+                    backdrop-filter: none;
+                    -webkit-backdrop-filter: none;
+                    padding: 6px;
                     display: grid;
-                    gap: 2px;
-                    animation: menuSlideIn 0.15s ease-out;
-                }
-
-                [data-theme="dark"] .screen-card-menu-panel {
-                    background: var(--color-bg-card, #232323);
-                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--color-border);
-                }
-
-                @keyframes menuSlideIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(-4px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
+                    gap: 4px;
                 }
 
                 .screen-card-menu-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
                     border: 1px solid transparent;
-                    border-radius: var(--radius-sm, 6px);
-                    padding: 8px 10px;
+                    border-radius: 6px;
+                    padding: 7px 9px;
                     background: transparent;
                     color: var(--color-text-primary);
                     font-size: 12px;
                     text-align: left;
                     cursor: pointer;
-                    transition: all var(--transition-fast, 0.1s ease);
-                }
-
-                .screen-card-menu-item svg {
-                    flex-shrink: 0;
-                    opacity: 0.55;
                 }
 
                 .screen-card-menu-item:hover:not(:disabled) {
-                    background: var(--color-bg-hover);
-                    color: var(--color-brand, #509EE3);
-                }
-
-                .screen-card-menu-item:hover:not(:disabled) svg {
-                    opacity: 1;
+                    border-color: var(--color-primary);
+                    background: var(--color-primary-light);
                 }
 
                 .screen-card-menu-item:disabled {
-                    opacity: 0.45;
+                    opacity: 0.55;
                     cursor: not-allowed;
                 }
 
-                .screen-card-menu-item.delete {
-                    color: var(--color-text-secondary);
-                }
-
                 .screen-card-menu-item.delete:hover {
-                    background: rgba(239, 68, 68, 0.08);
-                    color: #ef4444;
+                    border-color: #ef4444;
+                    background: rgba(239, 68, 68, 0.1);
                 }
-
-                .screen-card-menu-divider {
-                    height: 1px;
-                    background: var(--color-border);
-                    margin: 2px 6px;
-                }
-
-                /* ===== Loading / Error / Empty ===== */
+                
                 .loading-state, .error-state {
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    padding: 80px 40px;
+                    padding: 60px;
                     gap: 16px;
                 }
-
+                
                 .loading-spinner {
-                    width: 34px;
-                    height: 34px;
+                    width: 32px;
+                    height: 32px;
                     border: 3px solid var(--color-border);
-                    border-top-color: var(--color-brand, #509EE3);
+                    border-top-color: var(--color-primary);
                     border-radius: 50%;
-                    animation: spin 0.8s linear infinite;
+                    animation: spin 1s linear infinite;
                 }
 
-                .empty-state {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 80px 40px;
-                    gap: 12px;
-                    text-align: center;
-                }
-
-                .empty-state-icon {
-                    margin-bottom: 8px;
-                }
-
-                .empty-state-text {
-                    font-size: var(--font-size-lg, 17px);
-                    font-weight: var(--font-weight-semibold, 600);
-                    color: var(--color-text-primary);
-                }
-
-                .empty-state-hint {
-                    font-size: var(--font-size-sm, 12px);
-                    color: var(--color-text-tertiary);
-                    max-width: 320px;
-                    line-height: 1.5;
-                    margin-bottom: 8px;
-                }
-
-                /* ===== AI Modal ===== */
                 .ai-modal-overlay {
                     position: fixed;
                     inset: 0;
@@ -1401,7 +1049,7 @@ export default function ScreensPage() {
                     overflow: auto;
                     background: #0f172a;
                     border: 1px solid rgba(148, 163, 184, 0.25);
-                    border-radius: var(--radius-lg, 12px);
+                    border-radius: 12px;
                     box-shadow: 0 24px 80px rgba(2, 6, 23, 0.45);
                     color: #e2e8f0;
                 }
@@ -1424,7 +1072,7 @@ export default function ScreensPage() {
                     width: 100%;
                     min-height: 120px;
                     border: 1px solid rgba(148, 163, 184, 0.25);
-                    border-radius: var(--radius-md, 8px);
+                    border-radius: 8px;
                     padding: 10px 12px;
                     font-size: 14px;
                     line-height: 1.5;
@@ -1435,14 +1083,14 @@ export default function ScreensPage() {
 
                 .ai-result-card {
                     border: 1px solid rgba(148, 163, 184, 0.2);
-                    border-radius: var(--radius-md, 8px);
+                    border-radius: 8px;
                     padding: 12px;
                     background: rgba(15, 23, 42, 0.7);
                 }
 
                 .ai-context-card {
                     border: 1px solid rgba(148, 163, 184, 0.2);
-                    border-radius: var(--radius-md, 8px);
+                    border-radius: 8px;
                     padding: 10px 12px;
                     background: rgba(15, 23, 42, 0.45);
                 }
@@ -1467,7 +1115,7 @@ export default function ScreensPage() {
 
                 .ai-result-item {
                     border: 1px solid rgba(148, 163, 184, 0.18);
-                    border-radius: var(--radius-sm, 6px);
+                    border-radius: 6px;
                     padding: 8px;
                     font-size: 12px;
                     color: #cbd5e1;
@@ -1481,19 +1129,49 @@ export default function ScreensPage() {
                     border-top: 1px solid rgba(148, 163, 184, 0.2);
                 }
 
-                /* ===== Responsive ===== */
+                .ai-modal .action-btn {
+                    background: rgba(30, 41, 59, 0.8);
+                    color: #e2e8f0;
+                    border-color: rgba(148, 163, 184, 0.3);
+                }
+
+                .ai-modal .action-btn:hover {
+                    background: rgba(51, 65, 85, 0.9);
+                    border-color: rgba(148, 163, 184, 0.5);
+                }
+
+                .ai-modal .action-btn:disabled {
+                    opacity: 0.4;
+                    cursor: not-allowed;
+                }
+
+                .ai-modal .primary-btn {
+                    background: var(--color-primary, #1677ff);
+                    border-color: var(--color-primary, #1677ff);
+                    color: #fff;
+                }
+
+                .ai-modal .primary-btn:disabled {
+                    opacity: 0.4;
+                    cursor: not-allowed;
+                }
+
+                .ai-modal select {
+                    background: #0b1222;
+                    color: #e2e8f0;
+                    border: 1px solid rgba(148, 163, 184, 0.25);
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                    font-size: 13px;
+                }
+
                 @media (max-width: 960px) {
                     .screens-toolbar {
                         padding: 10px 12px 0;
                         align-items: flex-start;
-                        flex-direction: column;
                     }
 
                     .screens-toolbar-left {
-                        width: 100%;
-                    }
-
-                    .screens-search-wrapper {
                         width: 100%;
                     }
 
@@ -1504,18 +1182,13 @@ export default function ScreensPage() {
                     }
 
                     .screens-toolbar-select {
-                        flex: 1 1 140px;
-                    }
-
-                    .screens-toolbar-stats {
-                        width: 100%;
-                        justify-content: flex-start;
+                        flex: 1 1 180px;
                     }
 
                     .screens-grid {
-                        gap: 14px;
-                        padding: 14px;
-                        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+                        gap: 12px;
+                        padding: 12px;
+                        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
                     }
 
                     .screen-card-actions {
@@ -1525,17 +1198,8 @@ export default function ScreensPage() {
                     .screen-card-menu {
                         flex: 1 1 100%;
                     }
-
-                    .page-header-actions {
-                        width: 100%;
-                    }
-
-                    .header-btn {
-                        flex: 1;
-                        justify-content: center;
-                    }
                 }
-
+                
                 @keyframes spin {
                     to { transform: rotate(360deg); }
                 }
@@ -1575,7 +1239,6 @@ export default function ScreensPage() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <label style={{ fontSize: 12, color: '#94a3b8', minWidth: 88 }}>优化模式</label>
                                 <select
-                                    className="property-input"
                                     value={aiRefineMode}
                                     onChange={(e) => setAiRefineMode(e.target.value === 'suggest' ? 'suggest' : 'apply')}
                                     style={{ maxWidth: 180 }}

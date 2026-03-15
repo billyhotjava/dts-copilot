@@ -1,13 +1,14 @@
 import { NavLink } from "react-router";
+import { APP_HOME_PATH } from "../../appShellConfig";
 import { getEffectiveLocale, t } from "../../i18n";
 import "./MobileTabBar.css";
 
-const ObjectsIcon = () => (
+const DashboardIcon = () => (
 	<svg
 		width="20"
 		height="20"
 		role="img"
-		aria-label="objects"
+		aria-label="dashboards"
 		viewBox="0 0 24 24"
 		fill="none"
 		stroke="currentColor"
@@ -45,12 +46,31 @@ const MetricsIcon = () => (
 	</svg>
 );
 
-const AlertsIcon = () => (
+const DataIcon = () => (
 	<svg
 		width="20"
 		height="20"
 		role="img"
-		aria-label="alerts"
+		aria-label="data"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
+		<ellipse cx="12" cy="5" rx="9" ry="3" />
+		<path d="M3 5v14a9 3 0 0 0 18 0V5" />
+		<path d="M3 12a9 3 0 0 0 18 0" />
+	</svg>
+);
+
+const MetricsAlertIcon = () => (
+	<svg
+		width="20"
+		height="20"
+		role="img"
+		aria-label="metrics"
 		viewBox="0 0 24 24"
 		fill="none"
 		stroke="currentColor"
@@ -83,8 +103,33 @@ const MoreIcon = () => (
 	</svg>
 );
 
+const ScreenIcon = () => (
+	<svg
+		width="20"
+		height="20"
+		role="img"
+		aria-label="screen"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
+		<rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+		<path d="M8 21h8" />
+		<path d="M12 17v4" />
+	</svg>
+);
+
 const tabs = [
-	{ to: "/", icon: <ObjectsIcon />, labelKey: "nav.hub" as const, end: true },
+	{ to: APP_HOME_PATH, icon: <DashboardIcon />, labelKey: "nav.dashboards" as const, end: true },
+	{
+		to: "/data",
+		icon: <DataIcon />,
+		labelKey: "nav.data" as const,
+		end: false,
+	},
 	{
 		to: "/metrics",
 		icon: <MetricsIcon />,
@@ -92,14 +137,8 @@ const tabs = [
 		end: false,
 	},
 	{
-		to: "/dashboards",
-		icon: <AlertsIcon />,
-		labelKey: "nav.dashboards" as const,
-		end: false,
-	},
-	{
 		to: "/screens",
-		icon: <MoreIcon />,
+		icon: <ScreenIcon />,
 		labelKey: "nav.screens" as const,
 		end: false,
 	},

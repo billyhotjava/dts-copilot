@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import { createBrowserRouter, useNavigate } from "react-router";
+import { APP_HOME_ALIASES, APP_HOME_PATH } from "./appShellConfig";
 import { AppLayout } from "./layouts/AppLayout";
 
 function ModernAliasRedirect() {
 	const navigate = useNavigate();
 	useEffect(() => {
-		navigate("/", { replace: true });
+		navigate(APP_HOME_PATH, { replace: true });
 	}, [navigate]);
 	return null;
 }
@@ -30,13 +31,8 @@ export function createRoutes() {
 			{
 				Component: AppLayout,
 				children: [
-					// Object Hub (AI Native entry)
-					{ path: "/", lazy: lazyComponent(() => import("./pages/hub/ObjectHubPage")) },
-					{ path: "/objects/:typeId", lazy: lazyComponent(() => import("./pages/hub/ObjectBrowserPage")) },
-					{ path: "/objects/:typeId/:id", lazy: lazyComponent(() => import("./pages/hub/ObjectDetailPage")) },
-					// Legacy home alias
-					{ path: "/home", lazy: lazyComponent(() => import("./pages/HomePage")) },
-					{ path: "/modern", Component: ModernAliasRedirect },
+					{ path: "/", Component: ModernAliasRedirect },
+					...APP_HOME_ALIASES.map((path) => ({ path, Component: ModernAliasRedirect })),
 					// Analytics pages (unchanged)
 					{ path: "/analyze", lazy: lazyComponent(() => import("./pages/AnalyzePage")) },
 					{ path: "/collections", lazy: lazyComponent(() => import("./pages/CollectionsPage")) },

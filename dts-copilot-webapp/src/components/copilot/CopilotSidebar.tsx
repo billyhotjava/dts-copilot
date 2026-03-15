@@ -1,11 +1,18 @@
-import { useEffect, useState } from "react";
-import { getCopilotApiKey } from "../../api/copilotAuth";
-import { useCopilotContext } from "../../hooks/useCopilotContext";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getCopilotApiKey, hasCopilotSessionAccess } from "../../api/copilotAuth";
 import { CopilotChat } from "./CopilotChat";
 import { canUseCopilot, resolveInitialCopilotExpanded } from "./copilotAccessPolicy";
 import "./CopilotSidebar.css";
 
 const STORAGE_KEY = "dts-analytics.copilotExpanded";
+const WIDTH_STORAGE_KEY = "dts-analytics.copilotWidth";
+const DEFAULT_WIDTH = 320;
+const MIN_WIDTH = 240;
+const MAX_WIDTH = 720;
+
+interface Props {
+	hasSessionAccess?: boolean;
+}
 
 function getStoredExpanded(): boolean {
 	try {
@@ -59,61 +66,125 @@ const CollapseIcon = ({ collapsed }: { collapsed: boolean }) => (
 	</svg>
 );
 
-export function CopilotSidebar() {
+function getStoredWidth(): number {
+	try {
+		const v = localStorage.getItem(WIDTH_STORAGE_KEY);
+		if (v) {
+			const n = Number(v);
+			if (n >= MIN_WIDTH && n <= MAX_WIDTH) return n;
+		}
+	} catch { /* ignore */ }
+	return DEFAULT_WIDTH;
+}
+
+export function CopilotSidebar({ hasSessionAccess = false }: Props) {
 	const apiKey = getCopilotApiKey();
-	const copilotEnabled = canUseCopilot(apiKey);
+	const sessionAccess = hasSessionAccess || hasCopilotSessionAccess();
+	const copilotEnabled = canUseCopilot(apiKey, sessionAccess);
 	const [expanded, setExpanded] = useState(() =>
-		resolveInitialCopilotExpanded(getStoredExpanded(), apiKey),
+		resolveInitialCopilotExpanded(getStoredExpanded(), apiKey, sessionAccess),
 	);
-	const objectContext = useCopilotContext();
+	const [width, setWidth] = useState(getStoredWidth);
+	const isDragging = useRef(false);
+	const startX = useRef(0);
+	const startWidth = useRef(0);
 
 	useEffect(() => {
-		setExpanded((prev) => resolveInitialCopilotExpanded(prev, apiKey));
-	}, [apiKey]);
+		setExpanded((prev) => resolveInitialCopilotExpanded(prev, apiKey, sessionAccess));
+	}, [apiKey, sessionAccess]);
 
 	useEffect(() => {
 		try {
 			localStorage.setItem(STORAGE_KEY, String(expanded));
-		} catch {
-			/* ignore */
-		}
+		} catch { /* ignore */ }
 	}, [expanded]);
 
+	useEffect(() => {
+		try {
+			localStorage.setItem(WIDTH_STORAGE_KEY, String(width));
+		} catch { /* ignore */ }
+	}, [width]);
+
+	const handleMouseMove = useCallback((e: MouseEvent) => {
+		if (!isDragging.current) return;
+		// Dragging leftward increases copilot width (sidebar is on the right)
+		const delta = startX.current - e.clientX;
+		const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta));
+		setWidth(newWidth);
+	}, []);
+
+	const handleMouseUp = useCallback(() => {
+		if (!isDragging.current) return;
+		isDragging.current = false;
+		document.body.style.cursor = "";
+		document.body.style.userSelect = "";
+	}, []);
+
+	useEffect(() => {
+		document.addEventListener("mousemove", handleMouseMove);
+		document.addEventListener("mouseup", handleMouseUp);
+		return () => {
+			document.removeEventListener("mousemove", handleMouseMove);
+			document.removeEventListener("mouseup", handleMouseUp);
+		};
+	}, [handleMouseMove, handleMouseUp]);
+
+	const handleResizeStart = useCallback((e: React.MouseEvent) => {
+		e.preventDefault();
+		isDragging.current = true;
+		startX.current = e.clientX;
+		startWidth.current = width;
+		document.body.style.cursor = "col-resize";
+		document.body.style.userSelect = "none";
+	}, [width]);
+
 	return (
-		<aside
-			className={`copilot-sidebar ${expanded ? "copilot-sidebar--expanded" : "copilot-sidebar--collapsed"}`}
-		>
-			{expanded ? (
-				<>
-					<div className="copilot-sidebar__header">
-						<div className="copilot-sidebar__title">
-							<AiIcon />
-							<span>AI Copilot</span>
-						</div>
-						<button
-							type="button"
-							className="copilot-sidebar__toggle"
-							onClick={() => setExpanded(false)}
-							aria-label="Collapse AI Copilot"
-						>
-							<CollapseIcon collapsed={false} />
-						</button>
-					</div>
-					<div className="copilot-sidebar__body">
-						<CopilotChat objectContext={objectContext} />
-					</div>
-				</>
-			) : (
-				<button
-					type="button"
-					className="copilot-sidebar__expand-btn"
-					onClick={() => setExpanded(true)}
-					aria-label="Expand AI Copilot"
-					title={copilotEnabled ? "AI Copilot" : "AI Copilot 需要配置 copilot API Key"}
-				>
-					<AiIcon />
-				</button>
+		<>
+			{expanded && (
+				<div
+					className="copilot-resize-handle"
+					onMouseDown={handleResizeStart}
+					role="separator"
+					aria-orientation="vertical"
+					aria-label="Resize AI Copilot panel"
+				/>
 			)}
-		</aside>
+			<aside
+				className={`copilot-sidebar ${expanded ? "copilot-sidebar--expanded" : "copilot-sidebar--collapsed"}`}
+				style={expanded ? { width } : undefined}
+			>
+				{expanded ? (
+					<>
+						<div className="copilot-sidebar__header">
+							<div className="copilot-sidebar__title">
+								<AiIcon />
+								<span>AI Copilot</span>
+							</div>
+							<button
+								type="button"
+								className="copilot-sidebar__toggle"
+								onClick={() => setExpanded(false)}
+								aria-label="Collapse AI Copilot"
+							>
+								<CollapseIcon collapsed={false} />
+							</button>
+						</div>
+						<div className="copilot-sidebar__body">
+							<CopilotChat hasSessionAccess={sessionAccess} />
+						</div>
+					</>
+				) : (
+					<button
+						type="button"
+						className="copilot-sidebar__expand-btn"
+						onClick={() => setExpanded(true)}
+						aria-label="Expand AI Copilot"
+						title={copilotEnabled ? "AI Copilot" : "AI Copilot 需要登录或配置 copilot API Key"}
+					>
+						<AiIcon />
+					</button>
+				)}
+			</aside>
+		</>
 	);
 }

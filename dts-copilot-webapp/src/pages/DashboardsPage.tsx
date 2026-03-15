@@ -11,7 +11,6 @@ import { CardSkeleton } from "../ui/Loading/Skeleton";
 import { CardGrid } from "../components/DashboardGrid/DashboardGrid";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
-import { usePageContext } from "../hooks/usePageContext";
 import "./page.css";
 
 type LoadState<T> =
@@ -58,7 +57,6 @@ const ListIcon = () => (
 
 export default function DashboardsPage() {
 	const locale: Locale = useMemo(() => getEffectiveLocale(), []);
-	usePageContext({ module: "analytics/dashboard", resourceType: "dashboard" });
 	const [state, setState] = useState<LoadState<DashboardListItem[]>>({ state: "loading" });
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const [searchQuery, setSearchQuery] = useState("");
@@ -92,9 +90,9 @@ export default function DashboardsPage() {
 
 	return (
 		<PageContainer>
+			<div data-testid="analytics-dashboards-page">
 			<PageHeader
 				title={t(locale, "dashboards.title")}
-				subtitle={t(locale, "dashboards.subtitle")}
 				actions={
 					<Link to="/dashboards/new">
 						<Button variant="primary" icon={<PlusIcon />}>
@@ -108,6 +106,7 @@ export default function DashboardsPage() {
 			<div className="filterBar">
 				<div style={{ flex: 1, maxWidth: 320 }}>
 					<SearchInput
+						data-testid="analytics-dashboard-search"
 						placeholder={t(locale, "common.search")}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
@@ -177,7 +176,7 @@ export default function DashboardsPage() {
 			{state.state === "loaded" && filteredDashboards.length > 0 && viewMode === "grid" && (
 				<CardGrid columns={3} gap="md">
 					{filteredDashboards.map((d) => (
-						<Link key={d.id} to={`/dashboards/${d.id}`} style={{ textDecoration: "none" }}>
+						<Link key={d.id} data-testid={`analytics-dashboard-card-${d.id}`} to={`/dashboards/${d.id}`} style={{ textDecoration: "none" }}>
 							<Card variant="hoverable" padding="md">
 								<div className="dashboard-card">
 									<div className="dashboard-card__icon">
@@ -209,7 +208,7 @@ export default function DashboardsPage() {
 						</thead>
 						<tbody>
 							{filteredDashboards.map((d) => (
-								<tr key={String(d.id)}>
+								<tr key={String(d.id)} data-testid={`analytics-dashboard-row-${d.id}`}>
 									<td>
 										<Link to={`/dashboards/${d.id}`} className="link">
 											{d.name || t(locale, "common.untitled")}
@@ -226,6 +225,7 @@ export default function DashboardsPage() {
 				</Card>
 			)}
 
+			</div>
 			<style>{`
 				.dashboard-card {
 					display: flex;
