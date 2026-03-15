@@ -754,21 +754,32 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 				>
 					+
 				</button>
-				<input
+				<textarea
 					className="copilot-chat__input"
-					type="text"
+					rows={1}
 					value={input}
-					onChange={(e) => setInput(e.target.value)}
+					onChange={(e) => {
+						setInput(e.target.value);
+						// Auto-resize: reset height then set to scrollHeight
+						const el = e.target;
+						el.style.height = "auto";
+						el.style.height = Math.min(el.scrollHeight, 160) + "px";
+					}}
 					onKeyDown={(e) => {
 						if (e.key === "Enter" && !e.shiftKey) {
 							e.preventDefault();
 							handleSend();
+							// Reset height after send
+							const el = e.target as HTMLTextAreaElement;
+							requestAnimationFrame(() => {
+								el.style.height = "auto";
+							});
 						}
 					}}
-						placeholder={
-							copilotEnabled
-								? "Ask a question..."
-								: "需要先登录或配置 copilot API Key 才能使用 AI Copilot"
+					placeholder={
+						copilotEnabled
+							? "Ask a question..."
+							: "需要先登录或配置 copilot API Key 才能使用 AI Copilot"
 					}
 					disabled={sending || !copilotEnabled}
 				/>
