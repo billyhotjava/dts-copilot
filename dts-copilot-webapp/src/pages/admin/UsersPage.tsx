@@ -195,7 +195,7 @@ export default function UsersPage() {
 											</div>
 										</td>
 										<td style={{ padding: "var(--spacing-sm) var(--spacing-md)", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
-											{user.email || user.common_name || "-"}
+											{user.username || user.common_name || "-"}
 										</td>
 										<td style={{ padding: "var(--spacing-sm) var(--spacing-md)" }}>
 											<Badge variant={user.is_superuser ? "info" : "default"} size="sm">
@@ -267,7 +267,7 @@ export default function UsersPage() {
 							{dialog.type === "password" && (
 								<div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
 									<p style={{ margin: 0, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
-										{t(locale, "users.resetPasswordFor")} <strong>{dialog.user.email || dialog.user.common_name}</strong>
+										{t(locale, "users.resetPasswordFor")} <strong>{dialog.user.username || dialog.user.common_name}</strong>
 									</p>
 									<Input label={t(locale, "users.newPassword")} type="password" value={passwordForm.password} onChange={(e) => setPasswordForm((p) => ({ ...p, password: e.target.value }))} />
 									<Input label={t(locale, "users.confirmPassword")} type="password" value={passwordForm.confirm} onChange={(e) => setPasswordForm((p) => ({ ...p, confirm: e.target.value }))} />

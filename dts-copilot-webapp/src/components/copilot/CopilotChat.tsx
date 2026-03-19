@@ -606,7 +606,11 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 									</>
 								)}
 								{msg.role === "assistant" && (
-									<FeedbackButtons messageId={msg.id} sessionId={sessionId ?? ""} />
+									<FeedbackButtons
+										messageId={msg.id}
+										sessionId={sessionId ?? ""}
+										{...(extractedSql ? { generatedSql: extractedSql } : {})}
+									/>
 								)}
 							</div>
 						);

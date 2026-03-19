@@ -1,6 +1,6 @@
 export type CurrentUser = {
 	id: number;
-	email?: string;
+	username?: string;
 	first_name?: string;
 	last_name?: string;
 	common_name?: string;
@@ -219,6 +219,14 @@ export type AiAgentChatSessionDetail = {
 	session?: AiAgentChatSession;
 	messages?: AiAgentChatMessage[];
 	pendingAction?: AiAgentPendingAction | null;
+};
+
+export type CopilotSuggestedQuestion = {
+	templateCode?: string;
+	domain?: string;
+	roleHint?: string;
+	question: string;
+	description?: string;
 };
 
 export type Nl2SqlEvalRunRecord = {
@@ -1304,6 +1312,12 @@ type PlatformApiEnvelope<T> = {
 	data?: T;
 };
 
+type AiApiEnvelope<T> = {
+	success?: boolean;
+	data?: T;
+	error?: string | null;
+};
+
 function unwrapPlatformApiEnvelope<T>(payload: T | PlatformApiEnvelope<T>): T {
 	if (!payload || typeof payload !== "object") {
 		return payload as T;
@@ -1320,6 +1334,20 @@ function unwrapPlatformApiEnvelope<T>(payload: T | PlatformApiEnvelope<T>): T {
 		throw new Error(code ? `${message} [code=${code}]` : message);
 	}
 	return (envelope.data ?? ({} as T)) as T;
+}
+
+function unwrapAiApiEnvelope<T>(payload: T | AiApiEnvelope<T>): T {
+	if (!payload || typeof payload !== "object" || !("success" in payload)) {
+		return payload as T;
+	}
+	const envelope = payload as AiApiEnvelope<T>;
+	if (envelope.success === false) {
+		const message = typeof envelope.error === "string" && envelope.error.trim().length > 0
+			? envelope.error.trim()
+			: "请求失败";
+		throw new Error(message);
+	}
+	return (envelope.data ?? ([] as unknown as T)) as T;
 }
 
 let _redirectingToLogin = false;
@@ -1491,6 +1519,18 @@ function resolveLegacyAiUserId(): string {
 		]);
 	} catch {
 		return "standalone-user";
+	}
+}
+
+function resolveLegacyAiUserName(): string {
+	try {
+		const loginUser = window.sessionStorage.getItem("dts.copilot.login.username");
+		if (loginUser && loginUser.trim().length > 0) {
+			return loginUser.trim();
+		}
+		return resolveLegacyAiUserId();
+	} catch {
+		return resolveLegacyAiUserId();
 	}
 }
 
@@ -2265,11 +2305,26 @@ export const analyticsApi = {
 		sendJson<unknown>(`/api/analytics/marketplace/components/${encodeURIComponent(id)}/install`, {}),
 	installMarketplaceTemplate: (id: string) =>
 		sendJson<unknown>(`/api/analytics/marketplace/templates/${encodeURIComponent(id)}/install`, {}),
+	listSuggestedQuestions: (limit = 12) =>
+		fetchJson<CopilotSuggestedQuestion[] | AiApiEnvelope<CopilotSuggestedQuestion[]>>(
+			"/api/ai/nl2sql/suggestions?limit=" + encodeURIComponent(String(limit)),
+		).then(unwrapAiApiEnvelope),
 	submitChatFeedback: (body: {
 		sessionId: string;
 		messageId: string;
 		rating: string;
 		reason?: string;
 		detail?: string;
-	}) => sendJson<void>("/api/ai/agent/chat/feedback", body),
+		generatedSql?: string;
+		correctedSql?: string;
+		routedDomain?: string;
+		targetView?: string;
+		templateCode?: string;
+		userId?: string;
+		userName?: string;
+	}) => sendJson<void>("/api/ai/nl2sql/feedback", {
+		...body,
+		userId: body.userId ?? resolveLegacyAiUserId(),
+		userName: body.userName ?? resolveLegacyAiUserName(),
+	}),
 };

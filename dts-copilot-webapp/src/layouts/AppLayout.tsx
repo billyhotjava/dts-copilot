@@ -626,7 +626,7 @@ export function AppLayout() {
 	const sessionUserName =
 		sessionUser?.common_name ||
 		[sessionUser?.first_name, sessionUser?.last_name].filter(Boolean).join(" ") ||
-		sessionUser?.email ||
+		sessionUser?.username ||
 		"";
 	const displayName = userInfo.fullName || userInfo.username || sessionUserName || "用户";
 
