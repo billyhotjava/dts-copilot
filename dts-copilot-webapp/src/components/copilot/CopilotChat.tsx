@@ -14,7 +14,9 @@ import { FeedbackButtons } from "./FeedbackButtons";
 import { InlineSqlPreview } from "./InlineSqlPreview";
 import { TracePanel } from "./TracePanel";
 import { WelcomeCard } from "./WelcomeCard";
+import { canEditCopilotComposer, canSubmitCopilotComposer } from "./copilotComposerState";
 import { shouldSubmitCopilotInputOnEnter } from "./copilotInputBehavior";
+import { appendReasoningDelta, appendToolProgressLine } from "./copilotReasoningState";
 import { shouldRestorePersistedCopilotSession } from "./copilotSessionBootstrap";
 import { canUseCopilot } from "./copilotAccessPolicy";
 import "./CopilotChat.css";
@@ -188,6 +190,8 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 	const [error, setError] = useState<string | null>(null);
 	const [expandedTraces, setExpandedTraces] = useState<Set<string>>(new Set());
 	const scrollRef = useRef<HTMLDivElement>(null);
+	const activeStreamingSessionIdRef = useRef<string | null>(null);
+	const streamInFlightRef = useRef(false);
 	const sortedMessages = useMemo(() => sortMessages(messages), [messages]);
 	const approvalSchema = useMemo(
 		() => normalizeMicroForm(pendingAction),
@@ -195,6 +199,15 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 	);
 	const copilotDisabledMessage =
 		"当前页面还没有可用的 Copilot 访问权限，请先登录或配置 copilot API Key。";
+	const canEditComposer = canEditCopilotComposer({
+		copilotEnabled,
+		requestInFlight: sending,
+	});
+	const canSubmitComposer = canSubmitCopilotComposer({
+		copilotEnabled,
+		requestInFlight: sending,
+		input,
+	});
 
 	const reloadSessions = useCallback(async () => {
 		if (!copilotEnabled) {
@@ -322,6 +335,9 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 			setPendingAction(null);
 			return;
 		}
+		if (streamInFlightRef.current && activeStreamingSessionIdRef.current === sessionId) {
+			return;
+		}
 		void reloadMessages(sessionId);
 	}, [copilotEnabled, sessionId, reloadMessages]);
 
@@ -367,7 +383,10 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 		try {
 			const assistantId = `stream-${Date.now()}`;
 			let streamedContent = "";
+			let streamFailed = false;
 			let streamedSessionId = sessionId;
+			streamInFlightRef.current = true;
+			activeStreamingSessionIdRef.current = sessionId;
 
 			// Add placeholder assistant message
 			setMessages((prev) => [...prev, {
@@ -382,13 +401,34 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 				switch (event.type) {
 					case "session":
 						streamedSessionId = event.sessionId;
+						activeStreamingSessionIdRef.current = event.sessionId;
 						setSessionId(event.sessionId);
 						try { sessionStorage.setItem(SESSION_ID_KEY, event.sessionId); } catch {}
+						break;
+					case "reasoning":
+						setMessages((prev) => prev.map((m) =>
+							m.id === assistantId
+								? { ...m, reasoningContent: appendReasoningDelta(m.reasoningContent, event.content) }
+								: m
+						));
 						break;
 					case "token":
 						streamedContent += event.content;
 						setMessages((prev) => prev.map((m) =>
 							m.id === assistantId ? { ...m, content: streamedContent } : m
+						));
+						break;
+					case "tool":
+						setMessages((prev) => prev.map((m) =>
+							m.id === assistantId
+								? {
+									...m,
+									reasoningContent: appendToolProgressLine(m.reasoningContent, {
+										tool: event.tool,
+										status: event.status,
+									}),
+								}
+								: m
 						));
 						break;
 					case "done":
@@ -399,24 +439,22 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 						));
 						break;
 					case "error":
+						streamFailed = true;
+						setError(event.error);
 						setMessages((prev) => prev.map((m) =>
 							m.id === assistantId ? { ...m, content: event.error } : m
 						));
 						break;
 				}
 			});
-
-			// Reload full session data after streaming completes
-			if (streamedSessionId) {
-				await reloadMessages(streamedSessionId);
+			if (streamedSessionId && !streamFailed) {
+				void reloadMessages(streamedSessionId);
 			}
-			await reloadSessions();
+			void reloadSessions();
 		} catch {
 			// Fallback to synchronous API
 			try {
-				// Remove the streaming placeholder
 				setMessages((prev) => prev.filter((m) => !m.id.startsWith("stream-")));
-
 				const res = (await analyticsApi.aiAgentChatSend(body)) as AiAgentChatResponse;
 				if (res.sessionId) {
 					setSessionId(res.sessionId);
@@ -425,11 +463,13 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 				if (res.requiresApproval && res.pendingAction) {
 					setPendingAction(res.pendingAction);
 				}
-				await reloadSessions();
+				void reloadSessions();
 			} catch (e) {
 				setError(resolveUiError(e, "Failed to send"));
 			}
 		} finally {
+			streamInFlightRef.current = false;
+			activeStreamingSessionIdRef.current = null;
 			setSending(false);
 		}
 	}
@@ -649,6 +689,12 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 								className={`copilot-chat__msg copilot-chat__msg--${msg.role}`}
 							>
 								<div className="copilot-chat__msg-content">
+									{msg.reasoningContent && (
+										<div className="copilot-chat__reasoning">
+											<div className="copilot-chat__reasoning-label">思考过程</div>
+											<div className="copilot-chat__reasoning-content">{msg.reasoningContent}</div>
+										</div>
+									)}
 									{msg.content}
 								</div>
 								{extractedSql && (
@@ -849,13 +895,13 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 							? "Ask a question..."
 							: "需要先登录或配置 copilot API Key 才能使用 AI Copilot"
 					}
-					disabled={sending || !copilotEnabled}
+					disabled={!canEditComposer}
 				/>
 				<button
 					type="button"
 					className="copilot-chat__send-btn"
 					onClick={handleSend}
-					disabled={sending || !input.trim() || !copilotEnabled}
+					disabled={!canSubmitComposer}
 				>
 					{sending ? "..." : "→"}
 				</button>

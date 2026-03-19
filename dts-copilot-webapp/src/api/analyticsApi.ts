@@ -207,6 +207,7 @@ export type AiAgentChatMessage = {
 	sessionId: string;
 	role: "user" | "assistant" | "tool" | string;
 	content?: string;
+	reasoningContent?: string;
 	toolCallId?: string;
 	toolName?: string;
 	toolParams?: string;
@@ -1282,6 +1283,7 @@ import {
 } from "./aiChatCompatibility";
 import { isCopilotAiRoute, shouldRedirectToLoginOnUnauthorized } from "./authRedirectPolicy";
 import { getCopilotApiKey, getCopilotHeaders, hasCopilotSessionAccess } from "./copilotAuth";
+import { createSseEventParser } from "./copilotSse";
 import { getPlatformTokens, refreshPlatformAccessToken } from "./platformSession";
 
 export class HttpError extends Error {
@@ -2337,6 +2339,7 @@ export const analyticsApi = {
 
 export type CopilotStreamEvent =
 	| { type: "session"; sessionId: string }
+	| { type: "reasoning"; content: string }
 	| { type: "token"; content: string }
 	| { type: "tool"; tool: string; status: string }
 	| { type: "done"; generatedSql?: string }
@@ -2360,50 +2363,41 @@ export async function aiAgentChatSendStream(
 
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
-	let buffer = "";
+	const parser = createSseEventParser(({ event, data }) => {
+		try {
+			const parsed = JSON.parse(data);
+			switch (event) {
+				case "session":
+					onEvent({ type: "session", sessionId: parsed.sessionId });
+					break;
+				case "reasoning":
+					onEvent({ type: "reasoning", content: parsed.content });
+					break;
+				case "token":
+					onEvent({ type: "token", content: parsed.content });
+					break;
+				case "tool":
+					onEvent({ type: "tool", tool: parsed.tool, status: parsed.status });
+					break;
+				case "done":
+					onEvent({ type: "done", generatedSql: parsed.generatedSql });
+					break;
+				case "error":
+					onEvent({ type: "error", error: parsed.error });
+					break;
+			}
+		} catch {
+			// ignore malformed events
+		}
+	});
 
 	while (true) {
 		const { done, value } = await reader.read();
-		if (done) break;
-		buffer += decoder.decode(value, { stream: true });
-
-		const lines = buffer.split("\n");
-		buffer = lines.pop() || "";
-
-		let currentEvent = "";
-		let currentData = "";
-
-		for (const line of lines) {
-			if (line.startsWith("event: ")) {
-				currentEvent = line.slice(7).trim();
-			} else if (line.startsWith("data: ")) {
-				currentData = line.slice(6);
-			} else if (line === "" && currentEvent && currentData) {
-				try {
-					const parsed = JSON.parse(currentData);
-					switch (currentEvent) {
-						case "session":
-							onEvent({ type: "session", sessionId: parsed.sessionId });
-							break;
-						case "token":
-							onEvent({ type: "token", content: parsed.content });
-							break;
-						case "tool":
-							onEvent({ type: "tool", tool: parsed.tool, status: parsed.status });
-							break;
-						case "done":
-							onEvent({ type: "done", generatedSql: parsed.generatedSql });
-							break;
-						case "error":
-							onEvent({ type: "error", error: parsed.error });
-							break;
-					}
-				} catch {
-					// ignore malformed events
-				}
-				currentEvent = "";
-				currentData = "";
-			}
+		if (done) {
+			break;
 		}
+		parser.push(decoder.decode(value, { stream: true }));
 	}
+	parser.push(decoder.decode());
+	parser.finish();
 }
