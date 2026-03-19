@@ -1,0 +1,75 @@
+.welcome-card {
+	padding: 20px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.welcome-card__header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.welcome-card__icon {
+	font-size: 24px;
+	line-height: 1;
+}
+
+.welcome-card__title {
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--color-text-primary, #1f2329);
+	margin: 0;
+}
+
+.welcome-card__desc {
+	font-size: 13px;
+	color: var(--color-text-secondary, #666);
+	margin: 0;
+	line-height: 1.5;
+}
+
+.welcome-card__groups {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.welcome-card__group {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.welcome-card__group-label {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--color-text-primary, #1f2329);
+}
+
+.welcome-card__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.welcome-card__chip {
+	border: 1px solid var(--color-border, #e0e0e0);
+	background: var(--color-bg-primary, #fff);
+	color: var(--color-text-primary, #1f2329);
+	padding: 4px 10px;
+	border-radius: 14px;
+	font-size: 12px;
+	cursor: pointer;
+	line-height: 1.4;
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.welcome-card__chip:hover {
+	background: var(--color-bg-secondary, #f0f0f0);
+	border-color: var(--color-brand, #509ee3);
+}

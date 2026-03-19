@@ -42,7 +42,7 @@ export default function UsersPage() {
 	const [error, setError] = useState<unknown>(null);
 
 	// Create form
-	const [createForm, setCreateForm] = useState({ first_name: "", last_name: "", email: "", password: "" });
+	const [createForm, setCreateForm] = useState({ first_name: "", last_name: "", username: "", password: "" });
 	// Edit form
 	const [editForm, setEditForm] = useState({ first_name: "", last_name: "", is_superuser: false });
 	// Password form
@@ -58,7 +58,7 @@ export default function UsersPage() {
 	useEffect(() => { reload(); }, []);
 
 	function openCreate() {
-		setCreateForm({ first_name: "", last_name: "", email: "", password: "" });
+		setCreateForm({ first_name: "", last_name: "", username: "", password: "" });
 		setError(null);
 		setDialog({ type: "create" });
 	}
@@ -80,7 +80,7 @@ export default function UsersPage() {
 	}
 
 	async function handleCreate() {
-		if (!createForm.email.trim() || !createForm.first_name.trim()) {
+		if (!createForm.username.trim() || !createForm.first_name.trim()) {
 			setError(t(locale, "users.validation.required"));
 			return;
 		}
@@ -90,7 +90,7 @@ export default function UsersPage() {
 			await analyticsApi.createUser({
 				first_name: createForm.first_name.trim(),
 				last_name: createForm.last_name.trim(),
-				email: createForm.email.trim(),
+				username: createForm.username.trim(),
 				password: createForm.password || undefined,
 			});
 			setDialog(null);
@@ -175,7 +175,7 @@ export default function UsersPage() {
 							<thead>
 								<tr style={{ borderBottom: "1px solid var(--color-border)", textAlign: "left" }}>
 									<th style={{ padding: "var(--spacing-sm) var(--spacing-md)", fontSize: "var(--font-size-sm)", fontWeight: "var(--font-weight-semibold)", color: "var(--color-text-secondary)" }}>{t(locale, "users.name")}</th>
-									<th style={{ padding: "var(--spacing-sm) var(--spacing-md)", fontSize: "var(--font-size-sm)", fontWeight: "var(--font-weight-semibold)", color: "var(--color-text-secondary)" }}>{t(locale, "users.email")}</th>
+									<th style={{ padding: "var(--spacing-sm) var(--spacing-md)", fontSize: "var(--font-size-sm)", fontWeight: "var(--font-weight-semibold)", color: "var(--color-text-secondary)" }}>{t(locale, "users.username")}</th>
 									<th style={{ padding: "var(--spacing-sm) var(--spacing-md)", fontSize: "var(--font-size-sm)", fontWeight: "var(--font-weight-semibold)", color: "var(--color-text-secondary)" }}>{t(locale, "users.role")}</th>
 									<th style={{ padding: "var(--spacing-sm) var(--spacing-md)", fontSize: "var(--font-size-sm)", fontWeight: "var(--font-weight-semibold)", color: "var(--color-text-secondary)" }}>{t(locale, "users.status")}</th>
 									<th style={{ padding: "var(--spacing-sm) var(--spacing-md)", fontSize: "var(--font-size-sm)", fontWeight: "var(--font-weight-semibold)", color: "var(--color-text-secondary)", textAlign: "right" }}>{t(locale, "users.actions")}</th>
@@ -195,7 +195,7 @@ export default function UsersPage() {
 											</div>
 										</td>
 										<td style={{ padding: "var(--spacing-sm) var(--spacing-md)", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
-											{user.email || "-"}
+											{user.email || user.common_name || "-"}
 										</td>
 										<td style={{ padding: "var(--spacing-sm) var(--spacing-md)" }}>
 											<Badge variant={user.is_superuser ? "info" : "default"} size="sm">
@@ -248,7 +248,7 @@ export default function UsersPage() {
 								<div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
 									<Input label={t(locale, "users.firstName")} value={createForm.first_name} onChange={(e) => setCreateForm((p) => ({ ...p, first_name: e.target.value }))} />
 									<Input label={t(locale, "users.lastName")} value={createForm.last_name} onChange={(e) => setCreateForm((p) => ({ ...p, last_name: e.target.value }))} />
-									<Input label={t(locale, "users.email")} type="email" value={createForm.email} onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))} />
+									<Input label={t(locale, "users.username")} type="text" value={createForm.username} onChange={(e) => setCreateForm((p) => ({ ...p, username: e.target.value }))} />
 									<Input label={t(locale, "data.password")} type="password" value={createForm.password} placeholder={t(locale, "users.passwordAutoHint")} onChange={(e) => setCreateForm((p) => ({ ...p, password: e.target.value }))} />
 								</div>
 							)}
@@ -267,7 +267,7 @@ export default function UsersPage() {
 							{dialog.type === "password" && (
 								<div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
 									<p style={{ margin: 0, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
-										{t(locale, "users.resetPasswordFor")} <strong>{dialog.user.email}</strong>
+										{t(locale, "users.resetPasswordFor")} <strong>{dialog.user.email || dialog.user.common_name}</strong>
 									</p>
 									<Input label={t(locale, "users.newPassword")} type="password" value={passwordForm.password} onChange={(e) => setPasswordForm((p) => ({ ...p, password: e.target.value }))} />
 									<Input label={t(locale, "users.confirmPassword")} type="password" value={passwordForm.confirm} onChange={(e) => setPasswordForm((p) => ({ ...p, confirm: e.target.value }))} />

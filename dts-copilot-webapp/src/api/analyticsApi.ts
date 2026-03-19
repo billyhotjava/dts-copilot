@@ -1706,7 +1706,7 @@ export const analyticsApi = {
 	getCurrentUser: () => fetchJson<CurrentUser>("/api/user/current"),
 	listUsers: () => fetchJson<CurrentUser[]>("/api/user"),
 	getUser: (id: number) => fetchJson<CurrentUser>(`/api/user/${id}`),
-	createUser: (body: { first_name: string; last_name: string; email: string; password?: string }) =>
+	createUser: (body: { first_name: string; last_name: string; username: string; password?: string }) =>
 		sendJson<CurrentUser>("/api/user", body),
 	updateUser: (id: number, body: Record<string, unknown>) =>
 		requestJson<CurrentUser>(`/api/user/${id}`, "PUT", body),
@@ -2265,4 +2265,11 @@ export const analyticsApi = {
 		sendJson<unknown>(`/api/analytics/marketplace/components/${encodeURIComponent(id)}/install`, {}),
 	installMarketplaceTemplate: (id: string) =>
 		sendJson<unknown>(`/api/analytics/marketplace/templates/${encodeURIComponent(id)}/install`, {}),
+	submitChatFeedback: (body: {
+		sessionId: string;
+		messageId: string;
+		rating: string;
+		reason?: string;
+		detail?: string;
+	}) => sendJson<void>("/api/ai/agent/chat/feedback", body),
 };

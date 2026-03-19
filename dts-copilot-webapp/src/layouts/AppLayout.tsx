@@ -994,12 +994,15 @@ export function AppLayout() {
 								<SidebarDivider />
 
 								<SidebarSection title={t(locale, "nav.section.data")}>
-									<SidebarItem
-										to="/data"
-										icon={<DatabaseIcon />}
-										label={t(locale, "nav.data")}
-										end
-									/>
+									{/* 数据源管理：仅管理员 */}
+									{sessionUser?.is_superuser && (
+										<SidebarItem
+											to="/data"
+											icon={<DatabaseIcon />}
+											label={t(locale, "nav.data")}
+											end
+										/>
+									)}
 									<SidebarItem
 										to="/models"
 										icon={<ModelIcon />}
@@ -1058,25 +1061,30 @@ export function AppLayout() {
 									/>
 								</SidebarSection>
 
-								<SidebarDivider />
+								{/* 管理区：仅管理员可见（用户管理 + LLM/系统配置） */}
+								{sessionUser?.is_superuser && (
+									<>
+										<SidebarDivider />
 
-								<SidebarSection title={t(locale, "nav.section.admin")}>
-									<SidebarItem
-										to="/admin/users"
-										icon={<UserIcon />}
-										label={t(locale, "nav.users")}
-									/>
-									<SidebarItem
-										to="/admin/settings/copilot"
-										icon={<SettingsIcon />}
-										label={t(locale, "nav.systemSettings")}
-									/>
-									<SidebarButton
-										icon={<ExpertModeIcon />}
-										label={t(locale, "nav.expertMode")}
-										onClick={handleExpertMode}
-									/>
-								</SidebarSection>
+										<SidebarSection title={t(locale, "nav.section.admin")}>
+											<SidebarItem
+												to="/admin/users"
+												icon={<UserIcon />}
+												label={t(locale, "nav.users")}
+											/>
+											<SidebarItem
+												to="/admin/settings/copilot"
+												icon={<SettingsIcon />}
+												label={t(locale, "nav.systemSettings")}
+											/>
+											<SidebarButton
+												icon={<ExpertModeIcon />}
+												label={t(locale, "nav.expertMode")}
+												onClick={handleExpertMode}
+											/>
+										</SidebarSection>
+									</>
+								)}
 							</>
 						)}
 					</SidebarNav>

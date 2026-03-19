@@ -9,9 +9,11 @@ import type {
 } from "../../api/analyticsApi";
 import { getCopilotApiKey, hasCopilotSessionAccess } from "../../api/copilotAuth";
 import { AuthError, analyticsApi } from "../../api/analyticsApi";
-import { Button } from "../../ui/Button/Button";
 import { extractSqlFromMarkdown } from "../../utils/sqlExtractor";
+import { FeedbackButtons } from "./FeedbackButtons";
+import { InlineSqlPreview } from "./InlineSqlPreview";
 import { TracePanel } from "./TracePanel";
+import { WelcomeCard } from "./WelcomeCard";
 import { canUseCopilot } from "./copilotAccessPolicy";
 import "./CopilotChat.css";
 
@@ -315,13 +317,13 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 		});
 	}, [sortedMessages, pendingAction, sending]);
 
-	async function handleSend() {
+	async function handleSendText(text: string) {
 		if (!copilotEnabled) {
 			setError(copilotDisabledMessage);
 			return;
 		}
-		const text = input.trim();
-		if (!text || sending) return;
+		const trimmed = text.trim();
+		if (!trimmed || sending) return;
 		setInput("");
 		setSending(true);
 		setError(null);
@@ -330,14 +332,14 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 			id: `opt-${Date.now()}`,
 			sessionId: sessionId ?? "",
 			role: "user",
-			content: text,
+			content: trimmed,
 			sequenceNum: messages.length,
 		};
 		setMessages((prev) => [...prev, optimistic]);
 
 		try {
 			const body: CopilotSendBody = {
-				userMessage: text,
+				userMessage: trimmed,
 				...(sessionId ? { sessionId } : {}),
 				...(selectedDbId != null ? { datasourceId: String(selectedDbId) } : {}),
 			};
@@ -360,6 +362,10 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 		} finally {
 			setSending(false);
 		}
+	}
+
+	async function handleSend() {
+		await handleSendText(input);
 	}
 
 	async function handleApprove() {
@@ -552,9 +558,7 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 				{!copilotEnabled ? (
 					<div className="copilot-chat__notice">{copilotDisabledMessage}</div>
 				) : sortedMessages.length === 0 ? (
-					<div className="copilot-chat__empty">
-						Ask me about your data, dashboards, or SQL.
-					</div>
+					<WelcomeCard onQuestionClick={(q) => void handleSendText(q)} />
 				) : null}
 				{sortedMessages
 					.filter((m) => m.role === "user" || m.role === "assistant")
@@ -576,34 +580,7 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 									{msg.content}
 								</div>
 								{extractedSql && (
-									<div style={{ display: "flex", gap: "var(--spacing-sm)", marginTop: "var(--spacing-xs)" }}>
-										<Button
-											variant="primary"
-											size="sm"
-											onClick={() => {
-												const dbId = selectedDbId != null ? String(selectedDbId) : "";
-												const params = new URLSearchParams({
-													sql: extractedSql,
-													...(dbId ? { db: dbId } : {}),
-													autorun: "1",
-												});
-												window.location.href = `/questions/new?${params.toString()}`;
-											}}
-										>
-											SQL 创建可视化
-										</Button>
-										<Button
-											variant="secondary"
-											size="sm"
-											onClick={() => {
-												if (navigator.clipboard?.writeText) {
-													void navigator.clipboard.writeText(extractedSql);
-												}
-											}}
-										>
-											复制 SQL
-										</Button>
-									</div>
+									<InlineSqlPreview sql={extractedSql} databaseId={selectedDbId ?? undefined} />
 								)}
 								{hasTrace && (
 									<>
@@ -627,6 +604,9 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 										</button>
 										{traceExpanded && <TracePanel toolMessages={toolMsgs} />}
 									</>
+								)}
+								{msg.role === "assistant" && (
+									<FeedbackButtons messageId={msg.id} sessionId={sessionId ?? ""} />
 								)}
 							</div>
 						);

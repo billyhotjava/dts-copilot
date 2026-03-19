@@ -8,7 +8,7 @@ const basePath = import.meta.env.VITE_BASE_PATH?.replace(/\/$/, "") || "";
 export default function SetupPage() {
 	const [setupToken, setSetupToken] = useState<string | null>(null);
 	const [siteName, setSiteName] = useState("DTS Analytics");
-	const [email, setEmail] = useState("");
+	const [username, setUsername] = useState("");
 	const [firstName, setFirstName] = useState("");
 	const [lastName, setLastName] = useState("");
 	const [password, setPassword] = useState("");
@@ -68,7 +68,7 @@ export default function SetupPage() {
 						allow_tracking: false,
 					},
 					user: {
-						email: email.trim(),
+						username: username.trim(),
 						first_name: firstName.trim(),
 						last_name: lastName.trim(),
 						password,
@@ -176,14 +176,14 @@ export default function SetupPage() {
 					</div>
 
 					<Input
-						label="邮箱"
-						type="email"
-						placeholder="admin@example.com"
-						value={email}
-						onChange={(e) => setEmail(e.target.value)}
-						error={fieldErrors.email}
+						label="用户名"
+						type="text"
+						placeholder="admin"
+						value={username}
+						onChange={(e) => setUsername(e.target.value)}
+						error={fieldErrors.username}
 						required
-						autoComplete="email"
+						autoComplete="username"
 					/>
 
 					<Input

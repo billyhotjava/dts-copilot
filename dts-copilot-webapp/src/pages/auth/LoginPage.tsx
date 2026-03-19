@@ -82,20 +82,20 @@ export default function LoginPage() {
 				</div>
 
 				<h1 className="auth-title">登录</h1>
-				<p className="auth-subtitle">使用邮箱和密码登录分析平台</p>
+				<p className="auth-subtitle">使用用户名和密码登录分析平台</p>
 
 				{error && <div className="auth-error">{error}</div>}
 
 				<form className="auth-form" onSubmit={handleSubmit}>
 					<Input
-						label="邮箱"
-						type="email"
-						placeholder="name@example.com"
+						label="用户名"
+						type="text"
+						placeholder="请输入用户名"
 						value={username}
 						onChange={(e) => setUsername(e.target.value)}
 						required
 						autoFocus
-						autoComplete="email"
+						autoComplete="username"
 					/>
 					<Input
 						label="密码"
