@@ -211,6 +211,10 @@ export type AiAgentChatMessage = {
 	toolName?: string;
 	toolParams?: string;
 	toolResult?: string;
+	generatedSql?: string;
+	routedDomain?: string;
+	targetView?: string;
+	templateCode?: string;
 	sequenceNum?: number;
 	createdAt?: string;
 };

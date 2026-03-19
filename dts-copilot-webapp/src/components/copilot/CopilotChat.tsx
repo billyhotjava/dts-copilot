@@ -570,7 +570,9 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 								: [];
 						const hasTrace = toolMsgs.length > 0;
 						const traceExpanded = expandedTraces.has(msg.id);
-						const extractedSql = msg.role === "assistant" ? extractSqlFromMarkdown(msg.content ?? "") : null;
+						const extractedSql = msg.role === "assistant"
+							? (msg.generatedSql ?? extractSqlFromMarkdown(msg.content ?? ""))
+							: null;
 						return (
 							<div
 								key={msg.id}
@@ -610,6 +612,9 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 										messageId={msg.id}
 										sessionId={sessionId ?? ""}
 										{...(extractedSql ? { generatedSql: extractedSql } : {})}
+										{...(msg.routedDomain ? { routedDomain: msg.routedDomain } : {})}
+										{...(msg.targetView ? { targetView: msg.targetView } : {})}
+										{...(msg.templateCode ? { templateCode: msg.templateCode } : {})}
 									/>
 								)}
 							</div>

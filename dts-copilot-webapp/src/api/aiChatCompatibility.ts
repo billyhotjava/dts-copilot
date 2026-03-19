@@ -68,6 +68,10 @@ export function normalizeLegacyAiChatSessionDetail(payload: unknown) {
 			sessionId,
 			role: pickString(message, ['role']) || 'assistant',
 			content: pickString(message, ['content']) || undefined,
+			generatedSql: pickString(message, ['generatedSql']) || undefined,
+			routedDomain: pickString(message, ['routedDomain']) || undefined,
+			targetView: pickString(message, ['targetView']) || undefined,
+			templateCode: pickString(message, ['templateCode']) || undefined,
 			createdAt: pickString(message, ['createdAt']) || undefined,
 		}
 	})
