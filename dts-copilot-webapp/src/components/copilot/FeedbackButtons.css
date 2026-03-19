@@ -41,6 +41,11 @@
 	padding: 2px 0;
 }
 
+.feedback-buttons__error {
+	font-size: 11px;
+	color: var(--color-danger, #d84a4a);
+}
+
 .feedback-buttons__form {
 	display: flex;
 	flex-direction: column;

@@ -5,6 +5,10 @@ import "./FeedbackButtons.css";
 interface Props {
 	messageId: string;
 	sessionId: string;
+	generatedSql?: string;
+	routedDomain?: string;
+	targetView?: string;
+	templateCode?: string;
 }
 
 const NEGATIVE_REASONS = [
@@ -22,26 +26,48 @@ type FeedbackState =
 	| { step: "negative-form" }
 	| { step: "submitted" };
 
-export function FeedbackButtons({ messageId, sessionId }: Props) {
+export function FeedbackButtons({
+	messageId,
+	sessionId,
+	generatedSql,
+	routedDomain,
+	targetView,
+	templateCode,
+}: Props) {
 	const [state, setState] = useState<FeedbackState>({ step: "idle" });
 	const [selectedReason, setSelectedReason] = useState<string | null>(null);
 	const [detail, setDetail] = useState("");
 	const [submitting, setSubmitting] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	function resolveSubmitError(err: unknown): string {
+		return err instanceof Error && err.message.trim().length > 0 ? err.message : "反馈提交失败，请稍后重试。";
+	}
 
 	async function handlePositive() {
-		setState({ step: "positive-done" });
+		if (submitting) return;
+		setSubmitting(true);
+		setError(null);
 		try {
 			await analyticsApi.submitChatFeedback({
 				sessionId,
 				messageId,
 				rating: "positive",
+				...(generatedSql ? { generatedSql } : {}),
+				...(routedDomain ? { routedDomain } : {}),
+				...(targetView ? { targetView } : {}),
+				...(templateCode ? { templateCode } : {}),
 			});
-		} catch {
-			/* ignore */
+			setState({ step: "positive-done" });
+		} catch (err) {
+			setError(resolveSubmitError(err));
+		} finally {
+			setSubmitting(false);
 		}
 	}
 
 	function handleNegative() {
+		setError(null);
 		setState({ step: "negative-form" });
 	}
 
@@ -49,10 +75,12 @@ export function FeedbackButtons({ messageId, sessionId }: Props) {
 		setState({ step: "idle" });
 		setSelectedReason(null);
 		setDetail("");
+		setError(null);
 	}
 
 	async function handleSubmitNegative() {
 		setSubmitting(true);
+		setError(null);
 		try {
 			await analyticsApi.submitChatFeedback({
 				sessionId,
@@ -60,12 +88,16 @@ export function FeedbackButtons({ messageId, sessionId }: Props) {
 				rating: "negative",
 				...(selectedReason ? { reason: selectedReason } : {}),
 				...(detail.trim() ? { detail: detail.trim() } : {}),
+				...(generatedSql ? { generatedSql } : {}),
+				...(routedDomain ? { routedDomain } : {}),
+				...(targetView ? { targetView } : {}),
+				...(templateCode ? { templateCode } : {}),
 			});
-		} catch {
-			/* ignore */
+			setState({ step: "submitted" });
+		} catch (err) {
+			setError(resolveSubmitError(err));
 		} finally {
 			setSubmitting(false);
-			setState({ step: "submitted" });
 		}
 	}
 
@@ -93,6 +125,7 @@ export function FeedbackButtons({ messageId, sessionId }: Props) {
 					type="button"
 					className="feedback-buttons__btn"
 					onClick={() => void handlePositive()}
+					disabled={submitting}
 				>
 					{"\uD83D\uDC4D"}
 				</button>
@@ -100,10 +133,13 @@ export function FeedbackButtons({ messageId, sessionId }: Props) {
 					type="button"
 					className={`feedback-buttons__btn${state.step === "negative-form" ? " feedback-buttons__btn--active" : ""}`}
 					onClick={handleNegative}
+					disabled={submitting}
 				>
 					{"\uD83D\uDC4E"}
 				</button>
 			</div>
+
+			{error && <div className="feedback-buttons__error">{error}</div>}
 
 			{state.step === "negative-form" && (
 				<div className="feedback-buttons__form">
