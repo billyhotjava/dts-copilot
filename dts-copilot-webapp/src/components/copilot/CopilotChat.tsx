@@ -14,6 +14,7 @@ import { FeedbackButtons } from "./FeedbackButtons";
 import { InlineSqlPreview } from "./InlineSqlPreview";
 import { TracePanel } from "./TracePanel";
 import { WelcomeCard } from "./WelcomeCard";
+import { shouldSubmitCopilotInputOnEnter } from "./copilotInputBehavior";
 import { shouldRestorePersistedCopilotSession } from "./copilotSessionBootstrap";
 import { canUseCopilot } from "./copilotAccessPolicy";
 import "./CopilotChat.css";
@@ -824,7 +825,16 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 						el.style.height = Math.min(el.scrollHeight, 160) + "px";
 					}}
 					onKeyDown={(e) => {
-						if (e.key === "Enter" && !e.shiftKey) {
+						const nativeEvent = e.nativeEvent as KeyboardEvent & {
+							isComposing?: boolean;
+							keyCode?: number;
+						};
+						if (shouldSubmitCopilotInputOnEnter({
+							key: e.key,
+							shiftKey: e.shiftKey,
+							isComposing: nativeEvent.isComposing,
+							keyCode: nativeEvent.keyCode,
+						})) {
 							e.preventDefault();
 							handleSend();
 							// Reset height after send
