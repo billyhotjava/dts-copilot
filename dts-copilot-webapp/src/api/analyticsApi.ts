@@ -1703,6 +1703,18 @@ async function requestBinary(
 
 export const analyticsApi = {
 	getCurrentUser: () => fetchJson<CurrentUser>("/api/user/current"),
+	listUsers: () => fetchJson<CurrentUser[]>("/api/user"),
+	getUser: (id: number) => fetchJson<CurrentUser>(`/api/user/${id}`),
+	createUser: (body: { first_name: string; last_name: string; email: string; password?: string }) =>
+		sendJson<CurrentUser>("/api/user", body),
+	updateUser: (id: number, body: Record<string, unknown>) =>
+		requestJson<CurrentUser>(`/api/user/${id}`, "PUT", body),
+	deactivateUser: (id: number) =>
+		requestJson<void>(`/api/user/${id}`, "DELETE"),
+	reactivateUser: (id: number) =>
+		requestJson<CurrentUser>(`/api/user/${id}/reactivate`, "PUT"),
+	changeUserPassword: (id: number, body: { password: string; old_password?: string }) =>
+		requestJson<void>(`/api/user/${id}/password`, "PUT", body),
 	getHealth: () => fetchJson<{ status?: string }>("/api/analytics/health"),
 	getCopilotSiteSettings: () => fetchJson<CopilotSiteSettings>("/api/admin/copilot/settings/site"),
 	updateCopilotSiteSettings: (body: CopilotSiteSettings) =>
@@ -1741,6 +1753,12 @@ export const analyticsApi = {
 	listPlatformDataSources: () => fetchJson<PlatformDataSourceItem[]>("/api/analytics/platform/data-sources"),
 	createManagedDataSource: (body: ManagedDataSourceCreatePayload) =>
 		sendJson<PlatformDataSourceItem>("/api/platform/data-sources", body),
+	updateManagedDataSource: (id: string | number, body: ManagedDataSourceCreatePayload) =>
+		requestJson<PlatformDataSourceItem>(`/api/platform/data-sources/${encodeURIComponent(String(id))}`, "PUT", body),
+	getDatabase: (dbId: string | number) =>
+		fetchJson<DatabaseCreateResponse>(`/api/analytics/database/${encodeURIComponent(String(dbId))}`),
+	getPlatformDataSource: (id: string | number) =>
+		fetchJson<PlatformDataSourceItem>(`/api/platform/data-sources/${encodeURIComponent(String(id))}`),
 	listTables: (dbId: string | number) =>
 		fetchJson<TableSummary[]>(`/api/analytics/table?db_id=${encodeURIComponent(String(dbId))}`),
 	getTable: (tableId: string | number) =>
