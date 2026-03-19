@@ -4,29 +4,27 @@ import "./auth.css";
 const basePath = import.meta.env.VITE_BASE_PATH?.replace(/\/$/, "") || "";
 
 const featurePills = [
-	"智能问答",
-	"指标诊断",
-	"趋势预警",
-	"大屏交付",
+	"项目运营",
+	"养护巡检",
+	"报花换花",
 ];
 
 const stats = [
-	{ value: "128", label: "活跃看板", detail: "覆盖经营、项目与数据专题" },
-	{ value: "24", label: "实时分析", detail: "跨数据源联动洞察" },
-	{ value: "99.2%", label: "指标可用性", detail: "面向关键决策链路" },
+	{ value: "128", label: "在管项目", detail: "项目与现场资产" },
+	{ value: "24", label: "今日任务", detail: "巡检与换花执行" },
+	{ value: "99.2%", label: "履约达成", detail: "服务计划按时完成" },
 ];
 
 const quickLinks = [
-	"看板中心",
-	"Copilot 问答",
-	"实时大屏",
-	"数据目录",
+	"项目看板",
+	"任务中心",
+	"客户服务",
 ];
 
 const liveStats = [
-	{ value: "1.4s", label: "查询延迟" },
-	{ value: "07", label: "告警命中" },
-	{ value: "16", label: "新增洞察" },
+	{ value: "36", label: "待巡检" },
+	{ value: "12", label: "待换花" },
+	{ value: "08", label: "客户反馈" },
 ];
 
 function BrandMark() {
@@ -175,23 +173,15 @@ export default function LoginPage() {
 						<span className="logo-tag">v2.0</span>
 					</div>
 
-					<div className="hero-label">数据分析中枢</div>
+					<div className="hero-label">植物租赁运营平台</div>
 					<h1 className="hero-title">
-						让指标、趋势与
-						<br />
-						智能问答
+						让项目、养护与植物资产
 						<br />
 						<span className="highlight">
-							在同一张封面上
-							<br />
-							协同工作
+							协同运行
 						</span>
 					</h1>
-					<p className="hero-subtitle">
-						统一接入业务数据、实时监控经营变化、快速生成分析洞察与专题看板。
-						<br />
-						基于自然语言的智能查询，让数据触手可及。
-					</p>
+					<p className="hero-subtitle">覆盖项目、巡检、换花与客户服务。</p>
 
 					<div className="features" aria-label="核心能力">
 						{featurePills.map((item) => (
@@ -217,7 +207,7 @@ export default function LoginPage() {
 							<div className="live-dot-wrap">
 								<span className="live-dot" />
 								<span className="live-text">
-									<strong>LIVE</strong>&nbsp;分析链路正在稳定运行
+									<strong>LIVE</strong>&nbsp;今日现场任务稳定执行
 								</span>
 							</div>
 							<div className="live-stats">
@@ -235,8 +225,8 @@ export default function LoginPage() {
 				<section className="login-side" aria-label="登录区域">
 					<div className="login-card">
 						<div className="login-header">
-							<h2 className="login-title">欢迎回来</h2>
-							<p className="login-desc">使用用户名和密码进入分析平台</p>
+							<h2 className="login-title">欢迎登录</h2>
+							<p className="login-desc">使用账号进入植物租赁平台</p>
 						</div>
 
 						{error && <div className="auth-error auth-error--panel">{error}</div>}
@@ -305,7 +295,7 @@ export default function LoginPage() {
 
 							<button type="submit" className="btn-login" disabled={loading}>
 								<span>
-									{loading ? "登录中..." : "进入分析平台"}
+									{loading ? "登录中..." : "进入运营平台"}
 									<span className="arrow">→</span>
 								</span>
 							</button>
