@@ -1,10 +1,11 @@
 export type CurrentUser = {
-	id?: number | string;
+	id: number;
 	email?: string;
 	first_name?: string;
 	last_name?: string;
 	common_name?: string;
 	is_superuser?: boolean;
+	is_active?: boolean;
 };
 
 export type CollectionListItem = {

@@ -485,6 +485,7 @@ const ROUTE_NAV_MAP: { path: string; section: string; nav?: string }[] = [
 	},
 	{ path: "/metric-lens", section: "nav.section.tools", nav: "nav.metricLens" },
 	{ path: "/search", section: "nav.section.tools", nav: "nav.search" },
+	{ path: "/admin/users", section: "nav.section.admin", nav: "nav.users" },
 	{ path: "/admin/settings", section: "nav.section.admin", nav: "nav.systemSettings" },
 ];
 
@@ -1060,6 +1061,11 @@ export function AppLayout() {
 								<SidebarDivider />
 
 								<SidebarSection title={t(locale, "nav.section.admin")}>
+									<SidebarItem
+										to="/admin/users"
+										icon={<UserIcon />}
+										label={t(locale, "nav.users")}
+									/>
 									<SidebarItem
 										to="/admin/settings/copilot"
 										icon={<SettingsIcon />}

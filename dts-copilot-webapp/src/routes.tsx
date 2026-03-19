@@ -50,6 +50,7 @@ export function createRoutes() {
 					{ path: "/data/:dbId/edit", lazy: lazyComponent(() => import("./pages/DatabaseEditPage")) },
 					{ path: "/data/:dbId", lazy: lazyComponent(() => import("./pages/DatabaseDetailPage")) },
 					{ path: "/admin/settings/copilot", lazy: lazyComponent(() => import("./pages/admin/CopilotSettingsPage")) },
+				{ path: "/admin/users", lazy: lazyComponent(() => import("./pages/admin/UsersPage")) },
 					{ path: "/data/:dbId/tables/:tableId", lazy: lazyComponent(() => import("./pages/TableDetailPage")) },
 					{
 						path: "/data/:dbId/tables/:tableId/fields/:fieldId",
