@@ -515,9 +515,9 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 						break;
 				}
 			}, { signal: abortController.signal });
-			if (streamedSessionId && !streamFailed) {
-				void reloadMessages(streamedSessionId);
-			}
+			// Don't reloadMessages — streamed content (including reasoning) is
+			// already rendered.  Reloading would race with the persist and may
+			// momentarily replace the message list, causing reasoning to flash away.
 			void reloadSessions();
 		} catch (e) {
 			const aborted = e instanceof DOMException
