@@ -2339,6 +2339,7 @@ export const analyticsApi = {
 
 export type CopilotStreamEvent =
 	| { type: "session"; sessionId: string }
+	| { type: "heartbeat" }
 	| { type: "reasoning"; content: string }
 	| { type: "token"; content: string }
 	| { type: "tool"; tool: string; status: string }
@@ -2348,6 +2349,7 @@ export type CopilotStreamEvent =
 export async function aiAgentChatSendStream(
 	body: { sessionId?: string; userMessage: string; datasourceId?: string },
 	onEvent: (event: CopilotStreamEvent) => void,
+	options?: { signal?: AbortSignal },
 ): Promise<void> {
 	const basePath = import.meta.env.VITE_BASE_PATH?.replace(/\/$/, "") || "";
 	const response = await fetch(`${basePath}/api/copilot/chat/send-stream`, {
@@ -2355,6 +2357,7 @@ export async function aiAgentChatSendStream(
 		credentials: "include",
 		headers: { "content-type": "application/json", accept: "text/event-stream" },
 		body: JSON.stringify(body),
+		signal: options?.signal,
 	});
 
 	if (!response.ok || !response.body) {
@@ -2366,13 +2369,16 @@ export async function aiAgentChatSendStream(
 	const parser = createSseEventParser(({ event, data }) => {
 		try {
 			const parsed = JSON.parse(data);
-			switch (event) {
-				case "session":
-					onEvent({ type: "session", sessionId: parsed.sessionId });
-					break;
-				case "reasoning":
-					onEvent({ type: "reasoning", content: parsed.content });
-					break;
+				switch (event) {
+					case "session":
+						onEvent({ type: "session", sessionId: parsed.sessionId });
+						break;
+					case "heartbeat":
+						onEvent({ type: "heartbeat" });
+						break;
+					case "reasoning":
+						onEvent({ type: "reasoning", content: parsed.content });
+						break;
 				case "token":
 					onEvent({ type: "token", content: parsed.content });
 					break;

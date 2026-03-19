@@ -172,6 +172,12 @@
 	white-space: pre-wrap;
 }
 
+.copilot-chat__streaming-placeholder {
+	font-size: 12px;
+	line-height: 1.5;
+	color: #98a2b3;
+}
+
 .copilot-obj-ref {
 	color: var(--color-brand, #509ee3);
 	text-decoration: underline;
@@ -332,10 +338,10 @@
 }
 
 .copilot-chat__send-btn {
-	width: 28px;
+	min-width: 28px;
 	height: 28px;
 	border: none;
-	border-radius: 50%;
+	border-radius: 999px;
 	background: var(--color-brand, #509ee3);
 	color: #fff;
 	font-size: 14px;
@@ -344,6 +350,7 @@
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
+	padding: 0 10px;
 }
 
 .copilot-chat__send-btn:disabled {

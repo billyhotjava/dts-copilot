@@ -14,10 +14,11 @@ import { FeedbackButtons } from "./FeedbackButtons";
 import { InlineSqlPreview } from "./InlineSqlPreview";
 import { TracePanel } from "./TracePanel";
 import { WelcomeCard } from "./WelcomeCard";
-import { canEditCopilotComposer, canSubmitCopilotComposer } from "./copilotComposerState";
+import { canEditCopilotComposer } from "./copilotComposerState";
 import { shouldSubmitCopilotInputOnEnter } from "./copilotInputBehavior";
 import { appendReasoningDelta, appendToolProgressLine } from "./copilotReasoningState";
 import { shouldRestorePersistedCopilotSession } from "./copilotSessionBootstrap";
+import { createCopilotStreamWatchdog, resolveCopilotSendAction } from "./copilotStreamControl";
 import { canUseCopilot } from "./copilotAccessPolicy";
 import "./CopilotChat.css";
 
@@ -26,6 +27,8 @@ type FormValues = Record<string, string | number | undefined>;
 
 const SESSION_ID_KEY = "dts-analytics.copilot.sessionId";
 const DATASOURCE_ID_KEY = "dts-analytics.copilotDatasourceId";
+const STREAM_IDLE_TIMEOUT_MS = 30000;
+const STREAM_PENDING_REASONING = "正在思考…";
 
 function getStoredDatasourceId(): number | null {
 	try {
@@ -192,6 +195,7 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const activeStreamingSessionIdRef = useRef<string | null>(null);
 	const streamInFlightRef = useRef(false);
+	const streamAbortRef = useRef<AbortController | null>(null);
 	const sortedMessages = useMemo(() => sortMessages(messages), [messages]);
 	const approvalSchema = useMemo(
 		() => normalizeMicroForm(pendingAction),
@@ -203,7 +207,7 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 		copilotEnabled,
 		requestInFlight: sending,
 	});
-	const canSubmitComposer = canSubmitCopilotComposer({
+	const sendAction = resolveCopilotSendAction({
 		copilotEnabled,
 		requestInFlight: sending,
 		input,
@@ -353,6 +357,20 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 		});
 	}, [sortedMessages, pendingAction, sending]);
 
+	useEffect(() => () => {
+		streamAbortRef.current?.abort();
+		streamAbortRef.current = null;
+	}, []);
+
+	const handleStopStreaming = useCallback(() => {
+		if (!streamAbortRef.current) {
+			return;
+		}
+		streamAbortRef.current.abort();
+		streamAbortRef.current = null;
+		setError("已停止本次回答生成。");
+	}, []);
+
 	async function handleSendText(text: string) {
 		if (!copilotEnabled) {
 			setError(copilotDisabledMessage);
@@ -378,26 +396,53 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 			...(sessionId ? { sessionId } : {}),
 			...(selectedDbId != null ? { datasourceId: String(selectedDbId) } : {}),
 		};
+		const assistantId = `stream-${Date.now()}`;
+		let streamedContent = "";
+		let streamFailed = false;
+		let streamedSessionId = sessionId;
+		let sawStreamEvent = false;
+		let streamTimedOut = false;
+		const abortController = new AbortController();
+		const streamWatchdog = createCopilotStreamWatchdog({
+			idleMs: STREAM_IDLE_TIMEOUT_MS,
+			onIdle: () => {
+				streamTimedOut = true;
+				abortController.abort();
+				setError("AI Copilot 响应超时，请重试或换一个更明确的问题。");
+				setMessages((prev) =>
+					prev.map((m) =>
+						m.id === assistantId && !m.content
+							? {
+								...m,
+								content: "本次回答因响应超时被中断，请重试。",
+								reasoningContent: m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
+							}
+							: m,
+					),
+				);
+			},
+		});
 
 		// Try SSE streaming first, fallback to sync
 		try {
-			const assistantId = `stream-${Date.now()}`;
-			let streamedContent = "";
-			let streamFailed = false;
-			let streamedSessionId = sessionId;
 			streamInFlightRef.current = true;
 			activeStreamingSessionIdRef.current = sessionId;
+			streamAbortRef.current = abortController;
+			streamWatchdog.start();
 
 			// Add placeholder assistant message
-			setMessages((prev) => [...prev, {
-				id: assistantId,
-				sessionId: sessionId ?? "",
-				role: "assistant" as const,
-				content: "",
-				sequenceNum: messages.length + 1,
-			}]);
+				setMessages((prev) => [...prev, {
+					id: assistantId,
+					sessionId: sessionId ?? "",
+					role: "assistant" as const,
+					content: "",
+					reasoningContent: STREAM_PENDING_REASONING,
+					sequenceNum: messages.length + 1,
+				}]);
 
 			await aiAgentChatSendStream(body, (event: CopilotStreamEvent) => {
+				sawStreamEvent = true;
+				streamWatchdog.markActivity();
 				switch (event.type) {
 					case "session":
 						streamedSessionId = event.sessionId;
@@ -405,17 +450,31 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 						setSessionId(event.sessionId);
 						try { sessionStorage.setItem(SESSION_ID_KEY, event.sessionId); } catch {}
 						break;
+					case "heartbeat":
+						break;
 					case "reasoning":
 						setMessages((prev) => prev.map((m) =>
 							m.id === assistantId
-								? { ...m, reasoningContent: appendReasoningDelta(m.reasoningContent, event.content) }
+								? {
+									...m,
+									reasoningContent: appendReasoningDelta(
+										m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
+										event.content,
+									),
+								}
 								: m
 						));
 						break;
 					case "token":
 						streamedContent += event.content;
 						setMessages((prev) => prev.map((m) =>
-							m.id === assistantId ? { ...m, content: streamedContent } : m
+							m.id === assistantId
+								? {
+									...m,
+									content: streamedContent,
+									reasoningContent: m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
+								}
+								: m
 						));
 						break;
 					case "tool":
@@ -423,10 +482,13 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 							m.id === assistantId
 								? {
 									...m,
-									reasoningContent: appendToolProgressLine(m.reasoningContent, {
-										tool: event.tool,
-										status: event.status,
-									}),
+									reasoningContent: appendToolProgressLine(
+										m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
+										{
+											tool: event.tool,
+											status: event.status,
+										},
+									),
 								}
 								: m
 						));
@@ -442,16 +504,52 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 						streamFailed = true;
 						setError(event.error);
 						setMessages((prev) => prev.map((m) =>
-							m.id === assistantId ? { ...m, content: event.error } : m
+							m.id === assistantId
+								? {
+									...m,
+									content: event.error,
+									reasoningContent: m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
+								}
+								: m
 						));
 						break;
 				}
-			});
+			}, { signal: abortController.signal });
 			if (streamedSessionId && !streamFailed) {
 				void reloadMessages(streamedSessionId);
 			}
 			void reloadSessions();
-		} catch {
+		} catch (e) {
+			const aborted = e instanceof DOMException
+				? e.name === "AbortError"
+				: e instanceof Error && e.name === "AbortError";
+			if (aborted) {
+				if (!streamTimedOut) {
+					setMessages((prev) => prev.map((m) =>
+						m.id === assistantId && !m.content
+							? {
+								...m,
+								content: "已停止本次回答生成。",
+								reasoningContent: m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
+							}
+							: m
+					));
+				}
+				return;
+			}
+			if (sawStreamEvent) {
+				setError(resolveUiError(e, "流式响应中断，请重试。"));
+				setMessages((prev) => prev.map((m) =>
+					m.id === assistantId && !m.content
+						? {
+							...m,
+							content: "流式响应中断，请重试。",
+							reasoningContent: m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
+						}
+						: m
+				));
+				return;
+			}
 			// Fallback to synchronous API
 			try {
 				setMessages((prev) => prev.filter((m) => !m.id.startsWith("stream-")));
@@ -466,9 +564,11 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 				void reloadSessions();
 			} catch (e) {
 				setError(resolveUiError(e, "Failed to send"));
-			}
-		} finally {
-			streamInFlightRef.current = false;
+				}
+			} finally {
+				streamWatchdog.stop();
+				streamAbortRef.current = null;
+				streamInFlightRef.current = false;
 			activeStreamingSessionIdRef.current = null;
 			setSending(false);
 		}
@@ -683,18 +783,25 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 						const extractedSql = msg.role === "assistant"
 							? (msg.generatedSql ?? extractSqlFromMarkdown(msg.content ?? ""))
 							: null;
-						return (
-							<div
-								key={msg.id}
-								className={`copilot-chat__msg copilot-chat__msg--${msg.role}`}
-							>
-								<div className="copilot-chat__msg-content">
-									{msg.reasoningContent && (
-										<div className="copilot-chat__reasoning">
-											<div className="copilot-chat__reasoning-label">思考过程</div>
-											<div className="copilot-chat__reasoning-content">{msg.reasoningContent}</div>
-										</div>
-									)}
+							return (
+								<div
+									key={msg.id}
+									className={`copilot-chat__msg copilot-chat__msg--${msg.role}`}
+								>
+									<div className="copilot-chat__msg-content">
+										{msg.role === "assistant" &&
+										msg.id.startsWith("stream-") &&
+										!msg.content &&
+										msg.reasoningContent === STREAM_PENDING_REASONING ? (
+											<div className="copilot-chat__streaming-placeholder">正在思考…</div>
+										) : null}
+										{msg.reasoningContent &&
+										msg.reasoningContent !== STREAM_PENDING_REASONING && (
+											<div className="copilot-chat__reasoning">
+												<div className="copilot-chat__reasoning-label">思考过程</div>
+												<div className="copilot-chat__reasoning-content">{msg.reasoningContent}</div>
+											</div>
+										)}
 									{msg.content}
 								</div>
 								{extractedSql && (
@@ -897,17 +1004,17 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 					}
 					disabled={!canEditComposer}
 				/>
-				<button
-					type="button"
-					className="copilot-chat__send-btn"
-					onClick={handleSend}
-					disabled={!canSubmitComposer}
-				>
-					{sending ? "..." : "→"}
-				</button>
+					<button
+						type="button"
+						className="copilot-chat__send-btn"
+						onClick={sendAction.mode === "stop" ? handleStopStreaming : handleSend}
+						disabled={sendAction.disabled}
+					>
+						{sendAction.label}
+					</button>
+				</div>
 			</div>
-		</div>
-	);
+		);
 }
 
 /**
