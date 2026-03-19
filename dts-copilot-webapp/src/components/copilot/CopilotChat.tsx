@@ -8,12 +8,13 @@ import type {
 	MicroFormSchema,
 } from "../../api/analyticsApi";
 import { getCopilotApiKey, hasCopilotSessionAccess } from "../../api/copilotAuth";
-import { AuthError, analyticsApi } from "../../api/analyticsApi";
+import { AuthError, analyticsApi, aiAgentChatSendStream, type CopilotStreamEvent } from "../../api/analyticsApi";
 import { extractSqlFromMarkdown } from "../../utils/sqlExtractor";
 import { FeedbackButtons } from "./FeedbackButtons";
 import { InlineSqlPreview } from "./InlineSqlPreview";
 import { TracePanel } from "./TracePanel";
 import { WelcomeCard } from "./WelcomeCard";
+import { shouldRestorePersistedCopilotSession } from "./copilotSessionBootstrap";
 import { canUseCopilot } from "./copilotAccessPolicy";
 import "./CopilotChat.css";
 
@@ -166,12 +167,13 @@ function buildInitialApprovalValues(
 }
 
 export function CopilotChat({ hasSessionAccess = false }: Props) {
+	const initialStoredSessionId = useRef(getStoredSessionId());
 	const copilotEnabled = canUseCopilot(
 		getCopilotApiKey(),
 		hasSessionAccess || hasCopilotSessionAccess(),
 	);
 	const [sessionId, setSessionId] = useState<string | null>(() =>
-		getStoredSessionId(),
+		initialStoredSessionId.current,
 	);
 	const [sessions, setSessions] = useState<AiAgentChatSession[]>([]);
 	const [messages, setMessages] = useState<AiAgentChatMessage[]>([]);
@@ -277,18 +279,35 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 		void (async () => {
 			const list = await reloadSessions();
 			if (!active) return;
-			if (!sessionId && list.length > 0) {
-				setSessionId(list[0].id);
-				return;
+			const restoredSessionId = initialStoredSessionId.current;
+			if (restoredSessionId && list.some((item) => item.id === restoredSessionId)) {
+				try {
+					const detail = await analyticsApi.getAiAgentSession(restoredSessionId);
+					if (!active) return;
+					if (!shouldRestorePersistedCopilotSession(detail)) {
+						setSessionId(null);
+						setMessages([]);
+						setPendingAction(null);
+						initialStoredSessionId.current = null;
+						try {
+							sessionStorage.removeItem(SESSION_ID_KEY);
+						} catch {
+							/* ignore */
+						}
+						return;
+					}
+				} catch {
+					/* ignore */
+				}
 			}
 			if (sessionId && list.length > 0 && !list.some((item) => item.id === sessionId)) {
-				setSessionId(list[0].id);
+				setSessionId(null);
 			}
 		})();
 		return () => {
 			active = false;
 		};
-	}, [reloadSessions]);
+	}, [reloadSessions, sessionId]);
 
 	// Restore messages for current backend session.
 	useEffect(() => {
@@ -337,28 +356,78 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 		};
 		setMessages((prev) => [...prev, optimistic]);
 
+		const body: CopilotSendBody = {
+			userMessage: trimmed,
+			...(sessionId ? { sessionId } : {}),
+			...(selectedDbId != null ? { datasourceId: String(selectedDbId) } : {}),
+		};
+
+		// Try SSE streaming first, fallback to sync
 		try {
-			const body: CopilotSendBody = {
-				userMessage: trimmed,
-				...(sessionId ? { sessionId } : {}),
-				...(selectedDbId != null ? { datasourceId: String(selectedDbId) } : {}),
-			};
+			const assistantId = `stream-${Date.now()}`;
+			let streamedContent = "";
+			let streamedSessionId = sessionId;
 
-			const res = (await analyticsApi.aiAgentChatSend(
-				body,
-			)) as AiAgentChatResponse;
+			// Add placeholder assistant message
+			setMessages((prev) => [...prev, {
+				id: assistantId,
+				sessionId: sessionId ?? "",
+				role: "assistant" as const,
+				content: "",
+				sequenceNum: messages.length + 1,
+			}]);
 
-			if (res.sessionId) {
-				setSessionId(res.sessionId);
-				await reloadMessages(res.sessionId);
-			}
+			await aiAgentChatSendStream(body, (event: CopilotStreamEvent) => {
+				switch (event.type) {
+					case "session":
+						streamedSessionId = event.sessionId;
+						setSessionId(event.sessionId);
+						try { sessionStorage.setItem(SESSION_ID_KEY, event.sessionId); } catch {}
+						break;
+					case "token":
+						streamedContent += event.content;
+						setMessages((prev) => prev.map((m) =>
+							m.id === assistantId ? { ...m, content: streamedContent } : m
+						));
+						break;
+					case "done":
+						setMessages((prev) => prev.map((m) =>
+							m.id === assistantId
+								? { ...m, generatedSql: event.generatedSql }
+								: m
+						));
+						break;
+					case "error":
+						setMessages((prev) => prev.map((m) =>
+							m.id === assistantId ? { ...m, content: event.error } : m
+						));
+						break;
+				}
+			});
 
-			if (res.requiresApproval && res.pendingAction) {
-				setPendingAction(res.pendingAction);
+			// Reload full session data after streaming completes
+			if (streamedSessionId) {
+				await reloadMessages(streamedSessionId);
 			}
 			await reloadSessions();
-		} catch (e) {
-			setError(resolveUiError(e, "Failed to send"));
+		} catch {
+			// Fallback to synchronous API
+			try {
+				// Remove the streaming placeholder
+				setMessages((prev) => prev.filter((m) => !m.id.startsWith("stream-")));
+
+				const res = (await analyticsApi.aiAgentChatSend(body)) as AiAgentChatResponse;
+				if (res.sessionId) {
+					setSessionId(res.sessionId);
+					await reloadMessages(res.sessionId);
+				}
+				if (res.requiresApproval && res.pendingAction) {
+					setPendingAction(res.pendingAction);
+				}
+				await reloadSessions();
+			} catch (e) {
+				setError(resolveUiError(e, "Failed to send"));
+			}
 		} finally {
 			setSending(false);
 		}

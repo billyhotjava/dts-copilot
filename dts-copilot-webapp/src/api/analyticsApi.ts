@@ -2332,3 +2332,78 @@ export const analyticsApi = {
 		userName: body.userName ?? resolveLegacyAiUserName(),
 	}),
 };
+
+// ── CS-09: SSE streaming for copilot chat ────────────────────────────
+
+export type CopilotStreamEvent =
+	| { type: "session"; sessionId: string }
+	| { type: "token"; content: string }
+	| { type: "tool"; tool: string; status: string }
+	| { type: "done"; generatedSql?: string }
+	| { type: "error"; error: string };
+
+export async function aiAgentChatSendStream(
+	body: { sessionId?: string; userMessage: string; datasourceId?: string },
+	onEvent: (event: CopilotStreamEvent) => void,
+): Promise<void> {
+	const basePath = import.meta.env.VITE_BASE_PATH?.replace(/\/$/, "") || "";
+	const response = await fetch(`${basePath}/api/copilot/chat/send-stream`, {
+		method: "POST",
+		credentials: "include",
+		headers: { "content-type": "application/json", accept: "text/event-stream" },
+		body: JSON.stringify(body),
+	});
+
+	if (!response.ok || !response.body) {
+		throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+	}
+
+	const reader = response.body.getReader();
+	const decoder = new TextDecoder();
+	let buffer = "";
+
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		buffer += decoder.decode(value, { stream: true });
+
+		const lines = buffer.split("\n");
+		buffer = lines.pop() || "";
+
+		let currentEvent = "";
+		let currentData = "";
+
+		for (const line of lines) {
+			if (line.startsWith("event: ")) {
+				currentEvent = line.slice(7).trim();
+			} else if (line.startsWith("data: ")) {
+				currentData = line.slice(6);
+			} else if (line === "" && currentEvent && currentData) {
+				try {
+					const parsed = JSON.parse(currentData);
+					switch (currentEvent) {
+						case "session":
+							onEvent({ type: "session", sessionId: parsed.sessionId });
+							break;
+						case "token":
+							onEvent({ type: "token", content: parsed.content });
+							break;
+						case "tool":
+							onEvent({ type: "tool", tool: parsed.tool, status: parsed.status });
+							break;
+						case "done":
+							onEvent({ type: "done", generatedSql: parsed.generatedSql });
+							break;
+						case "error":
+							onEvent({ type: "error", error: parsed.error });
+							break;
+					}
+				} catch {
+					// ignore malformed events
+				}
+				currentEvent = "";
+				currentData = "";
+			}
+		}
+	}
+}
