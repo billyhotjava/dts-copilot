@@ -618,11 +618,15 @@ export function AppLayout() {
 	const locale = getEffectiveLocale();
 	const userInfo = getUserInfo();
 	const userRoles = getUserRoles();
-	const privileged = resolvePrivilegedAccess({
-		roles: userRoles,
-		personnelLevel: userInfo.personnelLevel,
-		isSuperuser: sessionUser?.is_superuser === true,
-	});
+	// In standalone mode (sessionUser present), all logged-in users see
+	// data & tools sections.  Platform mode still uses role-based check.
+	const privileged = sessionUser
+		? true
+		: resolvePrivilegedAccess({
+			roles: userRoles,
+			personnelLevel: userInfo.personnelLevel,
+			isSuperuser: false,
+		});
 	const sessionUserName =
 		sessionUser?.common_name ||
 		[sessionUser?.first_name, sessionUser?.last_name].filter(Boolean).join(" ") ||

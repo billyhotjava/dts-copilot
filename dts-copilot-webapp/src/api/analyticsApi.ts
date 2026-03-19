@@ -2366,7 +2366,9 @@ export async function aiAgentChatSendStream(
 
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
+	let receivedEvents = 0;
 	const parser = createSseEventParser(({ event, data }) => {
+		receivedEvents++;
 		try {
 			const parsed = JSON.parse(data);
 				switch (event) {
@@ -2397,13 +2399,24 @@ export async function aiAgentChatSendStream(
 		}
 	});
 
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) {
-			break;
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) {
+				break;
+			}
+			parser.push(decoder.decode(value, { stream: true }));
 		}
-		parser.push(decoder.decode(value, { stream: true }));
+		parser.push(decoder.decode());
+		parser.finish();
+	} catch (err) {
+		// In reverse-proxy environments (Traefik/Nginx), the server closing
+		// the connection after the last SSE chunk can surface as a TypeError
+		// ("network error").  If we already received events, the response was
+		// delivered — swallow the error instead of triggering the sync fallback.
+		parser.finish();
+		if (receivedEvents === 0) {
+			throw err;
+		}
 	}
-	parser.push(decoder.decode());
-	parser.finish();
 }
