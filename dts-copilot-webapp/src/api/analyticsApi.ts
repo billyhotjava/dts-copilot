@@ -1384,7 +1384,7 @@ async function apiFetch(url: string, init: RequestInit, allowRefresh: boolean): 
 		const copilotHeaders = getCopilotHeaders();
 		for (const [key, value] of Object.entries(copilotHeaders)) {
 			if (!headers.has(key)) {
-				headers.set(key, value);
+				headers.set(key, String(value));
 			}
 		}
 	} else if (tokens.accessToken && !headers.has("authorization")) {
@@ -1988,7 +1988,7 @@ export const analyticsApi = {
 			extras?: Record<string, string>;
 		};
 	}) =>
-		sendAiAgentChatCompat(body ?? {}),
+		sendAiAgentChatCompat(body),
 	aiAgentChatApprove: (
 		sessionId: string,
 		actionId: string,
