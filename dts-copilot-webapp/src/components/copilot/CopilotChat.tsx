@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router";
 import type {
 	AiAgentChatMessage,
 	AiAgentChatResponse,
@@ -13,8 +14,10 @@ import { extractSqlFromMarkdown } from "../../utils/sqlExtractor";
 import { FeedbackButtons } from "./FeedbackButtons";
 import { InlineSqlPreview } from "./InlineSqlPreview";
 import { TracePanel } from "./TracePanel";
+import { VoiceInputButton } from "./VoiceInputButton";
 import { WelcomeCard } from "./WelcomeCard";
 import { canEditCopilotComposer } from "./copilotComposerState";
+import { shouldShowFixedReportShortcut } from "./copilotFixedReportMessage";
 import { shouldSubmitCopilotInputOnEnter } from "./copilotInputBehavior";
 import { appendReasoningDelta, appendToolProgressLine } from "./copilotReasoningState";
 import { shouldRestorePersistedCopilotSession } from "./copilotSessionBootstrap";
@@ -496,7 +499,14 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 					case "done":
 						setMessages((prev) => prev.map((m) =>
 							m.id === assistantId
-								? { ...m, generatedSql: event.generatedSql }
+								? {
+									...m,
+									generatedSql: event.generatedSql,
+									templateCode: event.templateCode,
+									routedDomain: event.routedDomain,
+									targetView: event.targetView,
+									responseKind: event.responseKind,
+								}
 								: m
 						));
 						break;
@@ -799,11 +809,21 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 										msg.reasoningContent !== STREAM_PENDING_REASONING && (
 											<div className="copilot-chat__reasoning">
 												<div className="copilot-chat__reasoning-label">思考过程</div>
-												<div className="copilot-chat__reasoning-content">{msg.reasoningContent}</div>
+										<div className="copilot-chat__reasoning-content">{msg.reasoningContent}</div>
 											</div>
 										)}
 									{msg.content}
 								</div>
+								{shouldShowFixedReportShortcut(msg) && (
+									<div className="copilot-chat__fixed-report-action">
+											<Link
+												className="copilot-chat__fixed-report-link"
+												to={`/fixed-reports/${encodeURIComponent(msg.templateCode!)}/run`}
+											>
+											查看固定报表
+										</Link>
+									</div>
+								)}
 								{extractedSql && (
 									<InlineSqlPreview sql={extractedSql} databaseId={selectedDbId ?? undefined} />
 								)}
@@ -1004,6 +1024,14 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 					}
 					disabled={!canEditComposer}
 				/>
+					<VoiceInputButton
+						onTranscript={(text, isFinal) => {
+							if (isFinal) {
+								setInput((prev) => (prev ? prev + " " + text : text));
+							}
+						}}
+						disabled={!canEditComposer || sending}
+					/>
 					<button
 						type="button"
 						className="copilot-chat__send-btn"

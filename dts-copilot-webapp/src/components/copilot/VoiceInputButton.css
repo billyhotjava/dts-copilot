@@ -1,0 +1,124 @@
+.voice-input-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.voice-input-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-text-secondary, #8b9ab5);
+    cursor: pointer;
+    transition: color 0.2s, background-color 0.2s;
+}
+
+.voice-input-btn:hover:not(:disabled) {
+    color: var(--color-text-primary, #e2e8f0);
+    background: var(--color-bg-hover, rgba(255, 255, 255, 0.08));
+}
+
+.voice-input-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Listening state – red mic */
+.voice-input-btn--listening {
+    color: #ef4444;
+}
+
+.voice-input-btn--listening:hover:not(:disabled) {
+    color: #dc2626;
+    background: rgba(239, 68, 68, 0.12);
+}
+
+/* Error state – amber flash */
+.voice-input-btn--error {
+    color: #f59e0b;
+}
+
+/* Requesting state – subtle pulse */
+.voice-input-btn--requesting {
+    animation: voice-breathe 1s ease-in-out infinite;
+}
+
+/* Pulse rings around mic when recording */
+.voice-input-pulse {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid #ef4444;
+    pointer-events: none;
+    animation: voice-ring 1.5s ease-out infinite;
+}
+
+.voice-input-pulse--delayed {
+    animation-delay: 0.5s;
+}
+
+@keyframes voice-ring {
+    0% {
+        transform: scale(1);
+        opacity: 0.7;
+    }
+    100% {
+        transform: scale(1.8);
+        opacity: 0;
+    }
+}
+
+@keyframes voice-breathe {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+/* Error toast */
+.voice-input-error {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    min-width: 200px;
+    max-width: 280px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: var(--color-bg-error, #451a03);
+    color: var(--color-text-error, #fbbf24);
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: normal;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    animation: voice-error-in 0.2s ease-out;
+}
+
+@keyframes voice-error-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mobile: larger touch target */
+@media (pointer: coarse) {
+    .voice-input-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    .voice-input-pulse {
+        inset: -6px;
+    }
+}
