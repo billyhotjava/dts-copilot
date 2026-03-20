@@ -136,12 +136,26 @@ function normalizeComponent(
     }
 
     const row = input as Record<string, unknown>;
-    const rawType = asString(row.type);
+
+    // AI type alias mapping: AI may generate types not in COMPONENT_TYPES
+    const AI_TYPE_ALIASES: Record<string, string> = {
+        'kpi-card': 'number-card',
+        'area-chart': 'line-chart',
+        'text': 'markdown-text',
+        'gauge': 'gauge-chart',
+        'radar': 'radar-chart',
+        'funnel': 'funnel-chart',
+        'scatter': 'scatter-chart',
+    };
+    let rawType = asString(row.type);
+    if (rawType && AI_TYPE_ALIASES[rawType]) {
+        rawType = AI_TYPE_ALIASES[rawType];
+    }
     const type = rawType && COMPONENT_TYPES.has(rawType as ScreenComponent['type'])
         ? (rawType as ScreenComponent['type'])
         : null;
     if (!type) {
-        warnings.push(`components[${index}].type is invalid: ${String(rawType)}`);
+        warnings.push(`components[${index}].type is invalid: ${String(asString(row.type))}`);
         return null;
     }
 
@@ -151,16 +165,31 @@ function normalizeComponent(
         : {};
     const dataSource = normalizeDataSource(row.dataSource);
 
+    // AI grid-unit compatibility: if 'w'/'h' are present and small (<= 24),
+    // treat them as 24-column grid units and convert to pixels
+    const GRID_COLS = 24;
+    const GRID_ROW_PX = 60;
+    let compWidth = asNumber(row.width, 0, 0);
+    let compHeight = asNumber(row.height, 0, 0);
+    if (compWidth === 0 && typeof row.w === 'number' && row.w > 0 && row.w <= GRID_COLS) {
+        compWidth = Math.round((row.w / GRID_COLS) * 1920);
+    }
+    if (compHeight === 0 && typeof row.h === 'number' && row.h > 0 && row.h <= 30) {
+        compHeight = Math.round(row.h * GRID_ROW_PX);
+    }
+    if (compWidth <= 0) compWidth = 240;
+    if (compHeight <= 0) compHeight = 120;
+
     return {
         id,
         groupId: asTrimmedString(row.groupId),
         parentContainerId: asTrimmedString(row.parentContainerId),
         type,
-        name: asString(row.name) || `${type}-${index + 1}`,
+        name: asString(row.name) || asString(row.title) || `${type}-${index + 1}`,
         x: asNumber(row.x, 0),
         y: asNumber(row.y, 0),
-        width: asNumber(row.width, 240, 20),
-        height: asNumber(row.height, 120, 20),
+        width: compWidth,
+        height: compHeight,
         zIndex: asNumber(row.zIndex, index),
         locked: Boolean(row.locked),
         visible: row.visible === undefined ? true : Boolean(row.visible),
