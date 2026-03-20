@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { analyticsApi, type ScreenPublicLinkPolicy } from '../../../api/analyticsApi';
 import { writeTextToClipboard } from '../../../hooks/clipboard';
 import { Modal } from '../../../ui/Modal/Modal';
+import { buildAbsoluteScreenAppUrl, buildPublicScreenPath } from '../screenRoutePaths';
 
 interface ScreenSharePolicyPanelProps {
     open: boolean;
@@ -47,7 +48,7 @@ export function ScreenSharePolicyPanel({ open, screenId, onClose }: ScreenShareP
     const shareUrl = useMemo(() => {
         const uuid = policy?.uuid;
         if (!uuid) return '';
-        return `${window.location.origin}/analytics/public/screen/${uuid}`;
+        return buildAbsoluteScreenAppUrl(window.location.origin, buildPublicScreenPath(uuid));
     }, [policy?.uuid]);
 
     const loadPolicy = async () => {

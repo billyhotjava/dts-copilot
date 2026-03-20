@@ -32,6 +32,12 @@ import type { ScreenTheme } from '../types';
 import { LinkageGraphPanel } from './LinkageGraphPanel';
 import type { ScreenConfig } from '../types';
 import { writeTextToClipboard } from '../../../hooks/clipboard';
+import {
+    buildAbsoluteScreenAppUrl,
+    buildPublicScreenPath,
+    buildScreenExportPath,
+    buildScreenPreviewPath,
+} from '../screenRoutePaths';
 
 type PublishNotice = {
     screenId: string | number;
@@ -973,12 +979,12 @@ export function ScreenHeader({
                     + '，跳过 ' + (warmup.skipped || 0)
                     + '，失败 ' + (warmup.failed || 0);
             }
-            const previewUrl = `${window.location.origin}/analytics/screens/${encodeURIComponent(String(screenId))}/preview`;
+            const previewUrl = buildAbsoluteScreenAppUrl(window.location.origin, buildScreenPreviewPath(screenId));
             let publicUrl: string | null = null;
             try {
                 const policy = await analyticsApi.createScreenPublicLink(screenId, {});
                 if (policy?.uuid) {
-                    publicUrl = `${window.location.origin}/analytics/public/screen/${policy.uuid}`;
+                    publicUrl = buildAbsoluteScreenAppUrl(window.location.origin, buildPublicScreenPath(policy.uuid));
                 }
             } catch (linkError) {
                 console.warn('Publish succeeded but creating public link failed:', linkError);
@@ -1020,7 +1026,7 @@ export function ScreenHeader({
                 setPublishNotice({
                     screenId: id,
                     versionNo,
-                    previewUrl: `${window.location.origin}/analytics/screens/${encodeURIComponent(String(id))}/preview`,
+                    previewUrl: buildAbsoluteScreenAppUrl(window.location.origin, buildScreenPreviewPath(id)),
                     publicUrl: null,
                     warmupText: '',
                 });
@@ -1117,7 +1123,7 @@ export function ScreenHeader({
             const suffix = previewDeviceMode === 'auto'
                 ? ''
                 : `?device=${encodeURIComponent(previewDeviceMode)}`;
-            window.open(`/analytics/screens/${id}/preview${suffix}`, '_blank', 'noopener,noreferrer');
+            window.open(`${buildScreenPreviewPath(id)}${suffix}`, '_blank', 'noopener,noreferrer');
         } else {
             alert('请先保存大屏后再预览');
         }
@@ -1295,7 +1301,7 @@ export function ScreenHeader({
         if (previewDeviceMode !== 'auto') {
             params.set('device', previewDeviceMode);
         }
-        const url = `/analytics/screens/${id}/export?${params.toString()}`;
+        const url = buildScreenExportPath(id ?? '', Object.fromEntries(params.entries()));
         const popup = window.open(url, '_blank', 'noopener,noreferrer');
         if (!popup) {
             throw new Error('请允许弹窗后重试导出');
@@ -1531,7 +1537,7 @@ export function ScreenHeader({
                 alert('未获取到分享链接，请先发布后重试');
                 return;
             }
-            const baseUrl = `${window.location.origin}/analytics/public/screen/${uuid}`;
+            const baseUrl = buildAbsoluteScreenAppUrl(window.location.origin, buildPublicScreenPath(uuid));
             const embedUrl = `${baseUrl}?embed=1&hideControls=1`;
             const iframeCode = `<iframe src="${embedUrl}" width="100%" height="600" frameborder="0" allowfullscreen style="border: none;"></iframe>`;
             const globalVars = config.globalVariables ?? [];

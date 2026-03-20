@@ -9,6 +9,7 @@ import { isVisibleForDevice, resolveDeviceModeByViewport } from './deviceMode';
 import { normalizeScreenConfig, buildScreenPayload } from './specV2';
 import { resolveScreenTheme } from './screenThemes';
 import { escapeHtml, safeCssBackgroundUrl } from './sanitize';
+import { buildScreenPreviewPath, normalizeLegacyScreenAppPath } from './screenRoutePaths';
 import type { ScreenConfig, ScreenTheme } from './types';
 import './ScreenRuntimeShell.css';
 
@@ -152,9 +153,7 @@ export default function ScreenExportPage() {
                 setEffectiveMode(resolvedMode || 'draft');
                 const rawPreview = String(prepared.previewUrl || '').trim();
                 if (rawPreview.length > 0) {
-                    const normalizedPreview = rawPreview.startsWith('/analytics')
-                        ? rawPreview
-                        : (rawPreview.startsWith('/') ? `/analytics${rawPreview}` : `/analytics/${rawPreview}`);
+                    const normalizedPreview = normalizeLegacyScreenAppPath(rawPreview);
                     setPreviewUrl(normalizedPreview);
                 } else {
                     setPreviewUrl(null);
@@ -216,8 +215,7 @@ export default function ScreenExportPage() {
         if (forcedDevice) {
             fallbackParams.set('device', forcedDevice);
         }
-        const suffix = fallbackParams.toString();
-        return `/analytics/screens/${id}/preview${suffix ? `?${suffix}` : ''}`;
+        return buildScreenPreviewPath(id ?? '', Object.fromEntries(fallbackParams.entries()));
     };
 
     const openPreviewFallback = () => {

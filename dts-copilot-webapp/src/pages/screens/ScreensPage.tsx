@@ -5,6 +5,11 @@ import { writeTextToClipboard } from '../../hooks/clipboard';
 import { TemplateGallery, type TemplateSelection } from './components';
 import { createConfigFromTemplate } from './screenTemplates';
 import { buildScreenPayload, normalizeScreenConfig } from './specV2';
+import {
+    buildAbsoluteScreenAppUrl,
+    buildPublicScreenPath,
+    buildScreenPreviewPath,
+} from './screenRoutePaths';
 import '../page.css';
 
 const SCREEN_LIST_PREF_KEY = 'dts.analytics.screens.listPref.v1';
@@ -346,11 +351,11 @@ export default function ScreensPage() {
     };
 
     const handlePreview = (id: string | number) => {
-        window.open(`/analytics/screens/${id}/preview`, '_blank', 'noopener,noreferrer');
+        window.open(buildScreenPreviewPath(id), '_blank', 'noopener,noreferrer');
     };
 
     const getPreviewUrl = useCallback(
-        (id: string | number) => `${window.location.origin}/analytics/screens/${encodeURIComponent(String(id))}/preview`,
+        (id: string | number) => buildAbsoluteScreenAppUrl(window.location.origin, buildScreenPreviewPath(id)),
         [],
     );
 
@@ -365,7 +370,10 @@ export default function ScreensPage() {
         setSharingId(id);
         try {
             const { uuid } = await analyticsApi.createScreenPublicLink(id);
-            const url = `${window.location.origin}/analytics/public/screen/${uuid}`;
+            if (!uuid) {
+                throw new Error('分享链接未生成');
+            }
+            const url = buildAbsoluteScreenAppUrl(window.location.origin, buildPublicScreenPath(uuid));
             const copied = await writeTextToClipboard(url);
             alert(copied ? '分享链接已复制到剪贴板' : `复制失败，请手工复制：\n${url}`);
         } catch (err) {
