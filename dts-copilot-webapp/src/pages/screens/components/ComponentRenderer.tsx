@@ -1670,7 +1670,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                         axisLabel: { color: t.echarts.axisLabelColor, fontSize: axisFontSize },
                         splitLine: { lineStyle: { color: t.echarts.splitLineColor } },
                     },
-                    series: (c.series as Array<{ name: string; data: number[] }>).map((s, idx) => {
+                    series: ((c.series ?? []) as Array<{ name: string; data: number[] }>).map((s, idx) => {
                         const lineStackMode = String(c.stackMode ?? 'off');
                         const stackGroup = lineStackMode !== 'off' ? 'stack' : undefined;
                         return {
@@ -1741,7 +1741,7 @@ export const ComponentRenderer = memo(function ComponentRenderer({ component, mo
                     },
                     xAxis: barHorizontal ? valueAxisConfig : categoryAxisConfig,
                     yAxis: barHorizontal ? categoryAxisConfig : valueAxisConfig,
-                    series: (c.series as Array<{ name: string; data: number[] }>).map((s, idx) => ({
+                    series: ((c.series ?? []) as Array<{ name: string; data: number[] }>).map((s, idx) => ({
                         name: s.name,
                         type: 'bar',
                         data: s.data,
