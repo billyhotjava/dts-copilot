@@ -9,6 +9,7 @@ type AiAgentChatSessionDetail = {
 	messages?: Array<{
 		role: string
 		content?: string
+		responseKind?: string
 	}>
 }
 
@@ -23,7 +24,7 @@ async function loadShouldRestorePersistedCopilotSession(): Promise<
 	}
 }
 
-test('does not restore stale greeting clarification session', async () => {
+test('does not restore stale greeting business direct response session', async () => {
 	const shouldRestorePersistedCopilotSession =
 		await loadShouldRestorePersistedCopilotSession()
 
@@ -36,8 +37,8 @@ test('does not restore stale greeting clarification session', async () => {
 			{ role: 'user', content: 'hi' },
 			{
 				role: 'assistant',
-				content:
-					'您的问题可能涉及以下方面，请确认：\n1. 项目和客户信息\n2. 报花业务（加花/换花/减花）\n3. 租金和结算\n4. 任务进度\n5. 养护情况\n6. 初摆进度',
+				content: '当前已沉淀的业务分析范围包括：项目履约、现场运营、经营分析。',
+				responseKind: 'BUSINESS_DIRECT_RESPONSE',
 			},
 		],
 	}
@@ -80,8 +81,8 @@ test('keeps non-greeting clarification sessions restorable', async () => {
 			{ role: 'user', content: '帮我做个统计' },
 			{
 				role: 'assistant',
-				content:
-					'您的问题可能涉及以下方面，请确认：\n1. 项目和客户信息\n2. 报花业务（加花/换花/减花）\n3. 租金和结算\n4. 任务进度\n5. 养护情况\n6. 初摆进度',
+				content: '请确认统计口径',
+				responseKind: 'BUSINESS_CLARIFICATION',
 			},
 		],
 	}
