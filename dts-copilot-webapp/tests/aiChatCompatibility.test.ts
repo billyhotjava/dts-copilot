@@ -5,7 +5,7 @@ import {
 	normalizeLegacyAiChatSession,
 	normalizeLegacyAiChatSessionDetail,
 	resolveCopilotUserIdFromSharedStores,
-} from '../src/api/aiChatCompatibility.js'
+} from '../src/api/aiChatCompatibility.ts'
 
 test('resolves copilot user id from shared user stores', () => {
 	const store = JSON.stringify({
@@ -51,7 +51,13 @@ test('normalizes legacy AI chat detail and response payloads', () => {
 		updatedAt: '2026-03-14T10:05:00Z',
 		messages: [
 			{ id: 1, role: 'user', content: 'hello', createdAt: '2026-03-14T10:00:01Z' },
-			{ id: 2, role: 'assistant', content: 'world', createdAt: '2026-03-14T10:00:02Z' },
+			{
+				id: 2,
+				role: 'assistant',
+				content: 'world',
+				responseKind: 'BUSINESS_DIRECT_RESPONSE',
+				createdAt: '2026-03-14T10:00:02Z',
+			},
 		],
 	})
 	assert.deepEqual(detail, {
@@ -66,7 +72,14 @@ test('normalizes legacy AI chat detail and response payloads', () => {
 		},
 		messages: [
 			{ id: '1', sessionId: 'sess-2', role: 'user', content: 'hello', createdAt: '2026-03-14T10:00:01Z' },
-			{ id: '2', sessionId: 'sess-2', role: 'assistant', content: 'world', createdAt: '2026-03-14T10:00:02Z' },
+			{
+				id: '2',
+				sessionId: 'sess-2',
+				role: 'assistant',
+				content: 'world',
+				responseKind: 'BUSINESS_DIRECT_RESPONSE',
+				createdAt: '2026-03-14T10:00:02Z',
+			},
 		],
 		pendingAction: null,
 	})

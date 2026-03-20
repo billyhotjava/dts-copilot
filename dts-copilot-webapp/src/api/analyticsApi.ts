@@ -208,6 +208,7 @@ export type AiAgentChatMessage = {
 	role: "user" | "assistant" | "tool" | string;
 	content?: string;
 	reasoningContent?: string;
+	responseKind?: string;
 	toolCallId?: string;
 	toolName?: string;
 	toolParams?: string;

@@ -1,6 +1,5 @@
 import type { AiAgentChatSessionDetail } from '../../api/analyticsApi'
 
-const OLD_CLARIFICATION_PREFIX = '您的问题可能涉及以下方面，请确认：'
 const GREETING_INPUTS = new Set([
 	'hi',
 	'hello',
@@ -43,8 +42,8 @@ export function shouldRestorePersistedCopilotSession(
 	)
 	if (hasNonGreetingUserMessage) return true
 
-	const lastAssistantMessage = assistantMessages[assistantMessages.length - 1]?.content?.trim()
-	if (!lastAssistantMessage?.startsWith(OLD_CLARIFICATION_PREFIX)) {
+	const lastAssistantMessage = assistantMessages[assistantMessages.length - 1]
+	if (lastAssistantMessage?.responseKind !== 'BUSINESS_DIRECT_RESPONSE') {
 		return true
 	}
 

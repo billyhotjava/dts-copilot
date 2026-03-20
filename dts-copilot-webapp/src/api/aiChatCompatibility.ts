@@ -63,18 +63,40 @@ export function normalizeLegacyAiChatSessionDetail(payload: unknown) {
 	const rawMessages = Array.isArray(row.messages) ? row.messages : []
 	const messages = rawMessages.map((item) => {
 		const message = asObject(item) ?? {}
-		return {
+		const normalized: {
+			id: string
+			sessionId: string
+			role: string
+			content?: string
+			reasoningContent?: string
+			responseKind?: string
+			generatedSql?: string
+			routedDomain?: string
+			targetView?: string
+			templateCode?: string
+			createdAt?: string
+		} = {
 			id: toStringId(message.id),
 			sessionId,
 			role: pickString(message, ['role']) || 'assistant',
-			content: pickString(message, ['content']) || undefined,
-			reasoningContent: pickString(message, ['reasoningContent']) || undefined,
-			generatedSql: pickString(message, ['generatedSql']) || undefined,
-			routedDomain: pickString(message, ['routedDomain']) || undefined,
-			targetView: pickString(message, ['targetView']) || undefined,
-			templateCode: pickString(message, ['templateCode']) || undefined,
-			createdAt: pickString(message, ['createdAt']) || undefined,
 		}
+		const content = pickString(message, ['content'])
+		const reasoningContent = pickString(message, ['reasoningContent'])
+		const responseKind = pickString(message, ['responseKind'])
+		const generatedSql = pickString(message, ['generatedSql'])
+		const routedDomain = pickString(message, ['routedDomain'])
+		const targetView = pickString(message, ['targetView'])
+		const templateCode = pickString(message, ['templateCode'])
+		const createdAt = pickString(message, ['createdAt'])
+		if (content) normalized.content = content
+		if (reasoningContent) normalized.reasoningContent = reasoningContent
+		if (responseKind) normalized.responseKind = responseKind
+		if (generatedSql) normalized.generatedSql = generatedSql
+		if (routedDomain) normalized.routedDomain = routedDomain
+		if (targetView) normalized.targetView = targetView
+		if (templateCode) normalized.templateCode = templateCode
+		if (createdAt) normalized.createdAt = createdAt
+		return normalized
 	})
 	return {
 		session,
