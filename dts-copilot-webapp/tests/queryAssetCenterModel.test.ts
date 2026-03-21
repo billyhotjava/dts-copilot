@@ -32,15 +32,15 @@ test('normalizes cards and drafts into a single sorted asset list', () => {
 	)
 
 	assert.deepEqual(
-		items.map((item) => [item.assetType, item.title, item.sourceLabel, item.statusLabel]),
+		items.map((item) => [item.assetType, item.title, item.sourceLabel, item.statusLabel, item.sourceType, item.statusType]),
 		[
-			['draft', '采购汇总草稿', 'Copilot 草稿', '草稿'],
-			['card', '正式查询A', '正式查询', '已保存'],
+			['draft', '采购汇总草稿', 'Copilot 草稿', '草稿', 'copilot', 'draft'],
+			['card', '正式查询A', '正式查询', '已保存', 'manual', 'saved'],
 		],
 	)
 })
 
-test('filters query assets by tab and search query', () => {
+test('filters query assets by tab, search query, source, and status', () => {
 	const items = normalizeQueryAssets(
 		[
 			{ id: 11, name: '正式查询A', description: '项目绿植统计', updated_at: '2026-03-21T09:00:00Z' },
@@ -48,20 +48,55 @@ test('filters query assets by tab and search query', () => {
 		],
 		[
 			{ id: 21, title: '采购汇总草稿', question: '看采购汇总', source_type: 'copilot', status: 'DRAFT', updated_at: '2026-03-21T10:00:00Z' },
+			{ id: 22, title: '库存现量草稿', question: '看库存现量', source_type: 'copilot', status: 'SAVED_QUERY', updated_at: '2026-03-21T11:00:00Z' },
 		],
 	)
 
 	assert.deepEqual(
-		filterQueryAssets(items, 'drafts', '').map((item) => item.assetType),
+		filterQueryAssets(items, { tab: 'drafts', searchQuery: '' }).map((item) => item.assetType),
 		['draft'],
 	)
 	assert.deepEqual(
-		filterQueryAssets(items, 'saved', '采购').map((item) => item.title),
+		filterQueryAssets(items, { tab: 'saved', searchQuery: '采购' }).map((item) => item.title),
 		['正式查询B'],
 	)
 	assert.deepEqual(
-		filterQueryAssets(items, 'all', 'Copilot').map((item) => item.title),
+		filterQueryAssets(items, { tab: 'all', searchQuery: '看采购汇总' }).map((item) => item.title),
 		['采购汇总草稿'],
+	)
+	assert.deepEqual(
+		filterQueryAssets(items, { tab: 'all', searchQuery: '', sourceFilter: 'copilot', statusFilter: 'promoted' }).map((item) => item.title),
+		['库存现量草稿'],
+	)
+})
+
+test('recent tab prioritizes recent copilot analysis instead of all assets', () => {
+	const items = normalizeQueryAssets(
+		[{ id: 11, name: '正式查询A', updated_at: '2026-03-21T12:00:00Z' }],
+		[
+			{ id: 21, title: '采购汇总草稿', source_type: 'copilot', status: 'DRAFT', updated_at: '2026-03-21T10:00:00Z' },
+			{ id: 22, title: '库存现量草稿', source_type: 'copilot', status: 'SAVED_QUERY', updated_at: '2026-03-21T11:00:00Z' },
+		],
+	)
+
+	assert.deepEqual(
+		filterQueryAssets(items, { tab: 'recent', searchQuery: '' }).map((item) => item.title),
+		['库存现量草稿', '采购汇总草稿'],
+	)
+})
+
+test('supports explicit sort mode for query asset center', () => {
+	const items = normalizeQueryAssets(
+		[
+			{ id: 11, name: 'B查询', updated_at: '2026-03-21T09:00:00Z' },
+			{ id: 12, name: 'A查询', updated_at: '2026-03-20T09:00:00Z' },
+		],
+		[],
+	)
+
+	assert.deepEqual(
+		filterQueryAssets(items, { tab: 'all', searchQuery: '', sortMode: 'title-asc' }).map((item) => item.title),
+		['A查询', 'B查询'],
 	)
 })
 
@@ -71,4 +106,7 @@ test('cards page exposes copilot draft asset-center language', () => {
 	assert.match(source, /Copilot 草稿/)
 	assert.match(source, /listAnalysisDrafts/)
 	assert.match(source, /buildQueryAssetTabs/)
+	assert.match(source, /sourceFilter/)
+	assert.match(source, /statusFilter/)
+	assert.match(source, /sortMode/)
 })

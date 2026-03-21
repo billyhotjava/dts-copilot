@@ -1,10 +1,11 @@
 import { Link } from "react-router";
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import { analyticsApi, type AnalysisDraftListItem, type CardListItem } from "../api/analyticsApi";
 import { PageContainer, PageHeader, EmptyState } from "../components/PageContainer/PageContainer";
 import { Card } from "../ui/Card/Card";
 import { Button } from "../ui/Button/Button";
 import { SearchInput } from "../ui/Input/Input";
+import { NativeSelect } from "../ui/Input/Select";
 import { Badge } from "../ui/Badge/Badge";
 import { CardSkeleton } from "../ui/Loading/Skeleton";
 import { CardGrid } from "../components/DashboardGrid/DashboardGrid";
@@ -16,6 +17,9 @@ import {
 	filterQueryAssets,
 	normalizeQueryAssets,
 	type QueryAssetItem,
+	type QueryAssetSourceFilter,
+	type QueryAssetStatusFilter,
+	type QueryAssetSortMode,
 	type QueryAssetTab,
 } from "./queryAssetCenterModel";
 import "./page.css";
@@ -110,33 +114,57 @@ export default function CardsPage() {
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [activeTab, setActiveTab] = useState<QueryAssetTab>("all");
+	const [sourceFilter, setSourceFilter] = useState<QueryAssetSourceFilter>("all");
+	const [statusFilter, setStatusFilter] = useState<QueryAssetStatusFilter>("all");
+	const [sortMode, setSortMode] = useState<QueryAssetSortMode>("updated-desc");
+	const [draftActionState, setDraftActionState] = useState<{ draftId: number; kind: "archive" | "delete" } | null>(null);
+	const [draftActionError, setDraftActionError] = useState<unknown>(null);
+	const [draftActionMessage, setDraftActionMessage] = useState("");
+
+	const loadCards = useCallback(async () => {
+		try {
+			setCardsState({ state: "loading" });
+			const value = await analyticsApi.listCards();
+			setCardsState({ state: "loaded", value });
+		} catch (e) {
+			setCardsState({ state: "error", error: e });
+		}
+	}, []);
+
+	const loadDrafts = useCallback(async () => {
+		try {
+			setDraftsState({ state: "loading" });
+			const value = await analyticsApi.listAnalysisDrafts();
+			setDraftsState({ state: "loaded", value });
+		} catch (e) {
+			setDraftsState({ state: "error", error: e });
+		}
+	}, []);
 
 	useEffect(() => {
-		let cancelled = false;
-		analyticsApi
-			.listCards()
-			.then((value) => {
-				if (cancelled) return;
-				setCardsState({ state: "loaded", value });
-			})
-			.catch((e) => {
-				if (cancelled) return;
-				setCardsState({ state: "error", error: e });
-			});
-		analyticsApi
-			.listAnalysisDrafts()
-			.then((value) => {
-				if (cancelled) return;
-				setDraftsState({ state: "loaded", value });
-			})
-			.catch((e) => {
-				if (cancelled) return;
-				setDraftsState({ state: "error", error: e });
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, []);
+		void loadCards();
+		void loadDrafts();
+	}, [loadCards, loadDrafts]);
+
+	const handleDraftAction = useCallback(async (draftId: number, kind: "archive" | "delete") => {
+		setDraftActionError(null);
+		setDraftActionMessage("");
+		setDraftActionState({ draftId, kind });
+		try {
+			if (kind === "archive") {
+				await analyticsApi.archiveAnalysisDraft(draftId);
+				setDraftActionMessage("草稿已归档。");
+			} else {
+				await analyticsApi.deleteAnalysisDraft(draftId);
+				setDraftActionMessage("草稿已删除。");
+			}
+			await loadDrafts();
+		} catch (e) {
+			setDraftActionError(e);
+		} finally {
+			setDraftActionState(null);
+		}
+	}, [loadDrafts]);
 
 	const allAssets = useMemo(() => {
 		if (cardsState.state !== "loaded" || draftsState.state !== "loaded") return [];
@@ -149,13 +177,33 @@ export default function CardsPage() {
 	}, [cardsState, draftsState]);
 
 	const filteredAssets = useMemo(
-		() => filterQueryAssets(allAssets, activeTab, searchQuery),
-		[allAssets, activeTab, searchQuery],
+		() => filterQueryAssets(allAssets, { tab: activeTab, searchQuery, sourceFilter, statusFilter, sortMode }),
+		[allAssets, activeTab, searchQuery, sourceFilter, statusFilter, sortMode],
 	);
 
 	const hasLoadedAssets = cardsState.state === "loaded" && draftsState.state === "loaded";
 	const isLoading = cardsState.state === "loading" || draftsState.state === "loading";
 	const errorState = cardsState.state === "error" ? cardsState.error : draftsState.state === "error" ? draftsState.error : null;
+
+	const sourceFilterOptions = [
+		{ value: "all", label: "全部来源" },
+		{ value: "manual", label: "正式查询" },
+		{ value: "copilot", label: "Copilot 分析" },
+	];
+
+	const statusFilterOptions = [
+		{ value: "all", label: "全部状态" },
+		{ value: "saved", label: "已保存" },
+		{ value: "draft", label: "草稿" },
+		{ value: "promoted", label: "已转正式查询" },
+	];
+	const sortModeOptions = [
+		{ value: "updated-desc", label: "最近更新优先" },
+		{ value: "updated-asc", label: "最早更新优先" },
+		{ value: "title-asc", label: "按名称排序" },
+	];
+	const isDraftActionRunning = (draftId: number, kind: "archive" | "delete") =>
+		draftActionState?.draftId === draftId && draftActionState.kind === kind;
 
 	return (
 		<PageContainer>
@@ -179,6 +227,30 @@ export default function CardsPage() {
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 						onClear={() => setSearchQuery("")}
+					/>
+				</div>
+				<div style={{ width: 180 }}>
+					<NativeSelect
+						label=""
+						value={sourceFilter}
+						onChange={(e) => setSourceFilter((e.target.value as QueryAssetSourceFilter) || "all")}
+						options={sourceFilterOptions}
+					/>
+				</div>
+				<div style={{ width: 180 }}>
+					<NativeSelect
+						label=""
+						value={statusFilter}
+						onChange={(e) => setStatusFilter((e.target.value as QueryAssetStatusFilter) || "all")}
+						options={statusFilterOptions}
+					/>
+				</div>
+				<div style={{ width: 180 }}>
+					<NativeSelect
+						label=""
+						value={sortMode}
+						onChange={(e) => setSortMode((e.target.value as QueryAssetSortMode) || "updated-desc")}
+						options={sortModeOptions}
 					/>
 				</div>
 				<div style={{ marginLeft: "auto", display: "flex", gap: "var(--spacing-xs)" }}>
@@ -215,6 +287,12 @@ export default function CardsPage() {
 				</div>
 			)}
 
+			{activeTab === "recent" && hasLoadedAssets && (
+				<div className="small muted" style={{ marginBottom: "var(--spacing-md)" }}>
+					最近分析优先展示来自 Copilot 的草稿与已晋升结果，方便快速回到上一轮探索链路。
+				</div>
+			)}
+
 			{/* Loading State */}
 			{isLoading && (
 				<CardGrid columns={3} gap="md">
@@ -226,6 +304,14 @@ export default function CardsPage() {
 
 			{/* Error State */}
 			{errorState ? <ErrorNotice locale={locale} error={errorState} /> : null}
+			{draftActionError ? <ErrorNotice locale={locale} error={draftActionError} /> : null}
+			{draftActionMessage ? (
+				<Card style={{ marginBottom: "var(--spacing-md)" }}>
+					<div className="small" style={{ color: "var(--color-success)", padding: "var(--spacing-sm) var(--spacing-md)" }}>
+						{draftActionMessage}
+					</div>
+				</Card>
+			) : null}
 
 			{/* Empty State */}
 			{hasLoadedAssets && allAssets.length === 0 && (
@@ -260,37 +346,64 @@ export default function CardsPage() {
 			{hasLoadedAssets && filteredAssets.length > 0 && viewMode === "grid" && (
 				<CardGrid columns={3} gap="md">
 					{filteredAssets.map((item) => (
-						<Link key={`${item.assetType}-${item.id}`} to={item.href} style={{ textDecoration: "none" }}>
-							<Card variant="hoverable" padding="md">
-								<div className="question-card">
-									<div className="question-card__icon">
-										{getDisplayTypeIcon(item.display ?? undefined)}
-									</div>
-									<div className="question-card__content">
-										<h3 className="question-card__title">{item.title || t(locale, "common.untitled")}</h3>
-										<div className="question-card__meta">
-											<Badge size="sm" variant={item.assetType === "draft" ? "warning" : "default"}>
-												{item.sourceLabel}
+						<Card key={`${item.assetType}-${item.id}`} variant="hoverable" padding="md">
+							<div className="question-card">
+								<div className="question-card__icon">
+									{getDisplayTypeIcon(item.display ?? undefined)}
+								</div>
+								<div className="question-card__content">
+									<h3 className="question-card__title">
+										<Link to={item.href} className="link" style={{ textDecoration: "none" }}>
+											{item.title || t(locale, "common.untitled")}
+										</Link>
+									</h3>
+									<div className="question-card__meta">
+										<Badge size="sm" variant={item.assetType === "draft" ? "warning" : "default"}>
+											{item.sourceLabel}
+										</Badge>
+										<Badge size="sm" variant={item.assetType === "draft" ? "default" : "success"}>
+											{item.statusLabel}
+										</Badge>
+										{item.display && (
+											<Badge size="sm" variant="default">
+												{item.display}
 											</Badge>
-											<Badge size="sm" variant={item.assetType === "draft" ? "default" : "success"}>
-												{item.statusLabel}
-											</Badge>
-											{item.display && (
-												<Badge size="sm" variant="default">
-													{item.display}
-												</Badge>
-											)}
-										</div>
-										{item.question && (
-											<p className="question-card__question">{item.question}</p>
 										)}
-										{item.description && !item.question && (
-											<p className="question-card__question">{item.description}</p>
+									</div>
+									{item.question && (
+										<p className="question-card__question">{item.question}</p>
+									)}
+									{item.description && !item.question && (
+										<p className="question-card__question">{item.description}</p>
+									)}
+									<div className="query-asset-actions">
+										<Link to={item.href} className="link small">
+											打开
+										</Link>
+										{item.assetType === "draft" && (
+											<>
+												<Button
+													variant="secondary"
+													size="sm"
+													onClick={() => handleDraftAction(item.id, "archive")}
+													disabled={draftActionState != null}
+												>
+													{isDraftActionRunning(item.id, "archive") ? "归档中..." : "归档"}
+												</Button>
+												<Button
+													variant="secondary"
+													size="sm"
+													onClick={() => handleDraftAction(item.id, "delete")}
+													disabled={draftActionState != null}
+												>
+													{isDraftActionRunning(item.id, "delete") ? "删除中..." : "删除"}
+												</Button>
+											</>
 										)}
 									</div>
 								</div>
-							</Card>
-						</Link>
+							</div>
+						</Card>
 					))}
 				</CardGrid>
 			)}
@@ -305,6 +418,7 @@ export default function CardsPage() {
 								<th>来源</th>
 								<th>状态</th>
 								<th>{t(locale, "common.type")}</th>
+								<th>动作</th>
 								<th style={{ width: 80 }}>{t(locale, "common.id")}</th>
 							</tr>
 						</thead>
@@ -332,6 +446,33 @@ export default function CardsPage() {
 												{item.display}
 											</Badge>
 										)}
+									</td>
+									<td>
+										<div className="query-asset-actions">
+											<Link to={item.href} className="link small">
+												打开
+											</Link>
+											{item.assetType === "draft" && (
+												<>
+													<Button
+														variant="secondary"
+														size="sm"
+														onClick={() => handleDraftAction(item.id, "archive")}
+														disabled={draftActionState != null}
+													>
+														{isDraftActionRunning(item.id, "archive") ? "归档中..." : "归档"}
+													</Button>
+													<Button
+														variant="secondary"
+														size="sm"
+														onClick={() => handleDraftAction(item.id, "delete")}
+														disabled={draftActionState != null}
+													>
+														{isDraftActionRunning(item.id, "delete") ? "删除中..." : "删除"}
+													</Button>
+												</>
+											)}
+										</div>
 									</td>
 									<td className="muted">{item.id}</td>
 								</tr>
@@ -378,6 +519,13 @@ export default function CardsPage() {
 				.query-asset-tabs__count {
 					margin-left: 4px;
 					opacity: 0.75;
+				}
+
+				.query-asset-actions {
+					display: flex;
+					flex-wrap: wrap;
+					gap: var(--spacing-xs);
+					align-items: center;
 				}
 
 				.question-card__title {

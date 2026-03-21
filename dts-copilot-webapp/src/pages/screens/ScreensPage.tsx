@@ -1,9 +1,13 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { analyticsApi, type FixedReportCatalogItem, ScreenListItem, type ScreenAiGenerationResponse } from '../../api/analyticsApi';
+import { analyticsApi, type AnalysisDraftDetail, type FixedReportCatalogItem, ScreenListItem, type ScreenAiGenerationResponse } from '../../api/analyticsApi';
+import { AnalysisProvenancePanel } from '../../components/analysis/AnalysisProvenancePanel';
 import { writeTextToClipboard } from '../../hooks/clipboard';
 import { buildFixedReportQuickStartItems } from '../fixed-reports/fixedReportCatalogModel';
 import { buildFixedReportCreationFlowPath, buildFixedReportRunPath, readSelectedFixedReportTemplate } from '../fixed-reports/fixedReportSurfaceEntry';
+import { readSelectedAnalysisDraft } from '../analysisDraftSurfaceEntry';
+import { buildAnalysisDraftScreenPrompt } from '../analysisDraftReuseModel';
+import { buildAnalysisDraftProvenanceModel, buildFixedReportProvenanceModel } from '../analysisProvenanceModel';
 import { TemplateGallery, type TemplateSelection } from './components';
 import { createConfigFromTemplate } from './screenTemplates';
 import { buildScreenPayload, normalizeScreenConfig } from './specV2';
@@ -21,6 +25,7 @@ export default function ScreensPage() {
     const location = useLocation();
     const [screens, setScreens] = useState<ScreenListItem[]>([]);
     const [fixedReports, setFixedReports] = useState<FixedReportCatalogItem[]>([]);
+    const [selectedAnalysisDraft, setSelectedAnalysisDraft] = useState<AnalysisDraftDetail | null>(null);
     const [selectedFixedReport, setSelectedFixedReport] = useState<FixedReportCatalogItem | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -173,6 +178,31 @@ export default function ScreensPage() {
     }, [loadFixedReports]);
 
     useEffect(() => {
+        const analysisDraftId = readSelectedAnalysisDraft(location.search);
+        if (!analysisDraftId) {
+            setSelectedAnalysisDraft(null);
+            return;
+        }
+        let cancelled = false;
+        analyticsApi
+            .getAnalysisDraft(analysisDraftId)
+            .then((draft) => {
+                if (!cancelled) {
+                    setSelectedAnalysisDraft(draft);
+                }
+            })
+            .catch((err) => {
+                console.error('Failed to load selected analysis draft context:', err);
+                if (!cancelled) {
+                    setSelectedAnalysisDraft(null);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [location.search]);
+
+    useEffect(() => {
         const templateCode = readSelectedFixedReportTemplate(location.search);
         if (!templateCode) {
             setSelectedFixedReport(null);
@@ -231,6 +261,12 @@ export default function ScreensPage() {
         () => buildFixedReportQuickStartItems(fixedReports, 6),
         [fixedReports],
     );
+    const analysisDraftProvenance = selectedAnalysisDraft
+        ? buildAnalysisDraftProvenanceModel(selectedAnalysisDraft, { surface: 'screen' })
+        : null;
+    const fixedReportProvenance = selectedFixedReport
+        ? buildFixedReportProvenanceModel(selectedFixedReport, { surface: 'screen' })
+        : null;
 
     const handleCreate = () => {
         setShowTemplateGallery(true);
@@ -242,6 +278,20 @@ export default function ScreensPage() {
         setAiRefineMode('apply');
         setAiResult(null);
         setAiContextHistory([]);
+        setShowAiGenerator(true);
+    };
+
+    const handleOpenAnalysisDraftAiGenerator = () => {
+        if (!selectedAnalysisDraft) {
+            handleOpenAiGenerator();
+            return;
+        }
+        const subject = selectedAnalysisDraft.title || selectedAnalysisDraft.question || '分析草稿';
+        setAiPrompt(buildAnalysisDraftScreenPrompt(selectedAnalysisDraft));
+        setAiRefinePrompt('改成三列布局，增加筛选区、指标卡和趋势图，适合领导汇报展示');
+        setAiRefineMode('apply');
+        setAiResult(null);
+        setAiContextHistory([`分析草稿上下文: ${subject}`]);
         setShowAiGenerator(true);
     };
 
@@ -517,31 +567,35 @@ export default function ScreensPage() {
             </div>
 
             <div className="page-content">
-                {selectedFixedReport ? (
-                    <div
-                        style={{
-                            marginBottom: 16,
-                            padding: 16,
-                            borderRadius: 16,
-                            border: '1px solid var(--color-border)',
-                            background: 'var(--color-bg-card)',
-                        }}
-                    >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                            <div>
-                                <div style={{ fontWeight: 600 }}>{selectedFixedReport.name || selectedFixedReport.templateCode || '固定报表'}</div>
-                                <div className="muted small">已从固定报表入口带入当前页面，可直接生成关联大屏草稿或先查看固定报表运行页。</div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {selectedAnalysisDraft && analysisDraftProvenance ? (
+                    <AnalysisProvenancePanel
+                        model={analysisDraftProvenance}
+                        actions={
+                            <>
+                                <Link to={`/questions/new?draft=${selectedAnalysisDraft.id}`} className="primary-btn" style={{ textDecoration: 'none' }}>
+                                    回到查询草稿
+                                </Link>
+                                <button className="primary-btn" type="button" onClick={handleOpenAnalysisDraftAiGenerator}>
+                                    基于分析草稿生成大屏
+                                </button>
+                            </>
+                        }
+                    />
+                ) : null}
+                {selectedFixedReport && fixedReportProvenance ? (
+                    <AnalysisProvenancePanel
+                        model={fixedReportProvenance}
+                        actions={
+                            <>
                                 <Link to={buildFixedReportRunPath(selectedFixedReport.templateCode || '')} className="primary-btn" style={{ textDecoration: 'none' }}>
                                     查看固定报表
                                 </Link>
                                 <button className="primary-btn" type="button" onClick={handleOpenFixedReportAiGenerator}>
                                     基于该报表生成大屏
                                 </button>
-                            </div>
-                        </div>
-                    </div>
+                            </>
+                        }
+                    />
                 ) : null}
                 <div
                     style={{

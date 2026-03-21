@@ -3,11 +3,17 @@ import type { CardQueryResponse } from "../../api/analyticsApi";
 import { analyticsApi } from "../../api/analyticsApi";
 import { Button } from "../../ui/Button/Button";
 import { DataTable } from "../DataTable";
+import { buildCopilotAnalysisDraftPayload, buildCopilotDraftEditorHref } from "./copilotAnalysisDraft";
 import "./InlineSqlPreview.css";
 
 interface Props {
 	sql: string;
 	databaseId?: number;
+	question?: string;
+	explanationText?: string;
+	sessionId?: string;
+	messageId?: string;
+	suggestedDisplay?: string;
 }
 
 type RunState =
@@ -16,13 +22,26 @@ type RunState =
 	| { status: "success"; result: CardQueryResponse; durationMs: number }
 	| { status: "error"; message: string };
 
-export function InlineSqlPreview({ sql, databaseId }: Props) {
+export function InlineSqlPreview({
+	sql,
+	databaseId,
+	question,
+	explanationText,
+	sessionId,
+	messageId,
+	suggestedDisplay,
+}: Props) {
 	const [editing, setEditing] = useState(false);
 	const [editableSql, setEditableSql] = useState(sql);
 	const [runState, setRunState] = useState<RunState>({ status: "idle" });
 	const [copied, setCopied] = useState(false);
+	const [draftId, setDraftId] = useState<number | null>(null);
+	const [draftBusy, setDraftBusy] = useState(false);
+	const [draftError, setDraftError] = useState<string | null>(null);
+	const [draftSaved, setDraftSaved] = useState(false);
 
 	const currentSql = editing ? editableSql : sql;
+	const effectiveQuestion = (question?.trim() || "Copilot SQL 草稿");
 
 	async function handleRun() {
 		if (!databaseId || !currentSql.trim()) return;
@@ -49,6 +68,35 @@ export function InlineSqlPreview({ sql, databaseId }: Props) {
 		}
 	}
 
+	async function ensureDraft(): Promise<number | null> {
+		if (!databaseId || !currentSql.trim()) return null;
+		if (draftId != null) return draftId;
+		setDraftBusy(true);
+		setDraftError(null);
+		try {
+			const draft = await analyticsApi.createAnalysisDraft(
+				buildCopilotAnalysisDraftPayload({
+					question: effectiveQuestion,
+					sql: currentSql.trim(),
+					databaseId,
+					explanationText,
+					sessionId,
+					messageId,
+					suggestedDisplay,
+				}),
+			);
+			const nextDraftId = Number(draft.id);
+			setDraftId(nextDraftId);
+			setDraftSaved(true);
+			return nextDraftId;
+		} catch (e) {
+			setDraftError(e instanceof Error ? e.message : "保存草稿失败");
+			return null;
+		} finally {
+			setDraftBusy(false);
+		}
+	}
+
 	function handleCopy() {
 		if (navigator.clipboard?.writeText) {
 			void navigator.clipboard.writeText(currentSql);
@@ -57,14 +105,20 @@ export function InlineSqlPreview({ sql, databaseId }: Props) {
 		}
 	}
 
-	function handleCreateViz() {
-		const dbId = databaseId != null ? String(databaseId) : "";
-		const params = new URLSearchParams({
-			sql: currentSql,
-			...(dbId ? { db: dbId } : {}),
-			autorun: "1",
-		});
-		window.location.href = `/questions/new?${params.toString()}`;
+	async function handleSaveDraft() {
+		await ensureDraft();
+	}
+
+	async function handleOpenInQuestions() {
+		const nextDraftId = await ensureDraft();
+		if (nextDraftId == null) return;
+		window.location.href = buildCopilotDraftEditorHref(nextDraftId, { autorun: true });
+	}
+
+	async function handleCreateViz() {
+		const nextDraftId = await ensureDraft();
+		if (nextDraftId == null) return;
+		window.location.href = buildCopilotDraftEditorHref(nextDraftId, { autorun: true });
 	}
 
 	return (
@@ -115,10 +169,39 @@ export function InlineSqlPreview({ sql, databaseId }: Props) {
 				>
 					{runState.status === "loading" ? "执行中..." : "执行查询"}
 				</Button>
+				<Button
+					variant="secondary"
+					size="sm"
+					onClick={() => void handleSaveDraft()}
+					disabled={draftBusy || !databaseId}
+					loading={draftBusy}
+				>
+					保存草稿
+				</Button>
+				<Button
+					variant="secondary"
+					size="sm"
+					onClick={() => void handleOpenInQuestions()}
+					disabled={draftBusy || !databaseId}
+				>
+					在查询中打开
+				</Button>
 				<Button variant="secondary" size="sm" onClick={handleCreateViz}>
 					创建可视化
 				</Button>
 			</div>
+
+			{draftSaved && draftId != null && (
+				<div className="inline-sql-preview__result-info">
+					草稿已保存，可继续在查询中打开。#{draftId}
+				</div>
+			)}
+
+			{draftError && (
+				<div className="inline-sql-preview__error">
+					<div className="inline-sql-preview__error-msg">{draftError}</div>
+				</div>
+			)}
 
 			{runState.status === "success" && (
 				<div className="inline-sql-preview__result">

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import {
 	analyticsApi,
+	type AnalysisDraftDetail,
 	type CardListItem,
 	type CollectionListItem,
 	type DashboardCard,
@@ -10,6 +11,7 @@ import {
 import { EmptyState } from "../components/EmptyState";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { PageContainer, PageHeader, Breadcrumb } from "../components/PageContainer/PageContainer";
+import { AnalysisProvenancePanel } from "../components/analysis/AnalysisProvenancePanel";
 import { Card, CardHeader, CardBody, CardFooter } from "../ui/Card/Card";
 import { Button } from "../ui/Button/Button";
 import { Input } from "../ui/Input/Input";
@@ -18,6 +20,9 @@ import { Badge } from "../ui/Badge/Badge";
 import { Spinner } from "../ui/Loading/Spinner";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
 import { buildFixedReportRunPath, readSelectedFixedReportTemplate } from "./fixed-reports/fixedReportSurfaceEntry";
+import { readSelectedAnalysisDraft } from "./analysisDraftSurfaceEntry";
+import { resolveAnalysisDraftDashboardSeedCardId } from "./analysisDraftReuseModel";
+import { buildAnalysisDraftProvenanceModel, buildFixedReportProvenanceModel } from "./analysisProvenanceModel";
 import "./page.css";
 
 type LoadState<T> =
@@ -40,6 +45,7 @@ export default function DashboardEditorPage() {
 	const [collections, setCollections] = useState<LoadState<CollectionListItem[]>>({ state: "loading" });
 	const [cards, setCards] = useState<LoadState<CardListItem[]>>({ state: "loading" });
 	const [dashboard, setDashboard] = useState<LoadState<DashboardDetail> | null>(dashboardId ? { state: "loading" } : null);
+	const [selectedAnalysisDraft, setSelectedAnalysisDraft] = useState<LoadState<AnalysisDraftDetail> | null>(null);
 	const [selectedFixedReport, setSelectedFixedReport] = useState<LoadState<{ templateCode?: string; name?: string; domain?: string | null; legacyPagePath?: string | null }> | null>(null);
 
 	const [name, setName] = useState("");
@@ -49,6 +55,8 @@ export default function DashboardEditorPage() {
 	const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
 
 	const [saveState, setSaveState] = useState<LoadState<DashboardDetail> | null>(null);
+	const [draftBridgeError, setDraftBridgeError] = useState<unknown>(null);
+	const promotedDraftIdsRef = useRef<Set<number>>(new Set());
 
 	useEffect(() => {
 		let cancelled = false;
@@ -106,6 +114,101 @@ export default function DashboardEditorPage() {
 			cancelled = true;
 		};
 	}, [dashboardId]);
+
+	useEffect(() => {
+		if (dashboardId) {
+			setSelectedAnalysisDraft(null);
+			setSelectedFixedReport(null);
+			return;
+		}
+		const analysisDraftId = readSelectedAnalysisDraft(location.search);
+		if (!analysisDraftId) {
+			setSelectedAnalysisDraft(null);
+			return;
+		}
+		let cancelled = false;
+		setSelectedAnalysisDraft({ state: "loading" });
+		analyticsApi
+			.getAnalysisDraft(analysisDraftId)
+			.then((draft) => {
+				if (cancelled) return;
+				setSelectedAnalysisDraft({ state: "loaded", value: draft });
+				setName((current) => current.trim() ? current : `${draft.title || "Copilot 草稿"} 仪表盘`);
+				setDescription((current) => current.trim() ? current : `基于分析草稿“${draft.title || draft.question || analysisDraftId}”创建的仪表盘草稿。`);
+			})
+			.catch((error) => {
+				if (cancelled) return;
+				setSelectedAnalysisDraft({ state: "error", error });
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [dashboardId, location.search]);
+
+	useEffect(() => {
+		if (dashboardId) return;
+		if (selectedAnalysisDraft?.state !== "loaded") return;
+
+		let cancelled = false;
+		const draft = selectedAnalysisDraft.value;
+		const attachSeedCard = (cardId: number) => {
+			if (!Number.isFinite(cardId) || cardId <= 0) return;
+			setSelectedCardId((current) => current ?? cardId);
+			setDashcards((prev) => {
+				if (prev.some((item) => Number(item.card_id ?? 0) === cardId)) {
+					return prev;
+				}
+				if (prev.length > 0) {
+					return prev;
+				}
+				return [{
+					id: 0,
+					card_id: cardId,
+					row: 0,
+					col: 0,
+					size_x: 12,
+					size_y: 6,
+				}];
+			});
+		};
+
+		const currentSeedCardId = resolveAnalysisDraftDashboardSeedCardId(draft, dashcards);
+		if (currentSeedCardId) {
+			attachSeedCard(currentSeedCardId);
+		}
+
+		const draftId = Number(draft.id ?? 0);
+		if (!Number.isFinite(draftId) || draftId <= 0 || draft.linked_card_id || promotedDraftIdsRef.current.has(draftId)) {
+			return () => {
+				cancelled = true;
+			};
+		}
+
+		promotedDraftIdsRef.current.add(draftId);
+		setDraftBridgeError(null);
+		analyticsApi
+			.saveAnalysisDraftCard(draftId)
+			.then((response) => {
+				if (cancelled) return;
+				const nextDraft = response.draft ?? { ...draft, linked_card_id: response.card?.id ?? null };
+				setSelectedAnalysisDraft({ state: "loaded", value: nextDraft });
+				if (response.card && cards.state === "loaded" && !cards.value.some((item) => item.id === response.card?.id)) {
+					setCards({ state: "loaded", value: [response.card, ...cards.value] });
+				}
+				const savedCardId = Number(nextDraft.linked_card_id ?? response.card?.id ?? 0);
+				if (Number.isFinite(savedCardId) && savedCardId > 0) {
+					attachSeedCard(savedCardId);
+				}
+			})
+			.catch((error) => {
+				if (cancelled) return;
+				setDraftBridgeError(error);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [dashboardId, selectedAnalysisDraft, dashcards, cards]);
 
 	useEffect(() => {
 		if (dashboardId) {
@@ -231,6 +334,12 @@ export default function DashboardEditorPage() {
 	const cardOptions = cards.state === "loaded"
 		? cards.value.map((c) => ({ value: String(c.id), label: c.name ?? `card:${c.id}` }))
 		: [];
+	const analysisDraftProvenance = selectedAnalysisDraft?.state === "loaded"
+		? buildAnalysisDraftProvenanceModel(selectedAnalysisDraft.value, { surface: "dashboard" })
+		: null;
+	const fixedReportProvenance = selectedFixedReport?.state === "loaded"
+		? buildFixedReportProvenanceModel(selectedFixedReport.value, { surface: "dashboard" })
+		: null;
 
 	return (
 		<PageContainer>
@@ -248,36 +357,45 @@ export default function DashboardEditorPage() {
 			{collections.state === "error" && <ErrorNotice locale={locale} error={collections.error} />}
 			{cards.state === "error" && <ErrorNotice locale={locale} error={cards.error} />}
 			{saveState?.state === "error" && <ErrorNotice locale={locale} error={saveState.error} />}
+			{draftBridgeError ? <ErrorNotice locale={locale} error={draftBridgeError} /> : null}
+			{selectedAnalysisDraft?.state === "error" && <ErrorNotice locale={locale} error={selectedAnalysisDraft.error} />}
 			{selectedFixedReport?.state === "error" && <ErrorNotice locale={locale} error={selectedFixedReport.error} />}
 
-			{selectedFixedReport?.state === "loaded" && (
-				<Card style={{ marginBottom: "var(--spacing-lg)" }}>
-					<CardHeader title="固定报表创建上下文" />
-					<CardBody>
-						<div className="col" style={{ gap: "var(--spacing-sm)" }}>
-							<div style={{ fontWeight: 600 }}>{selectedFixedReport.value.name || selectedFixedReport.value.templateCode || "固定报表"}</div>
-							<div className="small muted">
-								已从固定报表入口带入当前仪表盘创建页。当前仅自动带入标题和说明，具体卡片仍需按业务需要添加。
-							</div>
-							<div style={{ display: "flex", gap: "var(--spacing-sm)", flexWrap: "wrap" }}>
-								<Link to={buildFixedReportRunPath(selectedFixedReport.value.templateCode || "")}>
-									<Button variant="secondary" size="sm">查看固定报表</Button>
-								</Link>
-								{selectedFixedReport.value.legacyPagePath ? (
-									<a
-										href={`https://app.xycyl.com/#${selectedFixedReport.value.legacyPagePath.startsWith("/") ? selectedFixedReport.value.legacyPagePath : `/${selectedFixedReport.value.legacyPagePath}`}`}
-										target="_blank"
-										rel="noreferrer"
-										className="link small"
-									>
-										打开现网页面
-									</a>
-								) : null}
-							</div>
-						</div>
-					</CardBody>
-				</Card>
-			)}
+			{selectedAnalysisDraft?.state === "loaded" && analysisDraftProvenance ? (
+				<AnalysisProvenancePanel
+					model={analysisDraftProvenance}
+					actions={
+						selectedAnalysisDraft.value.linked_card_id ? (
+							<Link className="link small" to={`/questions/${selectedAnalysisDraft.value.linked_card_id}`}>
+								查看已转正查询
+							</Link>
+						) : undefined
+					}
+				/>
+			) : null}
+
+			{selectedFixedReport?.state === "loaded" && fixedReportProvenance ? (
+				<AnalysisProvenancePanel
+					model={fixedReportProvenance}
+					actions={
+						<>
+							<Link to={buildFixedReportRunPath(selectedFixedReport.value.templateCode || "")}>
+								<Button variant="secondary" size="sm">查看固定报表</Button>
+							</Link>
+							{selectedFixedReport.value.legacyPagePath ? (
+								<a
+									href={`https://app.xycyl.com/#${selectedFixedReport.value.legacyPagePath.startsWith("/") ? selectedFixedReport.value.legacyPagePath : `/${selectedFixedReport.value.legacyPagePath}`}`}
+									target="_blank"
+									rel="noreferrer"
+									className="link small"
+								>
+									打开现网页面
+								</a>
+							) : null}
+						</>
+					}
+				/>
+			) : null}
 
 			<Card style={{ marginBottom: "var(--spacing-lg)" }}>
 				<CardHeader title={t(locale, "dashboards.settings")} />

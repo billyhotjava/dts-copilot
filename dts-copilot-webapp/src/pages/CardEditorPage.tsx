@@ -15,6 +15,7 @@ import { EmptyState } from "../components/EmptyState";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { PageContainer, PageHeader, Breadcrumb } from "../components/PageContainer/PageContainer";
 import { QueryBuilder } from "../components/query/QueryBuilder";
+import { AnalysisProvenancePanel } from "../components/analysis/AnalysisProvenancePanel";
 import { Card, CardHeader, CardBody, CardFooter } from "../ui/Card/Card";
 import { Button } from "../ui/Button/Button";
 import { Input, TextArea } from "../ui/Input/Input";
@@ -22,6 +23,8 @@ import { NativeSelect } from "../ui/Input/Select";
 import { Badge } from "../ui/Badge/Badge";
 import { Spinner } from "../ui/Loading/Spinner";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
+import { buildAnalysisDraftCreationFlowPath } from "./analysisDraftSurfaceEntry";
+import { buildAnalysisDraftProvenanceModel } from "./analysisProvenanceModel";
 import "./page.css";
 
 const VISUALIZATION_TYPES: { value: VisualizationType; label: string }[] = [
@@ -273,6 +276,9 @@ export default function CardEditorPage() {
 			displayType !== ((loadedDraft.suggested_display as VisualizationType | undefined) || "table")
 		);
 	}, [loadedDraft, name, sql, databaseId, displayType]);
+	const analysisDraftProvenance = loadedDraft
+		? buildAnalysisDraftProvenanceModel(loadedDraft, { surface: "query", isDirty: isDraftDirty })
+		: null;
 
 	const canRun = mode === "sql" ? Boolean(databaseId && sql.trim()) : Boolean(builderDatasetQuery);
 	const canSave =
@@ -429,33 +435,29 @@ export default function CardEditorPage() {
 				</Card>
 			) : null}
 
-			{loadedDraft && !cardId && (
-				<Card style={{ marginBottom: "var(--spacing-lg)" }}>
-					<CardBody>
-						<div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
-							<div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-sm)", flexWrap: "wrap" }}>
-								<Badge variant="default">来源：AI Copilot</Badge>
-								<Badge variant={loadedDraft.status === "SAVED_QUERY" ? "success" : "warning"}>
-									{loadedDraft.status === "SAVED_QUERY" ? "已转正式查询" : "草稿"}
-								</Badge>
-								{loadedDraft.session_id && (
-									<Link to="/explore-sessions" className="link">
-										查看分析会话
-									</Link>
-								)}
-							</div>
-							{loadedDraft.question && (
-								<div style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
-									原始问题：{loadedDraft.question}
-								</div>
+			{loadedDraft && !cardId && analysisDraftProvenance ? (
+				<AnalysisProvenancePanel
+					model={analysisDraftProvenance}
+					actions={
+						<>
+							{loadedDraft.session_id && (
+								<Link to="/explore-sessions" className="link">
+									查看分析会话
+								</Link>
 							)}
-							<div style={{ color: "var(--color-text-tertiary)", fontSize: "var(--font-size-xs)" }}>
-								{isDraftDirty ? "当前内容已脱离原始草稿，保存时将按当前编辑内容新建正式查询。" : "当前内容仍与 Copilot 草稿保持一致，可直接转成正式查询。"}
-							</div>
-						</div>
-					</CardBody>
-				</Card>
-			)}
+							<Link to={buildAnalysisDraftCreationFlowPath("dashboard", loadedDraft.id)} className="link">
+								进入仪表盘
+							</Link>
+							<Link to={buildAnalysisDraftCreationFlowPath("reportFactory", loadedDraft.id)} className="link">
+								进入报告工厂
+							</Link>
+							<Link to={buildAnalysisDraftCreationFlowPath("screen", loadedDraft.id)} className="link">
+								进入大屏
+							</Link>
+						</>
+					}
+				/>
+			) : null}
 
 			<Card style={{ marginBottom: "var(--spacing-lg)" }}>
 				<CardHeader title={t(locale, "questions.settings")} />

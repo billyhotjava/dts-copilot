@@ -785,19 +785,23 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 				) : null}
 				{sortedMessages
 					.filter((m) => m.role === "user" || m.role === "assistant")
-					.map((msg) => {
-						// For assistant messages, collect preceding tool calls
+						.map((msg) => {
+							// For assistant messages, collect preceding tool calls
 						const toolMsgs =
 							msg.role === "assistant"
 								? getToolMessagesForAssistant(sortedMessages, msg)
 								: [];
 						const hasTrace = toolMsgs.length > 0;
 						const traceExpanded = expandedTraces.has(msg.id);
-						const extractedSql = msg.role === "assistant"
-							? (msg.generatedSql ?? extractSqlFromMarkdown(msg.content ?? ""))
-							: null;
-						const fixedReportCandidates = getFixedReportCandidates(msg);
-							return (
+							const extractedSql = msg.role === "assistant"
+								? (msg.generatedSql ?? extractSqlFromMarkdown(msg.content ?? ""))
+								: null;
+							const sourceQuestion =
+								msg.role === "assistant"
+									? getUserQuestionForAssistant(sortedMessages, msg)
+									: null;
+							const fixedReportCandidates = getFixedReportCandidates(msg);
+								return (
 								<div
 									key={msg.id}
 									className={`copilot-chat__msg copilot-chat__msg--${msg.role}`}
@@ -852,10 +856,18 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 											)}
 										</div>
 									</div>
-								)}
-								{extractedSql && (
-									<InlineSqlPreview sql={extractedSql} databaseId={selectedDbId ?? undefined} />
-								)}
+									)}
+									{extractedSql && (
+										<InlineSqlPreview
+											sql={extractedSql}
+											databaseId={selectedDbId ?? undefined}
+											question={sourceQuestion ?? undefined}
+											explanationText={msg.content ?? undefined}
+											sessionId={sessionId ?? msg.sessionId}
+											messageId={msg.id}
+											suggestedDisplay="table"
+										/>
+									)}
 								{hasTrace && (
 									<>
 										<button
@@ -1095,6 +1107,23 @@ function getToolMessagesForAssistant(
 		(m) =>
 			m.role === "tool" &&
 			(m.sequenceNum ?? 0) > lastUserSeq &&
-			(m.sequenceNum ?? 0) < assistantSeq,
+		(m.sequenceNum ?? 0) < assistantSeq,
 	);
+}
+
+function getUserQuestionForAssistant(
+	allMessages: AiAgentChatMessage[],
+	assistantMsg: AiAgentChatMessage,
+): string | null {
+	const assistantSeq = assistantMsg.sequenceNum ?? 0;
+	let matched: AiAgentChatMessage | null = null;
+	for (const message of allMessages) {
+		const seq = message.sequenceNum ?? 0;
+		if (message.role === "user" && seq < assistantSeq) {
+			if (!matched || seq > (matched.sequenceNum ?? 0)) {
+				matched = message;
+			}
+		}
+	}
+	return matched?.content?.trim() || null;
 }

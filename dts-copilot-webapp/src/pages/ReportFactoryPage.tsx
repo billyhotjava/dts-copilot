@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { analyticsApi, type FixedReportCatalogItem, type ReportRunItem, type ReportTemplateItem } from "../api/analyticsApi";
+import { analyticsApi, type AnalysisDraftDetail, type FixedReportCatalogItem, type ReportRunItem, type ReportTemplateItem } from "../api/analyticsApi";
+import { AnalysisProvenancePanel } from "../components/analysis/AnalysisProvenancePanel";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { PageContainer, PageHeader } from "../components/PageContainer/PageContainer";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
 import { buildFixedReportQuickStartItems } from "./fixed-reports/fixedReportCatalogModel";
 import { buildFixedReportCreationFlowPath, buildFixedReportRunPath, readSelectedFixedReportTemplate } from "./fixed-reports/fixedReportSurfaceEntry";
+import { readSelectedAnalysisDraft } from "./analysisDraftSurfaceEntry";
+import { resolveAnalysisDraftReportSource } from "./analysisDraftReuseModel";
+import { buildAnalysisDraftProvenanceModel, buildFixedReportProvenanceModel } from "./analysisProvenanceModel";
 import { formatTime, toIdString, type LoadState } from "../shared/utils";
 import { Badge } from "../ui/Badge/Badge";
 import { Button } from "../ui/Button/Button";
@@ -130,6 +134,7 @@ export default function ReportFactoryPage() {
 	const [templates, setTemplates] = useState<LoadState<ReportTemplateItem[]>>({ state: "loading" });
 	const [runs, setRuns] = useState<LoadState<ReportRunItem[]>>({ state: "loading" });
 	const [fixedReports, setFixedReports] = useState<LoadState<FixedReportCatalogItem[]>>({ state: "loading" });
+	const [selectedAnalysisDraft, setSelectedAnalysisDraft] = useState<LoadState<AnalysisDraftDetail> | null>(null);
 	const [selectedFixedReport, setSelectedFixedReport] = useState<LoadState<FixedReportCatalogItem> | null>(null);
 	const [selectedRun, setSelectedRun] = useState<LoadState<ReportRunItem> | null>(null);
 
@@ -180,6 +185,39 @@ export default function ReportFactoryPage() {
 	useEffect(() => {
 		void Promise.all([loadTemplates(), loadRuns(), loadFixedReports()]);
 	}, []);
+
+	useEffect(() => {
+		const analysisDraftId = readSelectedAnalysisDraft(location.search);
+		if (!analysisDraftId) {
+			setSelectedAnalysisDraft(null);
+			return;
+		}
+		let cancelled = false;
+		setSelectedAnalysisDraft({ state: "loading" });
+		analyticsApi
+			.getAnalysisDraft(analysisDraftId)
+			.then((draft) => {
+				if (cancelled) return;
+				setSelectedAnalysisDraft({ state: "loaded", value: draft });
+				setTemplateName((current) => current.trim() ? current : `${draft.title || "Copilot 草稿"} 报告模板`);
+				setTemplateDesc((current) => current.trim() ? current : `基于分析草稿“${draft.title || draft.question || analysisDraftId}”沉淀的报告模板草稿。`);
+			})
+			.catch((error) => {
+				if (cancelled) return;
+				setSelectedAnalysisDraft({ state: "error", error });
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [location.search]);
+
+	useEffect(() => {
+		if (selectedAnalysisDraft?.state !== "loaded") return;
+		const draftSource = resolveAnalysisDraftReportSource(selectedAnalysisDraft.value);
+		if (!draftSource) return;
+		setSourceType("session");
+		setSourceId((current) => current.trim() ? current : draftSource.sourceId);
+	}, [selectedAnalysisDraft]);
 
 	useEffect(() => {
 		const templateCode = readSelectedFixedReportTemplate(location.search);
@@ -320,6 +358,15 @@ export default function ReportFactoryPage() {
 		{ value: "html", label: "HTML" },
 		{ value: "markdown", label: "Markdown" },
 	];
+	const analysisDraftProvenance = selectedAnalysisDraft?.state === "loaded"
+		? buildAnalysisDraftProvenanceModel(selectedAnalysisDraft.value, {
+			surface: "reportFactory",
+			reportSourceId: resolveAnalysisDraftReportSource(selectedAnalysisDraft.value)?.sourceId ?? null,
+		})
+		: null;
+	const fixedReportProvenance = selectedFixedReport?.state === "loaded"
+		? buildFixedReportProvenanceModel(selectedFixedReport.value, { surface: "reportFactory" })
+		: null;
 
 	return (
 		<PageContainer>
@@ -381,37 +428,48 @@ export default function ReportFactoryPage() {
 				</CardBody>
 			</Card>
 
-			{selectedFixedReport?.state === "loaded" && (
-				<Card style={{ marginBottom: "var(--spacing-lg)" }}>
-					<CardHeader title="固定报表创建上下文" />
-					<CardBody>
-						<div className="col" style={{ gap: "var(--spacing-sm)" }}>
-							<div style={{ fontWeight: 600 }}>
-								{selectedFixedReport.value.name || selectedFixedReport.value.templateCode || "固定报表"}
-							</div>
-							<div className="muted small">
-								已从固定报表入口带入当前页面。你可以继续创建报告模板草稿，或先查看固定报表运行页。
-							</div>
-							<div style={{ display: "flex", flexWrap: "wrap", gap: "var(--spacing-sm)" }}>
-								<Link to={buildFixedReportRunPath(selectedFixedReport.value.templateCode || "")}>
-									<Button variant="secondary" size="sm">查看固定报表</Button>
+			{selectedAnalysisDraft?.state === "loaded" && analysisDraftProvenance ? (
+				<AnalysisProvenancePanel
+					model={analysisDraftProvenance}
+					actions={
+						<>
+							<Link to={`/questions/new?draft=${selectedAnalysisDraft.value.id}`}>
+								<Button variant="secondary" size="sm">回到查询草稿</Button>
+							</Link>
+							{selectedAnalysisDraft.value.linked_card_id && (
+								<Link to={`/questions/${selectedAnalysisDraft.value.linked_card_id}`}>
+									<Button variant="secondary" size="sm">查看已转正查询</Button>
 								</Link>
-								{selectedFixedReport.value.legacyPagePath ? (
-									<a
-										href={`https://app.xycyl.com/#${selectedFixedReport.value.legacyPagePath.startsWith("/") ? selectedFixedReport.value.legacyPagePath : `/${selectedFixedReport.value.legacyPagePath}`}`}
-										target="_blank"
-										rel="noreferrer"
-										className="link small"
-									>
-										打开现网页面
-									</a>
-								) : null}
-							</div>
-						</div>
-					</CardBody>
-				</Card>
-			)}
+							)}
+						</>
+					}
+				/>
+			) : null}
+
+			{selectedFixedReport?.state === "loaded" && fixedReportProvenance ? (
+				<AnalysisProvenancePanel
+					model={fixedReportProvenance}
+					actions={
+						<>
+							<Link to={buildFixedReportRunPath(selectedFixedReport.value.templateCode || "")}>
+								<Button variant="secondary" size="sm">查看固定报表</Button>
+							</Link>
+							{selectedFixedReport.value.legacyPagePath ? (
+								<a
+									href={`https://app.xycyl.com/#${selectedFixedReport.value.legacyPagePath.startsWith("/") ? selectedFixedReport.value.legacyPagePath : `/${selectedFixedReport.value.legacyPagePath}`}`}
+									target="_blank"
+									rel="noreferrer"
+									className="link small"
+								>
+									打开现网页面
+								</a>
+							) : null}
+						</>
+					}
+				/>
+			) : null}
 			{selectedFixedReport?.state === "error" && <ErrorNotice locale={locale} error={selectedFixedReport.error} />}
+			{selectedAnalysisDraft?.state === "error" && <ErrorNotice locale={locale} error={selectedAnalysisDraft.error} />}
 
 			<div className="grid2" style={{ marginBottom: "var(--spacing-lg)" }}>
 				<Card>
