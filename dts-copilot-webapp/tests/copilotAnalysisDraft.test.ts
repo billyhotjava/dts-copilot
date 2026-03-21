@@ -40,6 +40,10 @@ test('builds query editor handoff link from draft id', () => {
 		buildCopilotDraftEditorHref(88, { autorun: true }),
 		'/questions/new?draft=88&autorun=1',
 	)
+	assert.equal(
+		buildCopilotDraftEditorHref(88, { autorun: true, focusVisualization: true }),
+		'/questions/new?draft=88&autorun=1&focus=visualization',
+	)
 })
 
 test('inline sql preview exposes save-draft handoff actions', () => {
@@ -51,4 +55,5 @@ test('inline sql preview exposes save-draft handoff actions', () => {
 	assert.match(source, /在查询中打开/)
 	assert.match(source, /在查询中继续编辑/)
 	assert.match(source, /buildCopilotDraftEditorHref/)
+	assert.match(source, /focusVisualization:\s*true/)
 })

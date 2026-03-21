@@ -118,7 +118,10 @@ export function InlineSqlPreview({
 	async function handleCreateViz() {
 		const nextDraftId = await ensureDraft();
 		if (nextDraftId == null) return;
-		window.location.href = buildCopilotDraftEditorHref(nextDraftId, { autorun: true });
+		window.location.href = buildCopilotDraftEditorHref(nextDraftId, {
+			autorun: true,
+			focusVisualization: true,
+		});
 	}
 
 	return (

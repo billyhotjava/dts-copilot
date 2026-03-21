@@ -23,6 +23,7 @@ import { buildFixedReportRunPath, readSelectedFixedReportTemplate } from "./fixe
 import { readSelectedAnalysisDraft } from "./analysisDraftSurfaceEntry";
 import { resolveAnalysisDraftDashboardSeedCardId } from "./analysisDraftReuseModel";
 import { buildAnalysisDraftProvenanceModel, buildFixedReportProvenanceModel } from "./analysisProvenanceModel";
+import { appendAnalysisAssetProvenance } from "./analysisAssetProvenanceEntry";
 import "./page.css";
 
 type LoadState<T> =
@@ -292,7 +293,14 @@ export default function DashboardEditorPage() {
 			};
 			const saved = await analyticsApi.saveDashboard(body);
 			setSaveState({ state: "loaded", value: saved });
-			navigate(`/dashboards/${saved.id}`, { replace: true });
+			navigate(
+				appendAnalysisAssetProvenance(`/dashboards/${saved.id}`, {
+					analysisDraftId: selectedAnalysisDraft?.state === "loaded" ? selectedAnalysisDraft.value.id : null,
+					fixedReportTemplate: selectedFixedReport?.state === "loaded" ? selectedFixedReport.value.templateCode : null,
+					sourceCardId: selectedAnalysisDraft?.state === "loaded" ? selectedAnalysisDraft.value.linked_card_id : null,
+				}),
+				{ replace: true },
+			);
 		} catch (e) {
 			setSaveState({ state: "error", error: e });
 		}

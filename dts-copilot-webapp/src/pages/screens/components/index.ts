@@ -5,7 +5,7 @@ export { CanvasComponent } from './CanvasComponent';
 export { ComponentRenderer } from './ComponentRenderer';
 export { PropertyPanel } from './PropertyPanel';
 export { LayerPanel } from './LayerPanel';
-export { ScreenHeader } from './ScreenHeader';
+export { ScreenHeader } from './ScreenHeader/index';
 export { TemplateGallery } from './TemplateGallery';
 export type { TemplateSelection } from './TemplateGallery';
 

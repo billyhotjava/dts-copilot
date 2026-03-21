@@ -1,10 +1,15 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { AnalysisProvenancePanel } from '../../components/analysis/AnalysisProvenancePanel';
 import { ScreenProvider, useScreen } from './ScreenContext';
 import { ScreenRuntimeProvider } from './ScreenRuntimeContext';
-import { analyticsApi } from '../../api/analyticsApi';
+import { analyticsApi, type AnalysisDraftDetail, type FixedReportCatalogItem } from '../../api/analyticsApi';
+import { readSelectedAnalysisDraft } from '../analysisDraftSurfaceEntry';
+import { readSelectedSourceCard } from '../analysisAssetProvenanceEntry';
+import { buildAnalysisDraftProvenanceModel, buildFixedReportProvenanceModel } from '../analysisProvenanceModel';
+import { buildFixedReportRunPath, readSelectedFixedReportTemplate } from '../fixed-reports/fixedReportSurfaceEntry';
 import { resolveScreenTheme } from './screenThemes';
 import { normalizeScreenConfig } from './specV2';
 import {
@@ -21,6 +26,7 @@ import './ScreenDesigner.css';
 
 function ScreenDesignerContent() {
     const { id } = useParams<{ id: string }>();
+    const location = useLocation();
     const navigate = useNavigate();
     const {
         undo,
@@ -38,6 +44,8 @@ function ScreenDesignerContent() {
     } = useScreen();
     const { selectedIds } = state;
     const { config } = state;
+    const [selectedAnalysisDraft, setSelectedAnalysisDraft] = useState<AnalysisDraftDetail | null>(null);
+    const [selectedFixedReport, setSelectedFixedReport] = useState<FixedReportCatalogItem | null>(null);
     const [rightPanelTab, setRightPanelTab] = useState<'property' | 'layer'>(() => {
         const raw = typeof window !== 'undefined'
             ? window.localStorage.getItem('dts.analytics.screenDesigner.rightPanelTab')
@@ -79,6 +87,54 @@ function ScreenDesignerContent() {
         if (typeof window === 'undefined') return;
         window.localStorage.setItem('dts.analytics.screenDesigner.showInspectorPanel', showInspectorPanel ? 'true' : 'false');
     }, [showInspectorPanel]);
+
+    useEffect(() => {
+        const analysisDraftId = readSelectedAnalysisDraft(location.search);
+        if (!analysisDraftId) {
+            setSelectedAnalysisDraft(null);
+            return;
+        }
+        let cancelled = false;
+        analyticsApi.getAnalysisDraft(analysisDraftId)
+            .then((draft) => {
+                if (!cancelled) {
+                    setSelectedAnalysisDraft(draft);
+                }
+            })
+            .catch((error) => {
+                console.error('Failed to load analysis draft provenance for screen designer:', error);
+                if (!cancelled) {
+                    setSelectedAnalysisDraft(null);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [location.search]);
+
+    useEffect(() => {
+        const templateCode = readSelectedFixedReportTemplate(location.search);
+        if (!templateCode) {
+            setSelectedFixedReport(null);
+            return;
+        }
+        let cancelled = false;
+        analyticsApi.getFixedReportCatalogItem(templateCode)
+            .then((item) => {
+                if (!cancelled) {
+                    setSelectedFixedReport(item);
+                }
+            })
+            .catch((error) => {
+                console.error('Failed to load fixed report provenance for screen designer:', error);
+                if (!cancelled) {
+                    setSelectedFixedReport(null);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [location.search]);
 
     // --- Multi-page management ---
     const [currentPageIndex, setCurrentPageIndex] = useState(0);
@@ -147,6 +203,16 @@ function ScreenDesignerContent() {
             setCurrentPageIndex(toIndex);
         }
     }, [pages, updateConfig, currentPageIndex]);
+    const analysisDraftProvenance = selectedAnalysisDraft
+        ? buildAnalysisDraftProvenanceModel(selectedAnalysisDraft, { surface: 'screen' })
+        : null;
+    const fixedReportProvenance = selectedFixedReport
+        ? buildFixedReportProvenanceModel(selectedFixedReport, { surface: 'screen' })
+        : null;
+    const sourceCardId = readSelectedSourceCard(location.search);
+    const linkedSourceCardId = selectedAnalysisDraft
+        ? String(selectedAnalysisDraft.linked_card_id ?? '').trim() || sourceCardId
+        : sourceCardId;
 
     // Load existing screen if editing
     useEffect(() => {
@@ -313,6 +379,51 @@ function ScreenDesignerContent() {
                     showInspectorPanel={showInspectorPanel}
                     onToggleInspectorPanel={() => setShowInspectorPanel((prev) => !prev)}
                 />
+
+                {selectedAnalysisDraft && analysisDraftProvenance ? (
+                    <div style={{ padding: '0 16px 12px' }}>
+                        <AnalysisProvenancePanel
+                            model={analysisDraftProvenance}
+                            actions={
+                                <>
+                                    <Link to={`/questions/new?draft=${selectedAnalysisDraft.id}`} className="link small">
+                                        回到查询草稿
+                                    </Link>
+                                    {linkedSourceCardId ? (
+                                        <Link to={`/questions/${encodeURIComponent(String(linkedSourceCardId))}`} className="link small">
+                                            查看来源查询
+                                        </Link>
+                                    ) : null}
+                                </>
+                            }
+                        />
+                    </div>
+                ) : null}
+
+                {selectedFixedReport && fixedReportProvenance ? (
+                    <div style={{ padding: '0 16px 12px' }}>
+                        <AnalysisProvenancePanel
+                            model={fixedReportProvenance}
+                            actions={
+                                <>
+                                    <Link to={buildFixedReportRunPath(selectedFixedReport.templateCode || '')} className="link small">
+                                        查看固定报表
+                                    </Link>
+                                    {selectedFixedReport.legacyPagePath ? (
+                                        <a
+                                            href={`https://app.xycyl.com/#${selectedFixedReport.legacyPagePath.startsWith('/') ? selectedFixedReport.legacyPagePath : `/${selectedFixedReport.legacyPagePath}`}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="link small"
+                                        >
+                                            打开现网页面
+                                        </a>
+                                    ) : null}
+                                </>
+                            }
+                        />
+                    </div>
+                ) : null}
 
                 <div className="screen-designer-body">
                     {!focusMode && showLibraryPanel ? (

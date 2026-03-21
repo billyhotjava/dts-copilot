@@ -118,6 +118,9 @@ export default function CardEditorPage() {
 	const [displayType, setDisplayType] = useState<VisualizationType>("table");
 	const [showSql, setShowSql] = useState(false);
 	const autorunRef = useRef(false);
+	const visualizationFocusRef = useRef(false);
+	const visualizationSectionRef = useRef<HTMLDivElement | null>(null);
+	const [visualizationFocused, setVisualizationFocused] = useState(false);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -327,6 +330,23 @@ export default function CardEditorPage() {
 		autorunRef.current = true;
 		void run();
 	}, [sql, databaseId, mode, location.search]);
+
+	useEffect(() => {
+		const sp = new URLSearchParams(location.search);
+		if (sp.get("focus") !== "visualization") return;
+		if (runState?.state !== "loaded") return;
+		if (visualizationFocusRef.current) return;
+		visualizationFocusRef.current = true;
+		setVisualizationFocused(true);
+		const frame = window.requestAnimationFrame(() => {
+			visualizationSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+		});
+		const timer = window.setTimeout(() => setVisualizationFocused(false), 2200);
+		return () => {
+			window.cancelAnimationFrame(frame);
+			window.clearTimeout(timer);
+		};
+	}, [location.search, runState]);
 
 	const save = async () => {
 		if (!databaseId) return;
@@ -597,7 +617,13 @@ export default function CardEditorPage() {
 				</CardFooter>
 			</Card>
 
-			<Card>
+			<div ref={visualizationSectionRef}>
+			<Card
+				style={visualizationFocused ? {
+					boxShadow: "0 0 0 2px rgba(75, 143, 255, 0.25)",
+					borderRadius: "var(--radius-md)",
+				} : undefined}
+			>
 				<CardHeader
 					title={t(locale, "questions.queryResult")}
 					action={
@@ -755,6 +781,7 @@ export default function CardEditorPage() {
 					)}
 				</CardBody>
 			</Card>
+			</div>
 
 			<style>{`
 				.form-grid {

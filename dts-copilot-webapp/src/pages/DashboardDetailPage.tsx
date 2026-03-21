@@ -1,6 +1,7 @@
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
-import { analyticsApi, type DashboardCard, type DashboardDetail, type DashboardQueryResponse } from "../api/analyticsApi";
+import { analyticsApi, type AnalysisDraftDetail, type DashboardCard, type DashboardDetail, type DashboardQueryResponse, type FixedReportCatalogItem } from "../api/analyticsApi";
+import { AnalysisProvenancePanel } from "../components/analysis/AnalysisProvenancePanel";
 import { PageContainer, PageHeader } from "../components/PageContainer/PageContainer";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { ChartRenderer, type VisualizationType, type VisualizationSettings } from "../components/charts";
@@ -12,6 +13,10 @@ import { Badge } from "../ui/Badge/Badge";
 import { Spinner } from "../ui/Loading/Spinner";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
 import { writeTextToClipboard } from "../hooks/clipboard";
+import { readSelectedAnalysisDraft } from "./analysisDraftSurfaceEntry";
+import { readSelectedSourceCard } from "./analysisAssetProvenanceEntry";
+import { buildAnalysisDraftProvenanceModel, buildFixedReportProvenanceModel } from "./analysisProvenanceModel";
+import { buildFixedReportRunPath, readSelectedFixedReportTemplate } from "./fixed-reports/fixedReportSurfaceEntry";
 import "./page.css";
 
 type LoadState<T> =
@@ -28,8 +33,11 @@ type DashboardParam = {
 
 export default function DashboardDetailPage() {
 	const { id } = useParams();
+	const location = useLocation();
 	const locale: Locale = useMemo(() => getEffectiveLocale(), []);
 	const [state, setState] = useState<LoadState<DashboardDetail>>({ state: "loading" });
+	const [selectedAnalysisDraft, setSelectedAnalysisDraft] = useState<LoadState<AnalysisDraftDetail> | null>(null);
+	const [selectedFixedReport, setSelectedFixedReport] = useState<LoadState<FixedReportCatalogItem> | null>(null);
 	const [paramOptions, setParamOptions] = useState<Record<string, string[]>>({});
 	const [paramValues, setParamValues] = useState<Record<string, string>>({});
 	const [dashcardResults, setDashcardResults] = useState<Record<number, LoadState<DashboardQueryResponse>>>({});
@@ -56,6 +64,56 @@ export default function DashboardDetailPage() {
 		};
 	}, [id]);
 
+	useEffect(() => {
+		const analysisDraftId = readSelectedAnalysisDraft(location.search);
+		if (!analysisDraftId) {
+			setSelectedAnalysisDraft(null);
+			return;
+		}
+		let cancelled = false;
+		setSelectedAnalysisDraft({ state: "loading" });
+		analyticsApi
+			.getAnalysisDraft(analysisDraftId)
+			.then((draft) => {
+				if (!cancelled) {
+					setSelectedAnalysisDraft({ state: "loaded", value: draft });
+				}
+			})
+			.catch((error) => {
+				if (!cancelled) {
+					setSelectedAnalysisDraft({ state: "error", error });
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [location.search]);
+
+	useEffect(() => {
+		const templateCode = readSelectedFixedReportTemplate(location.search);
+		if (!templateCode) {
+			setSelectedFixedReport(null);
+			return;
+		}
+		let cancelled = false;
+		setSelectedFixedReport({ state: "loading" });
+		analyticsApi
+			.getFixedReportCatalogItem(templateCode)
+			.then((item) => {
+				if (!cancelled) {
+					setSelectedFixedReport({ state: "loaded", value: item });
+				}
+			})
+			.catch((error) => {
+				if (!cancelled) {
+					setSelectedFixedReport({ state: "error", error });
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [location.search]);
+
 	const dashboardParams: DashboardParam[] = useMemo(() => {
 		if (state.state !== "loaded") return [];
 		const raw = state.value.parameters;
@@ -74,6 +132,16 @@ export default function DashboardDetailPage() {
 		if (state.state !== "loaded") return [];
 		return Array.isArray(state.value.ordered_cards) ? (state.value.ordered_cards as DashboardCard[]) : [];
 	}, [state]);
+	const analysisDraftProvenance = selectedAnalysisDraft?.state === "loaded"
+		? buildAnalysisDraftProvenanceModel(selectedAnalysisDraft.value, { surface: "dashboard" })
+		: null;
+	const fixedReportProvenance = selectedFixedReport?.state === "loaded"
+		? buildFixedReportProvenanceModel(selectedFixedReport.value, { surface: "dashboard" })
+		: null;
+	const sourceCardId = readSelectedSourceCard(location.search);
+	const linkedSourceCardId = selectedAnalysisDraft?.state === "loaded"
+		? String(selectedAnalysisDraft.value.linked_card_id ?? "").trim() || sourceCardId
+		: sourceCardId;
 
 	useEffect(() => {
 		let cancelled = false;
@@ -225,6 +293,50 @@ export default function DashboardDetailPage() {
 							</>
 						}
 					/>
+
+					{selectedAnalysisDraft?.state === "error" && <ErrorNotice locale={locale} error={selectedAnalysisDraft.error} />}
+					{selectedFixedReport?.state === "error" && <ErrorNotice locale={locale} error={selectedFixedReport.error} />}
+
+					{selectedAnalysisDraft?.state === "loaded" && analysisDraftProvenance ? (
+						<AnalysisProvenancePanel
+							model={analysisDraftProvenance}
+							actions={
+								<>
+									<Link to={`/questions/new?draft=${selectedAnalysisDraft.value.id}`} className="link small">
+										回到查询草稿
+									</Link>
+									{linkedSourceCardId ? (
+										<Link to={`/questions/${encodeURIComponent(String(linkedSourceCardId))}`} className="link small">
+											查看来源查询
+										</Link>
+									) : null}
+								</>
+							}
+						/>
+					) : null}
+
+					{selectedFixedReport?.state === "loaded" && fixedReportProvenance ? (
+						<AnalysisProvenancePanel
+							model={fixedReportProvenance}
+							actions={
+								<>
+									<Link to={buildFixedReportRunPath(selectedFixedReport.value.templateCode || "")} className="link small">
+										查看固定报表
+									</Link>
+									{selectedFixedReport.value.legacyPagePath ? (
+										<a
+											href={`https://app.xycyl.com/#${selectedFixedReport.value.legacyPagePath.startsWith("/") ? selectedFixedReport.value.legacyPagePath : `/${selectedFixedReport.value.legacyPagePath}`}`}
+											target="_blank"
+											rel="noreferrer"
+											className="link small"
+										>
+											打开现网页面
+										</a>
+									) : null}
+								</>
+							}
+						/>
+					) : null}
 
 					{shareUuid && (
 						<Card style={{ marginBottom: "var(--spacing-lg)" }}>

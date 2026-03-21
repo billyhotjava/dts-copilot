@@ -6,6 +6,7 @@ import { writeTextToClipboard } from '../../hooks/clipboard';
 import { buildFixedReportQuickStartItems } from '../fixed-reports/fixedReportCatalogModel';
 import { buildFixedReportCreationFlowPath, buildFixedReportRunPath, readSelectedFixedReportTemplate } from '../fixed-reports/fixedReportSurfaceEntry';
 import { readSelectedAnalysisDraft } from '../analysisDraftSurfaceEntry';
+import { appendAnalysisAssetProvenance } from '../analysisAssetProvenanceEntry';
 import { buildAnalysisDraftScreenPrompt } from '../analysisDraftReuseModel';
 import { buildAnalysisDraftProvenanceModel, buildFixedReportProvenanceModel } from '../analysisProvenanceModel';
 import { TemplateGallery, type TemplateSelection } from './components';
@@ -319,7 +320,13 @@ export default function ScreensPage() {
                 const response = await analyticsApi.createScreenFromTemplate(remoteTemplate.id as string | number, {
                     name: (remoteTemplate.name || '未命名模板') + ' 副本',
                 });
-                navigate(`/screens/${response.id}/edit`);
+                navigate(
+                    appendAnalysisAssetProvenance(`/screens/${response.id}/edit`, {
+                        analysisDraftId: selectedAnalysisDraft?.id,
+                        fixedReportTemplate: selectedFixedReport?.templateCode,
+                        sourceCardId: selectedAnalysisDraft?.linked_card_id,
+                    }),
+                );
                 return;
             }
 
@@ -330,7 +337,13 @@ export default function ScreensPage() {
                     ...config,
                 }),
             );
-            navigate(`/screens/${response.id}/edit`);
+            navigate(
+                appendAnalysisAssetProvenance(`/screens/${response.id}/edit`, {
+                    analysisDraftId: selectedAnalysisDraft?.id,
+                    fixedReportTemplate: selectedFixedReport?.templateCode,
+                    sourceCardId: selectedAnalysisDraft?.linked_card_id,
+                }),
+            );
         } catch (err) {
             console.error('Failed to create screen from template:', err);
             navigate('/screens/new');
@@ -389,7 +402,13 @@ export default function ScreensPage() {
                 description: spec.description || normalized.config.description || 'AI自动生成',
             }));
             setShowAiGenerator(false);
-            navigate(`/screens/${created.id}/edit`);
+            navigate(
+                appendAnalysisAssetProvenance(`/screens/${created.id}/edit`, {
+                    analysisDraftId: selectedAnalysisDraft?.id,
+                    fixedReportTemplate: selectedFixedReport?.templateCode,
+                    sourceCardId: selectedAnalysisDraft?.linked_card_id,
+                }),
+            );
         } catch (err) {
             console.error('Failed to create screen from ai spec:', err);
             alert('创建 AI 草稿失败');

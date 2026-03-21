@@ -24,11 +24,14 @@ export function buildCopilotAnalysisDraftPayload(input: CopilotAnalysisDraftPayl
 
 export function buildCopilotDraftEditorHref(
 	draftId: string | number,
-	options?: { autorun?: boolean },
+	options?: { autorun?: boolean; focusVisualization?: boolean },
 ): string {
 	const params = new URLSearchParams({ draft: String(draftId) })
 	if (options?.autorun) {
 		params.set('autorun', '1')
+	}
+	if (options?.focusVisualization) {
+		params.set('focus', 'visualization')
 	}
 	return `/questions/new?${params.toString()}`
 }
