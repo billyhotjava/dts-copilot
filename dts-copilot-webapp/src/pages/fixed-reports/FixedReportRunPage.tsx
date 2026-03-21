@@ -128,7 +128,15 @@ export default function FixedReportRunPage() {
 			)}
 
 			{templateState.state === "loaded" && template && (
-				<div className="grid2" style={{ alignItems: "start" }}>
+				<div
+					className="col"
+					style={{
+						display: "flex",
+						flexDirection: "column",
+						gap: "var(--spacing-lg)",
+						alignItems: "stretch",
+					}}
+				>
 					<Card>
 						<CardBody>
 							<div style={{ display: "flex", gap: "var(--spacing-xs)", flexWrap: "wrap", marginBottom: "var(--spacing-md)" }}>

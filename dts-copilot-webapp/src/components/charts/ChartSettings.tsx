@@ -55,9 +55,9 @@ export function ChartSettings({
     <div className={`chart-settings ${className}`}>
       <Tabs defaultValue="display" variant="underline">
         <TabList>
-          <Tab value="display">Display</Tab>
-          <Tab value="axes">Axes</Tab>
-          <Tab value="style">Style</Tab>
+          <Tab value="display">显示</Tab>
+          <Tab value="axes">坐标轴</Tab>
+          <Tab value="style">样式</Tab>
         </TabList>
 
         <TabPanels>
@@ -65,34 +65,34 @@ export function ChartSettings({
           <TabPanel value="display">
             <div className="chart-settings__section">
               <Input
-                label="Title"
+                label="标题"
                 value={settings.title || ''}
                 onChange={(e) => updateSetting('title', e.target.value)}
-                placeholder="Chart title"
+                placeholder="图表标题"
               />
               <Input
-                label="Subtitle"
+                label="副标题"
                 value={settings.subtitle || ''}
                 onChange={(e) => updateSetting('subtitle', e.target.value)}
-                placeholder="Optional subtitle"
+                placeholder="可选副标题"
               />
               <div className="chart-settings__row">
                 <Toggle
-                  label="Show Legend"
+                  label="显示图例"
                   checked={settings.showLegend ?? true}
                   onChange={(e) => updateSetting('showLegend', e.target.checked)}
                 />
               </div>
               {settings.showLegend && (
                 <NativeSelect
-                  label="Legend Position"
+                  label="图例位置"
                   value={settings.legendPosition || 'bottom'}
                   onChange={(e) => updateSetting('legendPosition', e.target.value as ChartSettingsData['legendPosition'])}
                   options={[
-                    { value: 'top', label: 'Top' },
-                    { value: 'bottom', label: 'Bottom' },
-                    { value: 'left', label: 'Left' },
-                    { value: 'right', label: 'Right' },
+                    { value: 'top', label: '顶部' },
+                    { value: 'bottom', label: '底部' },
+                    { value: 'left', label: '左侧' },
+                    { value: 'right', label: '右侧' },
                   ]}
                 />
               )}
@@ -103,34 +103,34 @@ export function ChartSettings({
           <TabPanel value="axes">
             <div className="chart-settings__section">
               <Input
-                label="X-Axis Label"
+                label="X 轴标签"
                 value={settings.xAxisLabel || ''}
                 onChange={(e) => updateSetting('xAxisLabel', e.target.value)}
-                placeholder="X-axis label"
+                placeholder="X 轴标签"
               />
               <Input
-                label="Y-Axis Label"
+                label="Y 轴标签"
                 value={settings.yAxisLabel || ''}
                 onChange={(e) => updateSetting('yAxisLabel', e.target.value)}
-                placeholder="Y-axis label"
+                placeholder="Y 轴标签"
               />
               <div className="chart-settings__row">
                 <Checkbox
-                  label="Show X-Axis"
+                  label="显示 X 轴"
                   checked={settings.showXAxis ?? true}
                   onChange={(e) => updateSetting('showXAxis', e.target.checked)}
                 />
               </div>
               <div className="chart-settings__row">
                 <Checkbox
-                  label="Show Y-Axis"
+                  label="显示 Y 轴"
                   checked={settings.showYAxis ?? true}
                   onChange={(e) => updateSetting('showYAxis', e.target.checked)}
                 />
               </div>
               <div className="chart-settings__row">
                 <Checkbox
-                  label="Show Grid Lines"
+                  label="显示网格线"
                   checked={settings.showGridLines ?? true}
                   onChange={(e) => updateSetting('showGridLines', e.target.checked)}
                 />
@@ -142,19 +142,19 @@ export function ChartSettings({
           <TabPanel value="style">
             <div className="chart-settings__section">
               <NativeSelect
-                label="Color Palette"
+                label="配色方案"
                 value={settings.colorPalette || 'default'}
                 onChange={(e) => updateSetting('colorPalette', e.target.value)}
                 options={[
-                  { value: 'default', label: 'Default' },
-                  { value: 'pastel', label: 'Pastel' },
-                  { value: 'categorical', label: 'Categorical' },
+                  { value: 'default', label: '默认' },
+                  { value: 'pastel', label: '柔和' },
+                  { value: 'categorical', label: '分类' },
                 ]}
               />
               {(chartType === 'line' || chartType === 'area') && (
                 <div className="chart-settings__row">
                   <Toggle
-                    label="Smooth Lines"
+                    label="平滑曲线"
                     checked={settings.smooth ?? false}
                     onChange={(e) => updateSetting('smooth', e.target.checked)}
                   />
@@ -163,7 +163,7 @@ export function ChartSettings({
               {(chartType === 'bar' || chartType === 'area') && (
                 <div className="chart-settings__row">
                   <Toggle
-                    label="Stacked"
+                    label="堆叠"
                     checked={settings.stacked ?? false}
                     onChange={(e) => updateSetting('stacked', e.target.checked)}
                   />
@@ -171,7 +171,7 @@ export function ChartSettings({
               )}
               <div className="chart-settings__row">
                 <Toggle
-                  label="Show Data Labels"
+                  label="显示数据标签"
                   checked={settings.showDataLabels ?? false}
                   onChange={(e) => updateSetting('showDataLabels', e.target.checked)}
                 />
@@ -180,20 +180,20 @@ export function ChartSettings({
 
             {/* Goal Line Settings */}
             <div className="chart-settings__section">
-              <h4 className="chart-settings__section-title">Goal Line</h4>
+              <h4 className="chart-settings__section-title">目标线</h4>
               <Input
-                label="Goal Value"
+                label="目标值"
                 type="number"
                 value={settings.goalValue?.toString() || ''}
                 onChange={(e) => updateSetting('goalValue', e.target.value ? Number(e.target.value) : undefined)}
-                placeholder="Enter goal value"
+                placeholder="输入目标值"
               />
               {settings.goalValue !== undefined && (
                 <Input
-                  label="Goal Label"
+                  label="目标标签"
                   value={settings.goalLabel || ''}
                   onChange={(e) => updateSetting('goalLabel', e.target.value)}
-                  placeholder="Goal label"
+                  placeholder="目标标签"
                 />
               )}
             </div>
@@ -241,7 +241,7 @@ export function ChartSettingsPanel({
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
-        <span>Settings</span>
+        <span>设置</span>
       </button>
       {isOpen && (
         <div className="chart-settings-panel__content">

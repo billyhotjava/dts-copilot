@@ -89,7 +89,7 @@ export default function PublicDashboardPage() {
 				breadcrumbs={
 					<Breadcrumb items={[
 						{ label: t(locale, "nav.analyze"), href: "/analyze" },
-						{ label: "Share" }
+						{ label: "分享" }
 					]} />
 				}
 			/>

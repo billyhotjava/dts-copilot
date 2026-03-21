@@ -65,7 +65,7 @@ export default function PublicCardPage() {
 				breadcrumbs={
 					<Breadcrumb items={[
 						{ label: t(locale, "nav.analyze"), href: "/analyze" },
-						{ label: "Share" }
+						{ label: "分享" }
 					]} />
 				}
 			/>

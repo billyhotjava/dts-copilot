@@ -210,7 +210,7 @@ export default function CardDetailPage() {
 					{explainState?.state === "loaded" && (
 						<Card style={{ marginBottom: "var(--spacing-lg)" }}>
 							<CardHeader
-								title="Explainability"
+								title="可解释性"
 								action={
 									<Button
 										variant="tertiary"
@@ -220,7 +220,7 @@ export default function CardDetailPage() {
 											void writeTextToClipboard(text);
 										}}
 									>
-										Copy JSON
+										复制 JSON
 									</Button>
 								}
 							/>

@@ -413,7 +413,7 @@ export default function DashboardEditorPage() {
 							label={t(locale, "common.name")}
 							value={name}
 							onChange={(e) => setName(e.target.value)}
-							placeholder="My Dashboard"
+							placeholder="我的仪表盘"
 						/>
 
 						<NativeSelect

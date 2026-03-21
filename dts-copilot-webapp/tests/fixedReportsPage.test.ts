@@ -214,6 +214,9 @@ test('fixed report run page renders result preview table when execution returns 
 	assert.match(runPageSource, /resultPreview\?\.databaseName/)
 	assert.match(runPageSource, /previewColumns\.length === 0 \|\| previewRows\.length === 0/)
 	assert.match(runPageSource, /<table/)
+	assert.doesNotMatch(runPageSource, /<div className="grid2" style=\{\{ alignItems: "start" \}\}>/)
+	assert.match(runPageSource, /display: "flex"/)
+	assert.match(runPageSource, /flexDirection: "column"/)
 })
 
 test('analytics API exposes fixed report catalog and execute methods', async () => {

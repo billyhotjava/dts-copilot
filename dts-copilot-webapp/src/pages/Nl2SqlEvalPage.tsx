@@ -638,9 +638,9 @@ export default function Nl2SqlEvalPage() {
 						<div className="col" style={{ gap: "var(--spacing-sm)" }}>
 							<Input label={t(locale, "common.name")} value={caseName} onChange={(event) => setCaseName(event.target.value)} placeholder="制造日报趋势评测" />
 							<Input label="业务域" value={caseDomain} onChange={(event) => setCaseDomain(event.target.value)} placeholder="manufacturing" />
-							<TextArea label="Prompt" value={casePrompt} onChange={(event) => setCasePrompt(event.target.value)} rows={3} />
+							<TextArea label="提示词" value={casePrompt} onChange={(event) => setCasePrompt(event.target.value)} rows={3} />
 							<TextArea label={t(locale, "common.description")} value={caseNotes} onChange={(event) => setCaseNotes(event.target.value)} rows={2} />
-							<TextArea label="Expected(JSON)" value={caseExpected} onChange={(event) => setCaseExpected(event.target.value)} rows={3} />
+							<TextArea label="期望结果(JSON)" value={caseExpected} onChange={(event) => setCaseExpected(event.target.value)} rows={3} />
 						</div>
 					</CardBody>
 					<CardFooter align="right">
@@ -739,8 +739,8 @@ export default function Nl2SqlEvalPage() {
 						{runsState.state === "loaded" && (
 							<div className="col" style={{ gap: "var(--spacing-sm)" }}>
 								<div className="grid2">
-									<NativeSelect label="Baseline Run" value={baselineRunId} onChange={(event) => setBaselineRunId(event.target.value)} options={runOptions} />
-									<NativeSelect label="Candidate Run" value={candidateRunId} onChange={(event) => setCandidateRunId(event.target.value)} options={runOptions} />
+									<NativeSelect label="基准运行" value={baselineRunId} onChange={(event) => setBaselineRunId(event.target.value)} options={runOptions} />
+									<NativeSelect label="候选运行" value={candidateRunId} onChange={(event) => setCandidateRunId(event.target.value)} options={runOptions} />
 								</div>
 								<Button variant="primary" onClick={() => void compareRuns()} disabled={!baselineRunId || !candidateRunId}>
 									执行 Run 对比

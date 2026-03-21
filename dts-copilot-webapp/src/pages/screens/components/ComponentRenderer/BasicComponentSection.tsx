@@ -668,7 +668,7 @@ export function renderBasicComponentSection(
                     src={c.src as string}
                     sandbox="allow-scripts allow-same-origin"
                     style={{ width: '100%', height: '100%', border: 'none' }}
-                    title="Embedded content"
+                    title="嵌入内容"
                 />
             ) : (
                 <div style={{

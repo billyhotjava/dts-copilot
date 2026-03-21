@@ -33,13 +33,13 @@ import {
 import "./page.css";
 
 const VISUALIZATION_TYPES: { value: VisualizationType; label: string }[] = [
-	{ value: "table", label: "Table" }, // Will translate in render
-	{ value: "line", label: "Line" },
-	{ value: "bar", label: "Bar" },
-	{ value: "row", label: "Horizontal Bar" },
-	{ value: "area", label: "Area" },
-	{ value: "pie", label: "Pie" },
-	{ value: "scalar", label: "Number" },
+	{ value: "table", label: "表格" },
+	{ value: "line", label: "折线图" },
+	{ value: "bar", label: "柱状图" },
+	{ value: "row", label: "条形图" },
+	{ value: "area", label: "面积图" },
+	{ value: "pie", label: "饼图" },
+	{ value: "scalar", label: "数值" },
 ];
 
 type LoadState<T> =
@@ -520,7 +520,7 @@ export default function CardEditorPage() {
 							label={t(locale, "common.name")}
 							value={name}
 							onChange={(e) => setName(e.target.value)}
-							placeholder="My Question"
+							placeholder="我的查询"
 						/>
 
 						<NativeSelect
@@ -610,7 +610,7 @@ export default function CardEditorPage() {
 							disabled={!cardId || explainState?.state === "loading"}
 							loading={explainState?.state === "loading"}
 						>
-							Explain
+							可解释性
 						</Button>
 					</div>
 					<div />
@@ -668,7 +668,7 @@ export default function CardEditorPage() {
 								justifyContent: "space-between",
 								marginBottom: "var(--spacing-xs)",
 							}}>
-								<strong>Explainability</strong>
+								<strong>可解释性</strong>
 								<Button
 									variant="tertiary"
 									size="sm"
@@ -679,7 +679,7 @@ export default function CardEditorPage() {
 										}
 									}}
 								>
-									Copy JSON
+									复制 JSON
 								</Button>
 							</div>
 							<pre

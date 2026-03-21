@@ -96,7 +96,7 @@ export default function FieldDetailPage() {
 			{fieldState.state === "error" && <ErrorNotice locale={locale} error={fieldState.error} />}
 			{fieldState.state === "loaded" && (
 				<Card style={{ marginBottom: "var(--spacing-lg)" }}>
-					<CardHeader title="Field Details" />
+					<CardHeader title="字段详情" />
 					<CardBody>
 						<div className="field-details">
 							<div className="field-detail-row">

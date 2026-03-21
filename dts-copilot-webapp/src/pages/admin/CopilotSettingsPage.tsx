@@ -337,7 +337,7 @@ export default function CopilotSettingsPage() {
 						<CardBody className="copilot-settings__form-grid">
 							<div className="copilot-settings__field">
 								<label className="copilot-settings__label" htmlFor="provider-type">
-									Provider Type
+									Provider 类型
 								</label>
 								<select
 									id="provider-type"
@@ -371,7 +371,7 @@ export default function CopilotSettingsPage() {
 								onChange={(event) => setProviderForm((current) => ({ ...current, baseUrl: event.target.value }))}
 							/>
 							<Input
-								label="Model"
+								label="模型"
 								value={providerForm.model}
 								onChange={(event) => setProviderForm((current) => ({ ...current, model: event.target.value }))}
 							/>
@@ -387,22 +387,22 @@ export default function CopilotSettingsPage() {
 								}
 							/>
 							<Input
-								label="Temperature"
+								label="温度"
 								value={providerForm.temperature}
 								onChange={(event) => setProviderForm((current) => ({ ...current, temperature: event.target.value }))}
 							/>
 							<Input
-								label="Max Tokens"
+								label="最大令牌数"
 								value={providerForm.maxTokens}
 								onChange={(event) => setProviderForm((current) => ({ ...current, maxTokens: event.target.value }))}
 							/>
 							<Input
-								label="Timeout Seconds"
+								label="超时秒数"
 								value={providerForm.timeoutSeconds}
 								onChange={(event) => setProviderForm((current) => ({ ...current, timeoutSeconds: event.target.value }))}
 							/>
 							<Input
-								label="Priority"
+								label="优先级"
 								value={providerForm.priority}
 								onChange={(event) => setProviderForm((current) => ({ ...current, priority: event.target.value }))}
 							/>
@@ -464,8 +464,8 @@ export default function CopilotSettingsPage() {
 												<div className="copilot-settings__item-meta">
 													<div>{provider.providerType ?? "未指定类型"}</div>
 													<div>{provider.baseUrl ?? "-"}</div>
-													<div>Model: {provider.model ?? "-"}</div>
-													<div>Key: {provider.apiKeyMasked ?? "未配置"}</div>
+													<div>模型: {provider.model ?? "-"}</div>
+													<div>密钥: {provider.apiKeyMasked ?? "未配置"}</div>
 												</div>
 											</div>
 											<ButtonGroup>

@@ -475,7 +475,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 				}
 				void reloadSessions();
 			} catch (e) {
-				setError(resolveUiError(e, "Failed to send"));
+				setError(resolveUiError(e, "发送失败"));
 				}
 			} finally {
 				streamWatchdog.stop();
@@ -550,7 +550,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 			await reloadMessages(sessionId);
 			await reloadSessions();
 		} catch (e) {
-			setError(resolveUiError(e, "Approval failed"));
+			setError(resolveUiError(e, "审批失败"));
 		} finally {
 			setSending(false);
 		}
@@ -569,7 +569,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 			await reloadMessages(sessionId);
 			await reloadSessions();
 		} catch (e) {
-			setError(resolveUiError(e, "Cancel failed"));
+			setError(resolveUiError(e, "取消失败"));
 		} finally {
 			setSending(false);
 		}
@@ -595,7 +595,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 				setPendingAction(null);
 			}
 		} catch (e) {
-			setError(resolveUiError(e, "Delete session failed"));
+			setError(resolveUiError(e, "删除会话失败"));
 		} finally {
 			setSending(false);
 		}
@@ -792,8 +792,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 											<span className="trace-toggle__icon">
 												{traceExpanded ? "\u25B2" : "\u25BC"}
 											</span>
-											{traceExpanded ? "Hide" : "View"} reasoning (
-											{toolMsgs.length} step{toolMsgs.length > 1 ? "s" : ""})
+											{traceExpanded ? "隐藏" : "查看"}推理过程（{toolMsgs.length} 步）
 										</button>
 										{traceExpanded && <TracePanel toolMessages={toolMsgs} />}
 									</>
@@ -815,9 +814,9 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 				{/* Pending approval */}
 				{pendingAction && (
 					<div className="copilot-chat__approval">
-						<div className="copilot-chat__approval-title">Pending Approval</div>
+						<div className="copilot-chat__approval-title">待审批</div>
 						<div className="copilot-chat__approval-detail">
-							Tool: {pendingAction.toolId}
+							工具: {pendingAction.toolId}
 						</div>
 						{pendingAction.reason && (
 							<div className="copilot-chat__approval-detail">
@@ -906,7 +905,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 								onClick={() => void handleApprove()}
 								disabled={sending}
 							>
-								Approve
+								批准
 							</button>
 							<button
 								type="button"
@@ -914,7 +913,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 								onClick={handleCancel}
 								disabled={sending}
 							>
-								Reject
+								拒绝
 							</button>
 						</div>
 					</div>
@@ -929,7 +928,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 					type="button"
 					className="copilot-chat__new-btn"
 					onClick={handleNewChat}
-					title="New chat"
+					title="新对话"
 					disabled={sending}
 				>
 					+
@@ -967,7 +966,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 					}}
 					placeholder={
 						copilotEnabled
-							? "Ask a question..."
+							? "输入问题..."
 							: "需要先登录或配置 copilot API Key 才能使用 AI Copilot"
 					}
 					disabled={!canEditComposer}
