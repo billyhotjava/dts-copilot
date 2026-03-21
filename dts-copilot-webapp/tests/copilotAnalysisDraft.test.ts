@@ -47,6 +47,8 @@ test('inline sql preview exposes save-draft handoff actions', () => {
 
 	assert.match(source, /createAnalysisDraft/)
 	assert.match(source, /保存草稿/)
+	assert.match(source, /草稿已保存/)
 	assert.match(source, /在查询中打开/)
+	assert.match(source, /在查询中继续编辑/)
 	assert.match(source, /buildCopilotDraftEditorHref/)
 })

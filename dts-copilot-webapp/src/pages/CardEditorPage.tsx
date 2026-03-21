@@ -25,6 +25,11 @@ import { Spinner } from "../ui/Loading/Spinner";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
 import { buildAnalysisDraftCreationFlowPath } from "./analysisDraftSurfaceEntry";
 import { buildAnalysisDraftProvenanceModel } from "./analysisProvenanceModel";
+import {
+	buildCopilotSessionFocusRequest,
+	buildCopilotSessionReturnLabel,
+	requestCopilotSessionFocus,
+} from "../components/copilot/copilotSessionFocus";
 import "./page.css";
 
 const VISUALIZATION_TYPES: { value: VisualizationType; label: string }[] = [
@@ -91,12 +96,14 @@ export default function CardEditorPage() {
 	const cardId = params.id ? String(params.id) : null;
 	const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 	const analysisDraftId = !cardId ? searchParams.get("draft")?.trim() || null : null;
+	const sourceDraftId = searchParams.get("sourceDraft")?.trim() || null;
+	const analysisDraftLookupId = analysisDraftId ?? sourceDraftId;
 
 	const [databases, setDatabases] = useState<LoadState<DatabaseListItem[]>>({ state: "loading" });
 	const [collections, setCollections] = useState<LoadState<CollectionListItem[]>>({ state: "loading" });
 	const [card, setCard] = useState<LoadState<CardDetail> | null>(cardId ? { state: "loading" } : null);
 	const [analysisDraft, setAnalysisDraft] = useState<LoadState<AnalysisDraftDetail> | null>(
-		analysisDraftId ? { state: "loading" } : null,
+		analysisDraftLookupId ? { state: "loading" } : null,
 	);
 	const [name, setName] = useState("");
 	const [databaseId, setDatabaseId] = useState<number | null>(null);
@@ -183,13 +190,16 @@ export default function CardEditorPage() {
 
 	useEffect(() => {
 		let cancelled = false;
-		if (!analysisDraftId || cardId) return;
+		if (!analysisDraftLookupId) return;
 		setAnalysisDraft({ state: "loading" });
 		analyticsApi
-			.getAnalysisDraft(analysisDraftId)
+			.getAnalysisDraft(analysisDraftLookupId)
 			.then((value) => {
 				if (cancelled) return;
 				setAnalysisDraft({ state: "loaded", value });
+				if (cardId) {
+					return;
+				}
 				setName(value.title ?? value.question ?? "");
 				setDatabaseId(typeof value.database_id === "number" ? value.database_id : null);
 				setCollectionId(null);
@@ -206,7 +216,7 @@ export default function CardEditorPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [analysisDraftId, cardId]);
+	}, [analysisDraftLookupId, cardId]);
 
 	useEffect(() => {
 		if (databaseId) return;
@@ -334,7 +344,8 @@ export default function CardEditorPage() {
 					setAnalysisDraft({ state: "loaded", value: saved.draft });
 				}
 				if (saved.card?.id != null) {
-					navigate(`/questions/${saved.card.id}`, { replace: true });
+					const nextSourceDraftId = saved.draft?.id ?? analysisDraftId;
+					navigate(`/questions/${saved.card.id}?sourceDraft=${encodeURIComponent(String(nextSourceDraftId))}`, { replace: true });
 					return;
 				}
 			}
@@ -357,6 +368,10 @@ export default function CardEditorPage() {
 
 			const saved = cardId ? await analyticsApi.updateCard(cardId, body) : await analyticsApi.createCard(body);
 			setSaveState({ state: "loaded", value: saved });
+			if (analysisDraftLookupId) {
+				navigate(`/questions/${saved.id}?sourceDraft=${encodeURIComponent(String(analysisDraftLookupId))}`, { replace: true });
+				return;
+			}
 			navigate(`/questions/${saved.id}`, { replace: true });
 		} catch (e) {
 			setSaveState({ state: "error", error: e });
@@ -435,16 +450,34 @@ export default function CardEditorPage() {
 				</Card>
 			) : null}
 
-			{loadedDraft && !cardId && analysisDraftProvenance ? (
+			{loadedDraft && analysisDraftProvenance ? (
 				<AnalysisProvenancePanel
 					model={analysisDraftProvenance}
 					actions={
 						<>
-							{loadedDraft.session_id && (
-								<Link to="/explore-sessions" className="link">
-									查看分析会话
-								</Link>
-							)}
+							{buildCopilotSessionFocusRequest({
+								sessionId: loadedDraft.session_id,
+								messageId: loadedDraft.message_id,
+								question: loadedDraft.question ?? loadedDraft.title,
+							}) ? (
+								<button
+									type="button"
+									className="link"
+									style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+									onClick={() => {
+										const request = buildCopilotSessionFocusRequest({
+											sessionId: loadedDraft.session_id,
+											messageId: loadedDraft.message_id,
+											question: loadedDraft.question ?? loadedDraft.title,
+										});
+										if (request) {
+											requestCopilotSessionFocus(request);
+										}
+									}}
+								>
+									{buildCopilotSessionReturnLabel(Boolean(loadedDraft.message_id))}
+								</button>
+							) : null}
 							<Link to={buildAnalysisDraftCreationFlowPath("dashboard", loadedDraft.id)} className="link">
 								进入仪表盘
 							</Link>

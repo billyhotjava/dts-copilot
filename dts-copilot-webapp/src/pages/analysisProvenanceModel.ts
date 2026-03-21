@@ -32,7 +32,7 @@ type FixedReportOptions = {
 }
 
 export function buildAnalysisDraftProvenanceModel(
-	draft: Pick<AnalysisDraftDetail, 'id' | 'title' | 'question' | 'status' | 'session_id' | 'linked_card_id' | 'suggested_display'>,
+	draft: Pick<AnalysisDraftDetail, 'id' | 'title' | 'question' | 'status' | 'session_id' | 'message_id' | 'linked_card_id' | 'suggested_display'>,
 	options: AnalysisDraftOptions,
 ): AnalysisProvenanceModel {
 	const title = draft.title?.trim() || draft.question?.trim() || 'Copilot 草稿'
@@ -51,12 +51,16 @@ export function buildAnalysisDraftProvenanceModel(
 		if (draft.session_id?.trim()) {
 			details.push({ label: '分析会话', value: `#${draft.session_id.trim()}` })
 		}
+		if (draft.message_id?.trim()) {
+			details.push({ label: '来源回答', value: `#${draft.message_id.trim()}` })
+		}
+		if (draft.status === 'SAVED_QUERY' && draft.linked_card_id) {
+			details.push({ label: '已转正查询', value: `#${draft.linked_card_id}` })
+		}
 		return {
 			heading: 'Copilot 草稿来源',
 			title,
-			summary: options.isDirty
-				? '当前内容已脱离原始草稿，保存时将按当前编辑内容新建正式查询。'
-				: '当前内容仍与 Copilot 草稿保持一致，可直接转成正式查询。',
+			summary: resolveQueryDraftSummary(draft.status, Boolean(options.isDirty)),
 			badges,
 			details,
 		}
@@ -125,6 +129,20 @@ function resolveAnalysisDraftSummary(surface: Exclude<AnalysisProvenanceSurface,
 		case 'screen':
 			return '已从分析草稿入口带入当前页面，可直接基于该草稿生成大屏，并继承问题语义、说明和推荐图表类型。'
 	}
+}
+
+function resolveQueryDraftSummary(
+	status: Pick<AnalysisDraftDetail, 'status'>['status'],
+	isDirty: boolean,
+): string {
+	if (status === 'SAVED_QUERY') {
+		return isDirty
+			? '当前已基于来源草稿转成正式查询，但内容又发生了编辑。保存时将继续按当前内容更新查询资产。'
+			: '当前草稿已转成正式查询，可返回来源对话，也可继续进入仪表盘、报告工厂或大屏。'
+	}
+	return isDirty
+		? '当前内容已脱离原始草稿，保存时将按当前编辑内容新建正式查询。'
+		: '当前内容仍与 Copilot 草稿保持一致，可直接转成正式查询。'
 }
 
 function resolveFixedReportSummary(surface: FixedReportOptions['surface']): string {

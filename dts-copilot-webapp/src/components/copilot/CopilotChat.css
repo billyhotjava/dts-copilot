@@ -121,6 +121,12 @@
 		line-height: 1.5;
 	}
 
+	&__notice--focus {
+		border-color: rgba(80, 158, 227, 0.28);
+		background: rgba(80, 158, 227, 0.08);
+		color: var(--color-brand, #509ee3);
+	}
+
 	&__msg {
 		max-width: 85%;
 		padding: 8px 12px;
@@ -141,6 +147,10 @@
 			background: var(--color-bg-secondary, #f0f0f0);
 			color: var(--color-text-primary);
 			border-bottom-left-radius: 4px;
+		}
+
+		&--focused {
+			box-shadow: 0 0 0 2px rgba(80, 158, 227, 0.2);
 		}
 	}
 

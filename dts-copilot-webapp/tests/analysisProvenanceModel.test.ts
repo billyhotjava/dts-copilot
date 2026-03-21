@@ -19,6 +19,7 @@ test('builds query-draft provenance with draft status and dirty summary', () => 
 			question: '中石油项目有多少在摆的绿植',
 			status: 'DRAFT',
 			session_id: '25',
+			message_id: 'msg-1',
 		},
 		{ surface: 'query', isDirty: true },
 	)
@@ -30,7 +31,32 @@ test('builds query-draft provenance with draft status and dirty summary', () => 
 	assert.match(model.summary, /已脱离原始草稿/)
 	assert.deepEqual(
 		model.details.map((item) => item.label),
-		['原始问题', '分析会话'],
+		['原始问题', '分析会话', '来源回答'],
+	)
+})
+
+test('builds query-draft provenance with promoted summary after save-card', () => {
+	const model = buildAnalysisDraftProvenanceModel(
+		{
+			id: 11,
+			title: '采购汇总',
+			question: '最近 30 天采购汇总',
+			status: 'SAVED_QUERY',
+			session_id: '55',
+			message_id: 'msg-9',
+			linked_card_id: 201,
+		},
+		{ surface: 'query', isDirty: false },
+	)
+
+	assert.deepEqual(
+		model.badges.map((item) => item.label),
+		['AI Copilot', '已转正式查询'],
+	)
+	assert.match(model.summary, /可返回来源对话/)
+	assert.deepEqual(
+		model.details.map((item) => item.label),
+		['原始问题', '分析会话', '来源回答', '已转正查询'],
 	)
 })
 

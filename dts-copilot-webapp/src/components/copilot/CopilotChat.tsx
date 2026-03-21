@@ -23,6 +23,7 @@ import {
 } from "./copilotFixedReportMessage";
 import { shouldSubmitCopilotInputOnEnter } from "./copilotInputBehavior";
 import { appendReasoningDelta, appendToolProgressLine } from "./copilotReasoningState";
+import type { CopilotSessionFocusRequest } from "./copilotSessionFocus";
 import { shouldRestorePersistedCopilotSession } from "./copilotSessionBootstrap";
 import { createCopilotStreamWatchdog, resolveCopilotSendAction } from "./copilotStreamControl";
 import { canUseCopilot } from "./copilotAccessPolicy";
@@ -115,6 +116,7 @@ function getStoredSessionId(): string | null {
 
 interface Props {
 	hasSessionAccess?: boolean;
+	focusRequest?: (CopilotSessionFocusRequest & { nonce: number }) | null;
 }
 
 function resolveUiError(error: unknown, fallback: string): string {
@@ -178,7 +180,7 @@ function buildInitialApprovalValues(
 	return values;
 }
 
-export function CopilotChat({ hasSessionAccess = false }: Props) {
+export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: Props) {
 	const initialStoredSessionId = useRef(getStoredSessionId());
 	const copilotEnabled = canUseCopilot(
 		getCopilotApiKey(),
@@ -198,6 +200,8 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 	const [selectedDbId, setSelectedDbId] = useState<number | null>(() => getStoredDatasourceId());
 	const [error, setError] = useState<string | null>(null);
 	const [expandedTraces, setExpandedTraces] = useState<Set<string>>(new Set());
+	const [focusNotice, setFocusNotice] = useState<string | null>(null);
+	const [focusedMessageId, setFocusedMessageId] = useState<string | null>(null);
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const activeStreamingSessionIdRef = useRef<string | null>(null);
 	const streamInFlightRef = useRef(false);
@@ -355,6 +359,14 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 		setApprovalValues(buildInitialApprovalValues(pendingAction, approvalSchema));
 	}, [pendingAction, approvalSchema]);
 
+	useEffect(() => {
+		if (!focusRequest?.sessionId) return;
+		setSessionId(focusRequest.sessionId);
+		setFocusNotice(focusRequest.notice);
+		setFocusedMessageId(focusRequest.messageId ?? null);
+		void reloadMessages(focusRequest.sessionId);
+	}, [focusRequest, reloadMessages]);
+
 	// Scroll to bottom when conversation content updates.
 	useEffect(() => {
 		scrollRef.current?.scrollTo({
@@ -362,6 +374,17 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 			behavior: "smooth",
 		});
 	}, [sortedMessages, pendingAction, sending]);
+
+	useEffect(() => {
+		if (!focusedMessageId) return;
+		const frame = requestAnimationFrame(() => {
+			const target = document.querySelector<HTMLElement>(
+				`[data-copilot-message-id="${focusedMessageId}"]`,
+			);
+			target?.scrollIntoView({ behavior: "smooth", block: "center" });
+		});
+		return () => cancelAnimationFrame(frame);
+	}, [sortedMessages, focusedMessageId]);
 
 	useEffect(() => () => {
 		streamAbortRef.current?.abort();
@@ -387,6 +410,8 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 		setInput("");
 		setSending(true);
 		setError(null);
+		setFocusNotice(null);
+		setFocusedMessageId(null);
 
 		const optimistic: AiAgentChatMessage = {
 			id: `opt-${Date.now()}`,
@@ -707,6 +732,8 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 		setMessages([]);
 		setPendingAction(null);
 		setError(null);
+		setFocusNotice(null);
+		setFocusedMessageId(null);
 		setApprovalValues({});
 	}
 
@@ -722,6 +749,8 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 							handleNewChat();
 							return;
 						}
+						setFocusNotice(null);
+						setFocusedMessageId(null);
 						setSessionId(next);
 					}}
 					disabled={sending || !copilotEnabled}
@@ -783,6 +812,9 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 				) : sortedMessages.length === 0 ? (
 					<WelcomeCard onQuestionClick={(q) => void handleSendText(q)} />
 				) : null}
+				{focusNotice ? (
+					<div className="copilot-chat__notice copilot-chat__notice--focus">{focusNotice}</div>
+				) : null}
 				{sortedMessages
 					.filter((m) => m.role === "user" || m.role === "assistant")
 						.map((msg) => {
@@ -804,7 +836,8 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 								return (
 								<div
 									key={msg.id}
-									className={`copilot-chat__msg copilot-chat__msg--${msg.role}`}
+									className={`copilot-chat__msg copilot-chat__msg--${msg.role}${msg.id === focusedMessageId ? " copilot-chat__msg--focused" : ""}`}
+									data-copilot-message-id={msg.id}
 								>
 									<div className="copilot-chat__msg-content">
 										{msg.role === "assistant" &&

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCopilotApiKey, hasCopilotSessionAccess } from "../../api/copilotAuth";
 import { CopilotChat } from "./CopilotChat";
+import {
+	COPILOT_SESSION_FOCUS_EVENT,
+	type CopilotSessionFocusRequest,
+} from "./copilotSessionFocus";
 import { canUseCopilot, resolveInitialCopilotExpanded } from "./copilotAccessPolicy";
 import "./CopilotSidebar.css";
 
@@ -85,6 +89,7 @@ export function CopilotSidebar({ hasSessionAccess = false }: Props) {
 		resolveInitialCopilotExpanded(getStoredExpanded(), apiKey, sessionAccess),
 	);
 	const [width, setWidth] = useState(getStoredWidth);
+	const [focusRequest, setFocusRequest] = useState<(CopilotSessionFocusRequest & { nonce: number }) | null>(null);
 	const isDragging = useRef(false);
 	const startX = useRef(0);
 	const startWidth = useRef(0);
@@ -104,6 +109,21 @@ export function CopilotSidebar({ hasSessionAccess = false }: Props) {
 			localStorage.setItem(WIDTH_STORAGE_KEY, String(width));
 		} catch { /* ignore */ }
 	}, [width]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const handleFocusRequest = (event: Event) => {
+			const customEvent = event as CustomEvent<CopilotSessionFocusRequest>;
+			const detail = customEvent.detail;
+			if (!detail?.sessionId) return;
+			setExpanded(true);
+			setFocusRequest({ ...detail, nonce: Date.now() });
+		};
+		window.addEventListener(COPILOT_SESSION_FOCUS_EVENT, handleFocusRequest as EventListener);
+		return () => {
+			window.removeEventListener(COPILOT_SESSION_FOCUS_EVENT, handleFocusRequest as EventListener);
+		};
+	}, []);
 
 	const handleMouseMove = useCallback((e: MouseEvent) => {
 		if (!isDragging.current) return;
@@ -170,7 +190,7 @@ export function CopilotSidebar({ hasSessionAccess = false }: Props) {
 							</button>
 						</div>
 						<div className="copilot-sidebar__body">
-							<CopilotChat hasSessionAccess={sessionAccess} />
+							<CopilotChat hasSessionAccess={sessionAccess} focusRequest={focusRequest} />
 						</div>
 					</>
 				) : (

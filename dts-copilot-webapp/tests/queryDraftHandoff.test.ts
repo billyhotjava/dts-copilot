@@ -12,6 +12,9 @@ test('card editor supports opening copilot analysis drafts with source context',
 
 	assert.match(source, /getAnalysisDraft/)
 	assert.match(source, /analysisDraftId/)
-	assert.match(source, /AI Copilot/)
+	assert.match(source, /buildAnalysisDraftProvenanceModel/)
 	assert.match(source, /saveAnalysisDraftCard/)
+	assert.match(source, /requestCopilotSessionFocus/)
+	assert.match(source, /buildCopilotSessionReturnLabel/)
+	assert.match(source, /sourceDraft/)
 })

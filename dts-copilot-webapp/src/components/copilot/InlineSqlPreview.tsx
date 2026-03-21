@@ -176,7 +176,7 @@ export function InlineSqlPreview({
 					disabled={draftBusy || !databaseId}
 					loading={draftBusy}
 				>
-					保存草稿
+					{draftSaved ? "草稿已保存" : "保存草稿"}
 				</Button>
 				<Button
 					variant="secondary"
@@ -184,7 +184,7 @@ export function InlineSqlPreview({
 					onClick={() => void handleOpenInQuestions()}
 					disabled={draftBusy || !databaseId}
 				>
-					在查询中打开
+					{draftSaved ? "在查询中继续编辑" : "在查询中打开"}
 				</Button>
 				<Button variant="secondary" size="sm" onClick={handleCreateViz}>
 					创建可视化
@@ -193,7 +193,7 @@ export function InlineSqlPreview({
 
 			{draftSaved && draftId != null && (
 				<div className="inline-sql-preview__result-info">
-					草稿已保存，可继续在查询中打开。#{draftId}
+					草稿已保存，可在查询中继续编辑或创建可视化。#{draftId}
 				</div>
 			)}
 
