@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useEffect, useMemo, useState } from "react";
-import { analyticsApi, type DashboardListItem } from "../api/analyticsApi";
+import { analyticsApi, type DashboardListItem, type FixedReportCatalogItem } from "../api/analyticsApi";
 import { PageContainer, PageHeader, EmptyState } from "../components/PageContainer/PageContainer";
 import { Card, CardBody } from "../ui/Card/Card";
 import { Button } from "../ui/Button/Button";
@@ -11,6 +11,8 @@ import { CardSkeleton } from "../ui/Loading/Skeleton";
 import { CardGrid } from "../components/DashboardGrid/DashboardGrid";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
+import { buildFixedReportQuickStartItems } from "./fixed-reports/fixedReportCatalogModel";
+import { buildFixedReportCreationFlowPath } from "./fixed-reports/fixedReportSurfaceEntry";
 import "./page.css";
 
 type LoadState<T> =
@@ -58,25 +60,35 @@ const ListIcon = () => (
 export default function DashboardsPage() {
 	const locale: Locale = useMemo(() => getEffectiveLocale(), []);
 	const [state, setState] = useState<LoadState<DashboardListItem[]>>({ state: "loading" });
+	const [fixedReports, setFixedReports] = useState<LoadState<FixedReportCatalogItem[]>>({ state: "loading" });
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const [searchQuery, setSearchQuery] = useState("");
 
 	useEffect(() => {
 		let cancelled = false;
-		analyticsApi
-			.listDashboards()
-			.then((value) => {
+		void Promise.all([
+			analyticsApi.listDashboards(),
+			analyticsApi.listFixedReportCatalog({ limit: 12 }),
+		])
+			.then(([dashboardRows, fixedReportRows]) => {
 				if (cancelled) return;
-				setState({ state: "loaded", value });
+				setState({ state: "loaded", value: dashboardRows });
+				setFixedReports({ state: "loaded", value: Array.isArray(fixedReportRows) ? fixedReportRows : [] });
 			})
 			.catch((e) => {
 				if (cancelled) return;
 				setState({ state: "error", error: e });
+				setFixedReports({ state: "error", error: e });
 			});
 		return () => {
 			cancelled = true;
 		};
 	}, []);
+
+	const fixedReportQuickStarts = useMemo(
+		() => fixedReports.state === "loaded" ? buildFixedReportQuickStartItems(fixedReports.value, 6) : [],
+		[fixedReports],
+	);
 
 	const filteredDashboards = useMemo(() => {
 		if (state.state !== "loaded") return [];
@@ -101,6 +113,50 @@ export default function DashboardsPage() {
 					</Link>
 				}
 			/>
+
+			<Card style={{ marginBottom: "var(--spacing-lg)" }}>
+				<CardBody>
+					<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--spacing-md)", marginBottom: "var(--spacing-sm)" }}>
+						<div>
+							<div style={{ fontWeight: 600 }}>固定报表快捷入口</div>
+							<div className="muted small">复用已认证的财务、采购、仓库固定报表模板。</div>
+						</div>
+						{fixedReports.state === "loaded" ? <Badge>{fixedReportQuickStarts.length}</Badge> : null}
+					</div>
+					{fixedReports.state === "loading" && (
+						<div className="loading-container" style={{ padding: "var(--spacing-md)" }}>
+							<Spinner size="sm" />
+						</div>
+					)}
+					{fixedReports.state === "error" && <ErrorNotice locale={locale} error={fixedReports.error} />}
+					{fixedReports.state === "loaded" && fixedReportQuickStarts.length === 0 && (
+						<div className="muted">暂无可复用的固定报表快捷入口。</div>
+					)}
+					{fixedReports.state === "loaded" && fixedReportQuickStarts.length > 0 && (
+						<div style={{ display: "flex", flexWrap: "wrap", gap: "var(--spacing-sm)" }}>
+							{fixedReportQuickStarts.map((item) => (
+								<Link
+									key={item.templateCode || item.name}
+									to={buildFixedReportCreationFlowPath('dashboard', item.templateCode || '')}
+									className="link"
+									style={{
+										display: "inline-flex",
+										alignItems: "center",
+										gap: "var(--spacing-xs)",
+										padding: "var(--spacing-xs) var(--spacing-sm)",
+										borderRadius: "var(--radius-pill)",
+										background: "var(--color-bg-secondary)",
+										border: "1px solid var(--color-border)",
+									}}
+								>
+									<span>{item.name || item.templateCode || "固定报表"}</span>
+									<span className="small muted">{item.domain || "未分类"}</span>
+								</Link>
+							))}
+						</div>
+					)}
+				</CardBody>
+			</Card>
 
 			{/* Filter Bar */}
 			<div className="filterBar">

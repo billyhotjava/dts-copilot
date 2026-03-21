@@ -335,6 +335,43 @@ export type ReportTemplateItem = {
 	updatedAt?: string;
 };
 
+export type FixedReportCatalogItem = {
+	id?: number | string;
+	name?: string;
+	description?: string | null;
+	templateCode?: string;
+	domain?: string | null;
+	category?: string | null;
+	dataSourceType?: string | null;
+	targetObject?: string | null;
+	refreshPolicy?: string | null;
+	parameterSchemaJson?: string | null;
+	certificationStatus?: string | null;
+	placeholderReviewRequired?: boolean;
+	legacyPageTitle?: string | null;
+	legacyPagePath?: string | null;
+	published?: boolean;
+	updatedAt?: string;
+};
+
+export type FixedReportRunResponse = {
+	templateCode?: string;
+	templateName?: string;
+	domain?: string | null;
+	freshness?: string | null;
+	sourceType?: string | null;
+	targetObject?: string | null;
+	route?: string | null;
+	adapterKey?: string | null;
+	rationale?: string | null;
+	supported?: boolean;
+	executionStatus?: string | null;
+	placeholderReviewRequired?: boolean;
+	legacyPageTitle?: string | null;
+	legacyPagePath?: string | null;
+	parameters?: Record<string, unknown>;
+};
+
 export type ReportRunItem = {
 	id?: number | string;
 	templateId?: number | string | null;
@@ -1281,11 +1318,16 @@ import {
 	normalizeLegacyAiChatSession,
 	normalizeLegacyAiChatSessionDetail,
 	resolveCopilotUserIdFromSharedStores,
-} from "./aiChatCompatibility";
-import { isCopilotAiRoute, shouldRedirectToLoginOnUnauthorized } from "./authRedirectPolicy";
-import { getCopilotApiKey, getCopilotHeaders, hasCopilotSessionAccess } from "./copilotAuth";
-import { createSseEventParser } from "./copilotSse";
-import { getPlatformTokens, refreshPlatformAccessToken } from "./platformSession";
+} from "./aiChatCompatibility.ts";
+import { isCopilotAiRoute, shouldRedirectToLoginOnUnauthorized } from "./authRedirectPolicy.ts";
+import { getCopilotApiKey, getCopilotHeaders, hasCopilotSessionAccess } from "./copilotAuth.ts";
+import { createSseEventParser } from "./copilotSse.ts";
+import { getPlatformTokens, refreshPlatformAccessToken } from "./platformSession.ts";
+import {
+	buildFixedReportCatalogItemUrl,
+	buildFixedReportCatalogUrl,
+	buildFixedReportRunRequest,
+} from "../pages/fixed-reports/fixedReportApi.ts";
 
 export class HttpError extends Error {
 	status: number;
@@ -1917,6 +1959,17 @@ export const analyticsApi = {
 		fetchJson<ExploreSessionItem>("/api/analytics/explore-session/public/" + encodeURIComponent(String(uuid))),
 	listReportTemplates: (limit = 100) =>
 		fetchJson<ReportTemplateItem[]>("/api/analytics/report-factory/templates?limit=" + encodeURIComponent(String(limit))),
+	listFixedReportCatalog: (params?: { domain?: string; category?: string; limit?: number }) =>
+		fetchJson<FixedReportCatalogItem[]>(buildFixedReportCatalogUrl(params)),
+	getFixedReportCatalogItem: (templateCode: string) =>
+		fetchJson<FixedReportCatalogItem>(buildFixedReportCatalogItemUrl(templateCode)),
+	runFixedReport: (
+		templateCode: string,
+		body?: { parameters?: Record<string, unknown> },
+	) => {
+		const request = buildFixedReportRunRequest(templateCode, body?.parameters)
+		return sendJson<FixedReportRunResponse>(request.url, request.body)
+	},
 	createReportTemplate: (body: unknown) =>
 		sendJson<ReportTemplateItem>("/api/analytics/report-factory/templates", body ?? {}),
 	updateReportTemplate: (id: string | number, body: unknown) =>
@@ -2344,7 +2397,14 @@ export type CopilotStreamEvent =
 	| { type: "reasoning"; content: string }
 	| { type: "token"; content: string }
 	| { type: "tool"; tool: string; status: string }
-	| { type: "done"; generatedSql?: string }
+	| {
+		type: "done";
+		generatedSql?: string;
+		templateCode?: string;
+		routedDomain?: string;
+		targetView?: string;
+		responseKind?: string;
+	}
 	| { type: "error"; error: string };
 
 export async function aiAgentChatSendStream(
@@ -2352,7 +2412,7 @@ export async function aiAgentChatSendStream(
 	onEvent: (event: CopilotStreamEvent) => void,
 	options?: { signal?: AbortSignal },
 ): Promise<void> {
-	const basePath = import.meta.env.VITE_BASE_PATH?.replace(/\/$/, "") || "";
+	const basePath = import.meta.env?.VITE_BASE_PATH?.replace(/\/$/, "") || "";
 	const response = await fetch(`${basePath}/api/copilot/chat/send-stream`, {
 		method: "POST",
 		credentials: "include",
@@ -2389,7 +2449,14 @@ export async function aiAgentChatSendStream(
 					onEvent({ type: "tool", tool: parsed.tool, status: parsed.status });
 					break;
 				case "done":
-					onEvent({ type: "done", generatedSql: parsed.generatedSql });
+					onEvent({
+						type: "done",
+						...(parsed.generatedSql ? { generatedSql: parsed.generatedSql } : {}),
+						...(parsed.templateCode ? { templateCode: parsed.templateCode } : {}),
+						...(parsed.routedDomain ? { routedDomain: parsed.routedDomain } : {}),
+						...(parsed.targetView ? { targetView: parsed.targetView } : {}),
+						...(parsed.responseKind ? { responseKind: parsed.responseKind } : {}),
+					});
 					break;
 				case "error":
 					onEvent({ type: "error", error: parsed.error });

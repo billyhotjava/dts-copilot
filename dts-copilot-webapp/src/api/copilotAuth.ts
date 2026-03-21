@@ -1,4 +1,4 @@
-import { resolveCopilotUserIdFromSharedStores } from './aiChatCompatibility'
+import { resolveCopilotUserIdFromSharedStores } from './aiChatCompatibility.ts'
 
 const COPILOT_API_KEY_STORAGE_KEY = 'dts.copilot.apiKey'
 const COPILOT_SESSION_ACCESS_STORAGE_KEY = 'dts.copilot.sessionAccess'

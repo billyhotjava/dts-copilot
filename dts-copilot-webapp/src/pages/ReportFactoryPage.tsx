@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { analyticsApi, type ReportRunItem, type ReportTemplateItem } from "../api/analyticsApi";
+import { Link, useLocation } from "react-router";
+import { analyticsApi, type FixedReportCatalogItem, type ReportRunItem, type ReportTemplateItem } from "../api/analyticsApi";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { PageContainer, PageHeader } from "../components/PageContainer/PageContainer";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
+import { buildFixedReportQuickStartItems } from "./fixed-reports/fixedReportCatalogModel";
+import { buildFixedReportCreationFlowPath, buildFixedReportRunPath, readSelectedFixedReportTemplate } from "./fixed-reports/fixedReportSurfaceEntry";
 import { formatTime, toIdString, type LoadState } from "../shared/utils";
 import { Badge } from "../ui/Badge/Badge";
 import { Button } from "../ui/Button/Button";
@@ -123,8 +126,11 @@ function RunDetailView({ run }: RunDetailViewProps) {
 
 export default function ReportFactoryPage() {
 	const locale: Locale = useMemo(() => getEffectiveLocale(), []);
+	const location = useLocation();
 	const [templates, setTemplates] = useState<LoadState<ReportTemplateItem[]>>({ state: "loading" });
 	const [runs, setRuns] = useState<LoadState<ReportRunItem[]>>({ state: "loading" });
+	const [fixedReports, setFixedReports] = useState<LoadState<FixedReportCatalogItem[]>>({ state: "loading" });
+	const [selectedFixedReport, setSelectedFixedReport] = useState<LoadState<FixedReportCatalogItem> | null>(null);
 	const [selectedRun, setSelectedRun] = useState<LoadState<ReportRunItem> | null>(null);
 
 	const [templateName, setTemplateName] = useState("");
@@ -161,9 +167,49 @@ export default function ReportFactoryPage() {
 		}
 	};
 
+	const loadFixedReports = async () => {
+		try {
+			setFixedReports({ state: "loading" });
+			const rows = await analyticsApi.listFixedReportCatalog({ limit: 20 });
+			setFixedReports({ state: "loaded", value: Array.isArray(rows) ? rows : [] });
+		} catch (e) {
+			setFixedReports({ state: "error", error: e });
+		}
+	};
+
 	useEffect(() => {
-		void Promise.all([loadTemplates(), loadRuns()]);
+		void Promise.all([loadTemplates(), loadRuns(), loadFixedReports()]);
 	}, []);
+
+	useEffect(() => {
+		const templateCode = readSelectedFixedReportTemplate(location.search);
+		if (!templateCode) {
+			setSelectedFixedReport(null);
+			return;
+		}
+		let cancelled = false;
+		setSelectedFixedReport({ state: "loading" });
+		analyticsApi
+			.getFixedReportCatalogItem(templateCode)
+			.then((row) => {
+				if (cancelled) return;
+				setSelectedFixedReport({ state: "loaded", value: row });
+				setTemplateName((current) => current.trim() ? current : `${row.name || templateCode} 报告模板`);
+				setTemplateDesc((current) => current.trim() ? current : `基于固定报表“${row.name || templateCode}”沉淀的报告模板草稿。`);
+			})
+			.catch((error) => {
+				if (cancelled) return;
+				setSelectedFixedReport({ state: "error", error });
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [location.search]);
+
+	const fixedReportQuickStarts = useMemo(
+		() => fixedReports.state === "loaded" ? buildFixedReportQuickStartItems(fixedReports.value, 6) : [],
+		[fixedReports],
+	);
 
 	const createTemplate = async () => {
 		if (saving) return;
@@ -281,7 +327,7 @@ export default function ReportFactoryPage() {
 				title={t(locale, "reportFactory.title")}
 				subtitle={t(locale, "reportFactory.subtitle")}
 				actions={
-					<Button variant="secondary" size="sm" onClick={() => void Promise.all([loadTemplates(), loadRuns()])}>
+					<Button variant="secondary" size="sm" onClick={() => void Promise.all([loadTemplates(), loadRuns(), loadFixedReports()])}>
 						{t(locale, "common.refresh")}
 					</Button>
 				}
@@ -293,6 +339,79 @@ export default function ReportFactoryPage() {
 					<Badge variant="success">{actionMessage}</Badge>
 				</div>
 			)}
+
+			<Card style={{ marginBottom: "var(--spacing-lg)" }}>
+				<CardHeader
+					title="固定报表快捷入口"
+					action={fixedReports.state === "loaded" ? <Badge>{fixedReportQuickStarts.length}</Badge> : null}
+				/>
+				<CardBody>
+					{fixedReports.state === "loading" && (
+						<div className="loading-container" style={{ padding: "var(--spacing-lg)" }}>
+							<Spinner size="md" />
+						</div>
+					)}
+					{fixedReports.state === "error" && <ErrorNotice locale={locale} error={fixedReports.error} />}
+					{fixedReports.state === "loaded" && fixedReportQuickStarts.length === 0 && (
+						<div className="muted">暂无可复用的固定报表快捷入口。</div>
+					)}
+					{fixedReports.state === "loaded" && fixedReportQuickStarts.length > 0 && (
+						<div style={{ display: "flex", flexWrap: "wrap", gap: "var(--spacing-sm)" }}>
+							{fixedReportQuickStarts.map((item) => (
+								<Link
+									key={item.templateCode || item.name}
+									to={buildFixedReportCreationFlowPath("reportFactory", item.templateCode || "")}
+									className="link"
+									style={{
+										display: "inline-flex",
+										alignItems: "center",
+										gap: "var(--spacing-xs)",
+										padding: "var(--spacing-xs) var(--spacing-sm)",
+										borderRadius: "var(--radius-pill)",
+										background: "var(--color-bg-secondary)",
+										border: "1px solid var(--color-border)",
+									}}
+								>
+									<span>{item.name || item.templateCode || "固定报表"}</span>
+									<span className="small muted">{item.domain || "未分类"}</span>
+								</Link>
+							))}
+						</div>
+					)}
+				</CardBody>
+			</Card>
+
+			{selectedFixedReport?.state === "loaded" && (
+				<Card style={{ marginBottom: "var(--spacing-lg)" }}>
+					<CardHeader title="固定报表创建上下文" />
+					<CardBody>
+						<div className="col" style={{ gap: "var(--spacing-sm)" }}>
+							<div style={{ fontWeight: 600 }}>
+								{selectedFixedReport.value.name || selectedFixedReport.value.templateCode || "固定报表"}
+							</div>
+							<div className="muted small">
+								已从固定报表入口带入当前页面。你可以继续创建报告模板草稿，或先查看固定报表运行页。
+							</div>
+							<div style={{ display: "flex", flexWrap: "wrap", gap: "var(--spacing-sm)" }}>
+								<Link to={buildFixedReportRunPath(selectedFixedReport.value.templateCode || "")}>
+									<Button variant="secondary" size="sm">查看固定报表</Button>
+								</Link>
+								{selectedFixedReport.value.legacyPagePath ? (
+									<a
+										href={`https://app.xycyl.com/#${selectedFixedReport.value.legacyPagePath.startsWith("/") ? selectedFixedReport.value.legacyPagePath : `/${selectedFixedReport.value.legacyPagePath}`}`}
+										target="_blank"
+										rel="noreferrer"
+										className="link small"
+									>
+										打开现网页面
+									</a>
+								) : null}
+							</div>
+						</div>
+					</CardBody>
+				</Card>
+			)}
+			{selectedFixedReport?.state === "error" && <ErrorNotice locale={locale} error={selectedFixedReport.error} />}
 
 			<div className="grid2" style={{ marginBottom: "var(--spacing-lg)" }}>
 				<Card>

@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router';
-import { analyticsApi, ScreenListItem, type ScreenAiGenerationResponse } from '../../api/analyticsApi';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { analyticsApi, type FixedReportCatalogItem, ScreenListItem, type ScreenAiGenerationResponse } from '../../api/analyticsApi';
 import { writeTextToClipboard } from '../../hooks/clipboard';
+import { buildFixedReportQuickStartItems } from '../fixed-reports/fixedReportCatalogModel';
+import { buildFixedReportCreationFlowPath, buildFixedReportRunPath, readSelectedFixedReportTemplate } from '../fixed-reports/fixedReportSurfaceEntry';
 import { TemplateGallery, type TemplateSelection } from './components';
 import { createConfigFromTemplate } from './screenTemplates';
 import { buildScreenPayload, normalizeScreenConfig } from './specV2';
@@ -16,9 +18,13 @@ const SCREEN_LIST_PREF_KEY = 'dts.analytics.screens.listPref.v1';
 
 export default function ScreensPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [screens, setScreens] = useState<ScreenListItem[]>([]);
+    const [fixedReports, setFixedReports] = useState<FixedReportCatalogItem[]>([]);
+    const [selectedFixedReport, setSelectedFixedReport] = useState<FixedReportCatalogItem | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [fixedReportError, setFixedReportError] = useState<string | null>(null);
     const [showTemplateGallery, setShowTemplateGallery] = useState(false);
     const [sharingId, setSharingId] = useState<string | number | null>(null);
     const [savingTemplateId, setSavingTemplateId] = useState<string | number | null>(null);
@@ -146,9 +152,50 @@ export default function ScreensPage() {
             });
     }, []);
 
+    const loadFixedReports = useCallback(() => {
+        analyticsApi.listFixedReportCatalog({ limit: 12 })
+            .then((rows) => {
+                setFixedReports(Array.isArray(rows) ? rows : []);
+                setFixedReportError(null);
+            })
+            .catch((err) => {
+                console.error('Failed to load fixed report quick starts:', err);
+                setFixedReportError('固定报表快捷入口加载失败');
+            });
+    }, []);
+
     useEffect(() => {
         loadScreens();
     }, [loadScreens]);
+
+    useEffect(() => {
+        loadFixedReports();
+    }, [loadFixedReports]);
+
+    useEffect(() => {
+        const templateCode = readSelectedFixedReportTemplate(location.search);
+        if (!templateCode) {
+            setSelectedFixedReport(null);
+            return;
+        }
+        let cancelled = false;
+        analyticsApi
+            .getFixedReportCatalogItem(templateCode)
+            .then((row) => {
+                if (!cancelled) {
+                    setSelectedFixedReport(row);
+                }
+            })
+            .catch((err) => {
+                console.error('Failed to load selected fixed report context:', err);
+                if (!cancelled) {
+                    setSelectedFixedReport(null);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [location.search]);
 
     const publishedCount = useMemo(
         () => screens.filter((item) => Number(item.publishedVersionNo || 0) > 0).length,
@@ -180,6 +227,10 @@ export default function ScreensPage() {
         });
         return filtered;
     }, [publishFilter, screens, searchKeyword, sortMode]);
+    const fixedReportQuickStarts = useMemo(
+        () => buildFixedReportQuickStartItems(fixedReports, 6),
+        [fixedReports],
+    );
 
     const handleCreate = () => {
         setShowTemplateGallery(true);
@@ -191,6 +242,21 @@ export default function ScreensPage() {
         setAiRefineMode('apply');
         setAiResult(null);
         setAiContextHistory([]);
+        setShowAiGenerator(true);
+    };
+
+    const handleOpenFixedReportAiGenerator = () => {
+        if (!selectedFixedReport) {
+            handleOpenAiGenerator();
+            return;
+        }
+        const reportName = selectedFixedReport.name || selectedFixedReport.templateCode || '固定报表';
+        const domain = selectedFixedReport.domain || '业务';
+        setAiPrompt(`基于固定报表“${reportName}”生成一张${domain}大屏，包含核心指标、趋势图和明细列表，适合运营查看。`);
+        setAiRefinePrompt('改成三列布局，增加筛选区和环比/同比辅助信息，适合领导汇报展示');
+        setAiRefineMode('apply');
+        setAiResult(null);
+        setAiContextHistory([`固定报表上下文: ${reportName}`]);
         setShowAiGenerator(true);
     };
 
@@ -451,6 +517,77 @@ export default function ScreensPage() {
             </div>
 
             <div className="page-content">
+                {selectedFixedReport ? (
+                    <div
+                        style={{
+                            marginBottom: 16,
+                            padding: 16,
+                            borderRadius: 16,
+                            border: '1px solid var(--color-border)',
+                            background: 'var(--color-bg-card)',
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                            <div>
+                                <div style={{ fontWeight: 600 }}>{selectedFixedReport.name || selectedFixedReport.templateCode || '固定报表'}</div>
+                                <div className="muted small">已从固定报表入口带入当前页面，可直接生成关联大屏草稿或先查看固定报表运行页。</div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                                <Link to={buildFixedReportRunPath(selectedFixedReport.templateCode || '')} className="primary-btn" style={{ textDecoration: 'none' }}>
+                                    查看固定报表
+                                </Link>
+                                <button className="primary-btn" type="button" onClick={handleOpenFixedReportAiGenerator}>
+                                    基于该报表生成大屏
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
+                <div
+                    style={{
+                        marginBottom: 16,
+                        padding: 16,
+                        borderRadius: 16,
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-bg-card)',
+                    }}
+                >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                        <div>
+                            <div style={{ fontWeight: 600 }}>固定报表快捷入口</div>
+                            <div className="muted small">可直接跳转到财务、采购、仓库固定报表运行页。</div>
+                        </div>
+                        <span className="screen-status-tag draft">{fixedReportQuickStarts.length}</span>
+                    </div>
+                    {fixedReportError ? (
+                        <div className="muted">{fixedReportError}</div>
+                    ) : fixedReportQuickStarts.length === 0 ? (
+                        <div className="muted">暂无可复用的固定报表快捷入口。</div>
+                    ) : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                            {fixedReportQuickStarts.map((item) => (
+                                <Link
+                                    key={item.templateCode || item.name}
+                                    to={buildFixedReportCreationFlowPath('screen', item.templateCode || '')}
+                                    className="screen-card-link"
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        padding: '8px 12px',
+                                        borderRadius: 999,
+                                        border: '1px solid var(--color-border)',
+                                        background: 'var(--color-bg-secondary)',
+                                        textDecoration: 'none',
+                                    }}
+                                >
+                                    <span>{item.name || item.templateCode || '固定报表'}</span>
+                                    <span className="muted small">{item.domain || '未分类'}</span>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </div>
                 <div className="screens-toolbar">
                     <div className="screens-toolbar-left">
                         <input

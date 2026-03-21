@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import {
 	analyticsApi,
 	type CardListItem,
@@ -17,6 +17,7 @@ import { NativeSelect } from "../ui/Input/Select";
 import { Badge } from "../ui/Badge/Badge";
 import { Spinner } from "../ui/Loading/Spinner";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
+import { buildFixedReportRunPath, readSelectedFixedReportTemplate } from "./fixed-reports/fixedReportSurfaceEntry";
 import "./page.css";
 
 type LoadState<T> =
@@ -31,6 +32,7 @@ function toEditableDashcards(d: DashboardDetail): DashboardCard[] {
 
 export default function DashboardEditorPage() {
 	const locale: Locale = useMemo(() => getEffectiveLocale(), []);
+	const location = useLocation();
 	const navigate = useNavigate();
 	const params = useParams();
 	const dashboardId = params.id ? String(params.id) : null;
@@ -38,6 +40,7 @@ export default function DashboardEditorPage() {
 	const [collections, setCollections] = useState<LoadState<CollectionListItem[]>>({ state: "loading" });
 	const [cards, setCards] = useState<LoadState<CardListItem[]>>({ state: "loading" });
 	const [dashboard, setDashboard] = useState<LoadState<DashboardDetail> | null>(dashboardId ? { state: "loading" } : null);
+	const [selectedFixedReport, setSelectedFixedReport] = useState<LoadState<{ templateCode?: string; name?: string; domain?: string | null; legacyPagePath?: string | null }> | null>(null);
 
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
@@ -103,6 +106,35 @@ export default function DashboardEditorPage() {
 			cancelled = true;
 		};
 	}, [dashboardId]);
+
+	useEffect(() => {
+		if (dashboardId) {
+			setSelectedFixedReport(null);
+			return;
+		}
+		const templateCode = readSelectedFixedReportTemplate(location.search);
+		if (!templateCode) {
+			setSelectedFixedReport(null);
+			return;
+		}
+		let cancelled = false;
+		setSelectedFixedReport({ state: "loading" });
+		analyticsApi
+			.getFixedReportCatalogItem(templateCode)
+			.then((row) => {
+				if (cancelled) return;
+				setSelectedFixedReport({ state: "loaded", value: row });
+				setName((current) => current.trim() ? current : `${row.name || templateCode} 仪表盘`);
+				setDescription((current) => current.trim() ? current : `基于固定报表“${row.name || templateCode}”创建的仪表盘草稿。`);
+			})
+			.catch((error) => {
+				if (cancelled) return;
+				setSelectedFixedReport({ state: "error", error });
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [dashboardId, location.search]);
 
 	const addSelectedCard = () => {
 		if (!selectedCardId) return;
@@ -216,6 +248,36 @@ export default function DashboardEditorPage() {
 			{collections.state === "error" && <ErrorNotice locale={locale} error={collections.error} />}
 			{cards.state === "error" && <ErrorNotice locale={locale} error={cards.error} />}
 			{saveState?.state === "error" && <ErrorNotice locale={locale} error={saveState.error} />}
+			{selectedFixedReport?.state === "error" && <ErrorNotice locale={locale} error={selectedFixedReport.error} />}
+
+			{selectedFixedReport?.state === "loaded" && (
+				<Card style={{ marginBottom: "var(--spacing-lg)" }}>
+					<CardHeader title="固定报表创建上下文" />
+					<CardBody>
+						<div className="col" style={{ gap: "var(--spacing-sm)" }}>
+							<div style={{ fontWeight: 600 }}>{selectedFixedReport.value.name || selectedFixedReport.value.templateCode || "固定报表"}</div>
+							<div className="small muted">
+								已从固定报表入口带入当前仪表盘创建页。当前仅自动带入标题和说明，具体卡片仍需按业务需要添加。
+							</div>
+							<div style={{ display: "flex", gap: "var(--spacing-sm)", flexWrap: "wrap" }}>
+								<Link to={buildFixedReportRunPath(selectedFixedReport.value.templateCode || "")}>
+									<Button variant="secondary" size="sm">查看固定报表</Button>
+								</Link>
+								{selectedFixedReport.value.legacyPagePath ? (
+									<a
+										href={`https://app.xycyl.com/#${selectedFixedReport.value.legacyPagePath.startsWith("/") ? selectedFixedReport.value.legacyPagePath : `/${selectedFixedReport.value.legacyPagePath}`}`}
+										target="_blank"
+										rel="noreferrer"
+										className="link small"
+									>
+										打开现网页面
+									</a>
+								) : null}
+							</div>
+						</div>
+					</CardBody>
+				</Card>
+			)}
 
 			<Card style={{ marginBottom: "var(--spacing-lg)" }}>
 				<CardHeader title={t(locale, "dashboards.settings")} />
@@ -352,4 +414,3 @@ export default function DashboardEditorPage() {
 		</PageContainer>
 	);
 }
-

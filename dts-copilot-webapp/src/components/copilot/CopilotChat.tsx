@@ -17,7 +17,10 @@ import { TracePanel } from "./TracePanel";
 import { VoiceInputButton } from "./VoiceInputButton";
 import { WelcomeCard } from "./WelcomeCard";
 import { canEditCopilotComposer } from "./copilotComposerState";
-import { shouldShowFixedReportShortcut } from "./copilotFixedReportMessage";
+import {
+	getFixedReportCandidates,
+	shouldShowFixedReportShortcut,
+} from "./copilotFixedReportMessage";
 import { shouldSubmitCopilotInputOnEnter } from "./copilotInputBehavior";
 import { appendReasoningDelta, appendToolProgressLine } from "./copilotReasoningState";
 import { shouldRestorePersistedCopilotSession } from "./copilotSessionBootstrap";
@@ -793,6 +796,7 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 						const extractedSql = msg.role === "assistant"
 							? (msg.generatedSql ?? extractSqlFromMarkdown(msg.content ?? ""))
 							: null;
+						const fixedReportCandidates = getFixedReportCandidates(msg);
 							return (
 								<div
 									key={msg.id}
@@ -822,6 +826,31 @@ export function CopilotChat({ hasSessionAccess = false }: Props) {
 											>
 											查看固定报表
 										</Link>
+									</div>
+								)}
+								{fixedReportCandidates.length > 0 && (
+									<div className="copilot-chat__fixed-report-candidates">
+										<div className="copilot-chat__fixed-report-candidates-label">固定报表候选</div>
+										<div className="copilot-chat__fixed-report-candidates-list">
+											{fixedReportCandidates.map((candidate) =>
+												candidate.templateCode ? (
+													<Link
+														key={`${msg.id}-${candidate.templateCode}`}
+														className="copilot-chat__fixed-report-link"
+														to={`/fixed-reports/${encodeURIComponent(candidate.templateCode)}/run`}
+													>
+														{candidate.label}
+													</Link>
+												) : (
+													<span
+														key={`${msg.id}-${candidate.label}`}
+														className="copilot-chat__fixed-report-chip"
+													>
+														{candidate.label}
+													</span>
+												),
+											)}
+										</div>
 									</div>
 								)}
 								{extractedSql && (

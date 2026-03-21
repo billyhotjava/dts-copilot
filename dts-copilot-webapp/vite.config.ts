@@ -1,22 +1,29 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv } from "vite";
+import { visualizer } from "rollup-plugin-visualizer";
+import { defineConfig, type PluginOption } from "vite";
 
 const publicBase = process.env.VITE_BASE_PATH || "/";
 
-export default defineConfig(({ mode }) => {
-	const rawEnv = loadEnv(mode, process.cwd(), "");
-	const isProduction = mode === "production";
-	const legacyFlagRaw =
-		rawEnv.LEGACY_BROWSER_BUILD ??
-		rawEnv.VITE_LEGACY_BUILD ??
-		(isProduction ? "1" : "0");
-	const normalizedLegacyFlag = String(legacyFlagRaw).trim().toLowerCase();
-	const legacyEnabled = normalizedLegacyFlag !== "0" && normalizedLegacyFlag !== "false";
-	const buildTarget = legacyEnabled ? "chrome95" : "chrome109";
+export default defineConfig(() => {
 	const port = Number.parseInt(process.env.PORT ?? "3003", 10);
+	const analyze = process.env.ANALYZE === "1";
+
+	const plugins: PluginOption[] = [react()];
+
+	if (analyze) {
+		plugins.push(
+			visualizer({
+				open: true,
+				filename: "dist/bundle-report.html",
+				gzipSize: true,
+				brotliSize: true,
+			}),
+		);
+	}
+
 	return {
 		base: publicBase,
-		plugins: [react()],
+		plugins,
 		server: {
 			host: true,
 			allowedHosts: true,
@@ -39,11 +46,22 @@ export default defineConfig(({ mode }) => {
 			strictPort: true,
 		},
 		build: {
-			target: buildTarget,
+			target: "esnext",
 			chunkSizeWarningLimit: 700,
+			rollupOptions: {
+				output: {
+					manualChunks: {
+						"vendor-react": ["react", "react-dom", "react-router"],
+						"vendor-antd": ["antd", "@ant-design/icons"],
+						"vendor-echarts": ["echarts", "echarts-for-react", "echarts-wordcloud"],
+						"vendor-dataview": ["@jiaminghi/data-view-react"],
+						"vendor-dnd": ["react-dnd", "react-dnd-html5-backend", "react-grid-layout"],
+					},
+				},
+			},
 		},
 		esbuild: {
-			target: buildTarget,
+			target: "esnext",
 		},
 	};
 });

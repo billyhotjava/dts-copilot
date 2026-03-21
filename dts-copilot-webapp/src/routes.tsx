@@ -64,6 +64,8 @@ export function createRoutes() {
 					{ path: "/screens", lazy: lazyComponent(() => import("./pages/screens/ScreensPage")) },
 					{ path: "/explore-sessions", lazy: lazyComponent(() => import("./pages/ExploreSessionsPage")) },
 					{ path: "/report-factory", lazy: lazyComponent(() => import("./pages/ReportFactoryPage")) },
+					{ path: "/fixed-reports", lazy: lazyComponent(() => import("./pages/FixedReportsPage")) },
+					{ path: "/fixed-reports/:templateCode/run", lazy: lazyComponent(() => import("./pages/fixed-reports/FixedReportRunPage")) },
 					{ path: "/metric-lens", lazy: lazyComponent(() => import("./pages/MetricLensPage")) },
 					{ path: "/search", lazy: lazyComponent(() => import("./pages/SearchPage")) },
 					{ path: "*", lazy: lazyComponent(() => import("./pages/NotFoundPage")) },

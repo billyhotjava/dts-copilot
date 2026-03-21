@@ -254,6 +254,27 @@ const ReportFactoryIcon = () => (
 	</svg>
 );
 
+const FixedReportIcon = () => (
+	<svg
+		width="20"
+		height="20"
+		role="img"
+		aria-label="fixed reports"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
+		<path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" />
+		<path d="M14 2v6h6" />
+		<path d="M8 13h8" />
+		<path d="M8 17h8" />
+		<path d="M8 9h2" />
+	</svg>
+);
+
 const MetricLensIcon = () => (
 	<svg
 		width="20"
@@ -483,6 +504,7 @@ const ROUTE_NAV_MAP: { path: string; section: string; nav?: string }[] = [
 		section: "nav.section.tools",
 		nav: "nav.reportFactory",
 	},
+	{ path: "/fixed-reports", section: "nav.section.tools", nav: "nav.fixedReports" },
 	{ path: "/metric-lens", section: "nav.section.tools", nav: "nav.metricLens" },
 	{ path: "/search", section: "nav.section.tools", nav: "nav.search" },
 	{ path: "/admin/users", section: "nav.section.admin", nav: "nav.users" },
@@ -1052,6 +1074,11 @@ export function AppLayout() {
 										to="/report-factory"
 										icon={<ReportFactoryIcon />}
 										label={t(locale, "nav.reportFactory")}
+									/>
+									<SidebarItem
+										to="/fixed-reports"
+										icon={<FixedReportIcon />}
+										label={t(locale, "nav.fixedReports")}
 									/>
 									<SidebarItem
 										to="/metric-lens"

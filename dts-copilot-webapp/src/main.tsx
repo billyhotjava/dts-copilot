@@ -1,4 +1,3 @@
-import "./polyfills/legacy-browser";
 import "./styles.css";
 import ReactDOM from "react-dom/client";
 import { RouterProvider } from "react-router";

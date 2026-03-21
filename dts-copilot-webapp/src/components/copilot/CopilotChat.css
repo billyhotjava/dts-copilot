@@ -287,6 +287,54 @@
 	font-size: 12px;
 }
 
+.copilot-chat__fixed-report-action {
+	margin-top: 8px;
+}
+
+.copilot-chat__fixed-report-link {
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 10px;
+	border-radius: 999px;
+	border: 1px solid rgba(80, 158, 227, 0.24);
+	background: rgba(80, 158, 227, 0.08);
+	color: var(--color-brand, #509ee3);
+	font-size: 12px;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.copilot-chat__fixed-report-link:hover {
+	background: rgba(80, 158, 227, 0.14);
+}
+
+.copilot-chat__fixed-report-candidates {
+	margin-top: 10px;
+}
+
+.copilot-chat__fixed-report-candidates-label {
+	margin-bottom: 6px;
+	font-size: 12px;
+	color: #6b7280;
+}
+
+.copilot-chat__fixed-report-candidates-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.copilot-chat__fixed-report-chip {
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 10px;
+	border-radius: 999px;
+	border: 1px solid #d1d5db;
+	background: #f9fafb;
+	color: #4b5563;
+	font-size: 12px;
+}
+
 /* Input area */
 .copilot-chat__input-area {
 	display: flex;
