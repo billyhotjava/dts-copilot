@@ -219,6 +219,15 @@ test('fixed report run page renders result preview table when execution returns 
 	assert.match(runPageSource, /flexDirection: "column"/)
 })
 
+test('fixed report run page memoizes parameter fields to avoid render loop after opening a template', () => {
+	const runPageSource = readFileSync(resolve(WEBAPP_ROOT, 'src/pages/fixed-reports/FixedReportRunPage.tsx'), 'utf8')
+
+	assert.match(runPageSource, /const fields = useMemo\(/)
+	assert.match(runPageSource, /const initialFormValues = useMemo\(/)
+	assert.match(runPageSource, /setFormValues\(initialFormValues\)/)
+	assert.match(runPageSource, /\}, \[initialFormValues\]\)/)
+})
+
 test('analytics API exposes fixed report catalog and execute methods', async () => {
 	const originalFetch = globalThis.fetch
 	const originalLocalStorage = globalThis.localStorage

@@ -51,7 +51,14 @@ export default function FixedReportRunPage() {
 		? templateState.value
 		: undefined
 	const legacyPageHref = buildFixedReportLegacyPageHref(template?.legacyPagePath)
-	const fields = buildFixedReportParameterFields(template?.parameterSchemaJson, template)
+	const fields = useMemo(
+		() => buildFixedReportParameterFields(template?.parameterSchemaJson, template),
+		[template],
+	)
+	const initialFormValues = useMemo(
+		() => buildFixedReportInitialParameterValues(fields),
+		[fields],
+	)
 	const availability = getFixedReportTemplateAvailability(template, {
 		backedLabel: t(locale, "fixedReports.backed"),
 		placeholderLabel: t(locale, "fixedReports.placeholder"),
@@ -77,8 +84,8 @@ export default function FixedReportRunPage() {
 		: 0
 
 	useEffect(() => {
-		setFormValues(buildFixedReportInitialParameterValues(fields))
-	}, [fields])
+		setFormValues(initialFormValues)
+	}, [initialFormValues])
 
 	async function handleRun() {
 		if (!templateCode || running) {
@@ -595,7 +602,7 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
 	SORT: "排序",
 	TENANT_ID: "租户ID",
 
-	// ========== 视图层翻译字段（已是中文但大写时需映射） ==========
+	// ========== 视图层翻译字段 ==========
 	SETTLEMENT_TYPE: "结算方式",
 	CHECK_CYCLE: "盘点周期",
 	VERIFY_TYPE: "核实方式",
@@ -608,11 +615,121 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
 	EVENT_MONTH: "事件月份",
 	EVENT_YEAR: "事件年份",
 	SNAPSHOT_DATE: "快照日期",
+
+	// ========== 无下划线拼接列名（Java 端返回的驼峰/拼接格式） ==========
+	// 财务结算
+	ACCOUNTPERIOD: "账期",
+	PROJECTNAME: "项目名称",
+	BIZTYPENAME: "业务类型",
+	SUBJECTFULLNAME: "科目全称",
+	SUBJECTNAME: "科目名称",
+	FEENAME: "费用名称",
+	FEENUMBER: "费用金额",
+	FEEBELONGNAME: "费用归属",
+	FEEBELONGTYPE: "费用归属类型",
+	SETTLEHOLDERNAME: "结算方",
+	SETTLEHOLDERID: "结算方ID",
+	SETTLESTATUS: "结算状态",
+	SETTLETYPE: "结算方式",
+	SETTLETIME: "结算时间",
+	SETTLEAMOUNT: "结算金额",
+	SETTLEPERIOD: "结算周期",
+	INVOICESTATUS: "开票状态",
+	INVOICETYPE: "发票类型",
+	INVOICEAMOUNT: "发票金额",
+	COLLECTIONSTATUS: "收款状态",
+	COLLECTIONAMOUNT: "收款金额",
+	RECEIVABLEAMOUNT: "应收金额",
+	RECEIPTAMOUNT: "已收金额",
+	ARREARSAMOUNT: "欠款金额",
+	DISCOUNTAMOUNT: "折后金额",
+	CONTRACTNAME: "合同名称",
+	CONTRACTCODE: "合同编号",
+	CUSTOMERNAME: "客户名称",
+	CUSTOMERCODE: "客户编号",
+	// 库存（无下划线补充，STOREHOUSENAME 等已在上面定义）
+	GOODPRICE: "物品单价",
+	GOODTOTALAMOUNT: "物品总价",
+	PURCHASEPRICE: "采购价",
+	STOCKNUMBER: "库存数",
+	// 采购
+	PURCHASENUMBER: "采购数量",
+	PURCHASEAMOUNT: "采购金额",
+	SUPPLIERNAME: "供应商",
+	PLANPURCHASETIME: "计划采购时间",
+	DELIVERYTIME: "配送时间",
+	DELIVERYUSERNAME: "配送人",
+	RECEIVEUSERNAME: "接收人",
+	RECEIVETIME: "接收时间",
+	// 人员
+	MANAGERNAME: "项目经理",
+	BIZUSERNAME: "业务经理",
+	CURINGUSERNAME: "养护人",
+	APPLYUSERNAME: "发起人",
+	LAUNCHUSERNAME: "发起人",
+	LEADINGUSERNAME: "负责人",
+	SUPERVISORUSERNAME: "监管人",
+	EXAMINEUSERNAME: "审核人",
+	REVIEWUSERNAME: "复核人",
+	UPDATEUSERNAME: "更新人",
+	// 项目/摆位
+	PROJECTCODE: "项目编号",
+	POSITIONNAME: "摆位名称",
+	POSITIONFULLNAME: "摆位全称",
+	FLOORNUMBERNAME: "楼栋",
+	FLOORLAYERNAME: "楼层",
+	// 业务
+	BIZCODE: "业务单号",
+	BIZSTATUSNAME: "业务状态",
+	BIZTOTALRENT: "业务总租金",
+	BIZTOTALCOST: "业务总成本",
+	PLANTNUMBER: "植物数量",
+	BEARCOSTTYPENAME: "费用承担方",
+	APPLYTIME: "发起时间",
+	FINISHTIME: "完成时间",
+	CREATETIME: "创建时间",
+	UPDATETIME: "更新时间",
+	STARTTIME: "开始时间",
+	ENDTIME: "结束时间",
+	LAUNCHTIME: "发起时间",
+	POSETIME: "摆放时间",
+	SIGNINGTIME: "签约时间",
+	// 结算
+	SETTLEMENTMONTH: "结算月份",
+	TOTALRENT: "应收租金",
+	REGULARRENT: "常规租金",
+	DISCOUNTRATE: "折扣率",
+	TOTALDAY: "结算天数",
+	TOTALAMOUNT: "总金额",
+	YEARANDMONTH: "年月",
+	NETRECEIPTTOTALAMOUNT: "净收总额",
+	RECEIVABLETOTALAMOUNT: "应收总额",
+	FOLDINGAFTERTOTALAMOUNT: "折后总额",
+	PERIODTOTALAMOUNT: "期间总额",
+	ADDTOTALAMOUNT: "加花总额",
+	CUTTOTALAMOUNT: "减花总额",
+	SALETOTALAMOUNT: "销售总额",
+	MONTHSETTLEMENTMONEY: "固定月租金",
 }
 
 function translateColumnLabel(raw: string): string {
+	// 1. 精确匹配（大写）
 	const upper = raw.toUpperCase()
-	return COLUMN_LABEL_MAP[upper] ?? COLUMN_LABEL_MAP[raw] ?? raw
+	const exact = COLUMN_LABEL_MAP[upper]
+	if (exact) return exact
+
+	// 2. 原始值匹配
+	const direct = COLUMN_LABEL_MAP[raw]
+	if (direct) return direct
+
+	// 3. 尝试驼峰转下划线后匹配: projectName → PROJECT_NAME
+	const underscored = raw.replace(/([a-z])([A-Z])/g, "$1_$2").toUpperCase()
+	if (underscored !== upper) {
+		const fromCamel = COLUMN_LABEL_MAP[underscored]
+		if (fromCamel) return fromCamel
+	}
+
+	return raw
 }
 
 function formatCellValue(value: unknown): string {
