@@ -368,16 +368,12 @@ export function useScreenHeaderState() {
         return () => { window.removeEventListener('mousedown', handlePointerDown); window.removeEventListener('keydown', handleEscape); };
     }, [activeMenu]);
 
-    // --- Permissions ---
     useEffect(() => {
         if (!id) { setPermissions({ canRead: true, canEdit: true, canPublish: true, canManage: true }); return; }
         let cancelled = false;
-        analyticsApi.getScreen(id, { mode: 'draft', fallbackDraft: true })
-            .then((screen) => {
-                if (cancelled) return;
-                setPermissions({ canRead: screen.canRead !== false, canEdit: screen.canEdit !== false, canPublish: screen.canPublish !== false, canManage: screen.canManage !== false });
-            })
-            .catch(() => { if (!cancelled) setPermissions({ canRead: true, canEdit: true, canPublish: true, canManage: false }); });
+        analyticsApi.getScreen(id, { mode: 'draft', fallbackDraft: true }).then((s) => {
+            if (!cancelled) setPermissions({ canRead: s.canRead !== false, canEdit: s.canEdit !== false, canPublish: s.canPublish !== false, canManage: s.canManage !== false });
+        }).catch(() => { if (!cancelled) setPermissions({ canRead: true, canEdit: true, canPublish: true, canManage: false }); });
         return () => { cancelled = true; };
     }, [id]);
 
@@ -429,23 +425,18 @@ export function useScreenHeaderState() {
 
     const handleUpdateConflictError = useCallback((error: unknown, fallbackMessage: string): string => {
         if (!(error instanceof HttpError) || error.code !== 'SCREEN_UPDATE_CONFLICT') return fallbackMessage;
+        const toStrArr = (v: unknown) => Array.isArray(v) ? v.map((i) => String(i || '').trim()).filter(Boolean) : [];
         let detail = fallbackMessage;
         try {
-            const payload = JSON.parse(error.bodyText) as { code?: string; message?: string; componentIds?: unknown; fields?: unknown };
-            const next: ScreenUpdateConflict = {
-                code: String(payload?.code || 'SCREEN_UPDATE_CONFLICT'),
-                message: String(payload?.message || '检测到并发编辑冲突'),
-                componentIds: Array.isArray(payload?.componentIds) ? payload.componentIds.map((item) => String(item || '').trim()).filter(Boolean) : [],
-                fields: Array.isArray(payload?.fields) ? payload.fields.map((item) => String(item || '').trim()).filter(Boolean) : [],
-            };
+            const p = JSON.parse(error.bodyText) as { code?: string; message?: string; componentIds?: unknown; fields?: unknown };
+            const next: ScreenUpdateConflict = { code: String(p?.code || 'SCREEN_UPDATE_CONFLICT'), message: String(p?.message || '检测到并发编辑冲突'), componentIds: toStrArr(p?.componentIds), fields: toStrArr(p?.fields) };
             setLastConflict(next);
             if (next.componentIds.length > 0) selectComponents(next.componentIds);
             setShowConflictPanel(true);
             detail = next.message || fallbackMessage;
         } catch {
             setLastConflict({ code: 'SCREEN_UPDATE_CONFLICT', message: error.message || fallbackMessage, componentIds: [], fields: [] });
-            setShowConflictPanel(true);
-            detail = error.message || fallbackMessage;
+            setShowConflictPanel(true); detail = error.message || fallbackMessage;
         }
         return detail;
     }, [selectComponents]);
@@ -462,26 +453,33 @@ export function useScreenHeaderState() {
         try { await saveScreen(); }
         catch (error) {
             console.error('Failed to save screen:', error);
-            const message = error instanceof HttpError && error.code === 'SCREEN_UPDATE_CONFLICT'
-                ? handleUpdateConflictError(error, '保存失败，存在并发冲突')
-                : handleLockHttpError(error, '保存失败');
-            alert(message);
+            alert(error instanceof HttpError && error.code === 'SCREEN_UPDATE_CONFLICT' ? handleUpdateConflictError(error, '保存失败，存在并发冲突') : handleLockHttpError(error, '保存失败'));
         }
     }, [handleLockHttpError, handleUpdateConflictError, saveScreen]);
 
-    // Ctrl+S save shortcut
+    const handlePreview = () => {
+        if (id) {
+            const suffix = previewDeviceMode === 'auto' ? '' : `?device=${encodeURIComponent(previewDeviceMode)}`;
+            window.open(`${buildScreenPreviewPath(id)}${suffix}`, '_blank', 'noopener,noreferrer');
+        } else { alert('请先保存大屏后再预览'); }
+    };
+
+    // Ctrl+S save & Ctrl+Shift+P preview shortcuts
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             const hotkey = event.ctrlKey || event.metaKey;
-            if (!hotkey || event.key.toLowerCase() !== 's') return;
-            if (isTypingTarget(event.target)) return;
-            event.preventDefault();
-            if (isSaving || !permissions.canEdit || lockedByOther) return;
-            void handleSave();
+            if (!hotkey || isTypingTarget(event.target)) return;
+            if (event.key.toLowerCase() === 's' && !event.shiftKey) {
+                event.preventDefault();
+                if (!isSaving && permissions.canEdit && !lockedByOther) void handleSave();
+            } else if (event.shiftKey && event.key.toLowerCase() === 'p') {
+                event.preventDefault();
+                handlePreview();
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleSave, isSaving, lockedByOther, permissions.canEdit]);
+    }, [handleSave, handlePreview, isSaving, lockedByOther, permissions.canEdit]);
 
     const handleSaveAsTemplate = useCallback(async () => {
         if (isSavingTemplate) return;
@@ -489,21 +487,16 @@ export function useScreenHeaderState() {
         try {
             const screenId = await saveScreen();
             if (!screenId) { alert('请先保存大屏后再存为模板'); return; }
-            const defaultName = (config.name || '未命名大屏') + '-模板';
-            const templateName = (window.prompt('模板名称', defaultName) || '').trim();
+            const templateName = (window.prompt('模板名称', (config.name || '未命名大屏') + '-模板') || '').trim();
             if (!templateName) return;
             const templateDesc = window.prompt('模板描述（可选）', config.description || '') || '';
-            const visibilityInput = (window.prompt('模板可见范围（personal/team/global）', 'team') || 'team').trim().toLowerCase();
-            const visibilityScope = visibilityInput === 'personal' || visibilityInput === 'global' ? visibilityInput : 'team';
-            await analyticsApi.createScreenTemplateFromScreen(screenId, { name: templateName, description: templateDesc, category: 'custom', thumbnail: '🧩', visibilityScope, listed: true });
-            const scopeText = visibilityScope === 'personal' ? '个人' : visibilityScope === 'global' ? '全局' : '团队';
-            alert(`已保存到${scopeText}模板`);
+            const vis = (window.prompt('模板可见范围（personal/team/global）', 'team') || 'team').trim().toLowerCase();
+            const scope = vis === 'personal' || vis === 'global' ? vis : 'team';
+            await analyticsApi.createScreenTemplateFromScreen(screenId, { name: templateName, description: templateDesc, category: 'custom', thumbnail: '🧩', visibilityScope: scope, listed: true });
+            alert(`已保存到${scope === 'personal' ? '个人' : scope === 'global' ? '全局' : '团队'}模板`);
         } catch (error) {
-            console.error('Failed to save screen as template:', error);
-            const message = error instanceof HttpError && error.code === 'SCREEN_UPDATE_CONFLICT'
-                ? handleUpdateConflictError(error, '存模板失败，存在并发冲突')
-                : handleLockHttpError(error, '存模板失败');
-            alert(message);
+            console.error('Failed to save template:', error);
+            alert(error instanceof HttpError && error.code === 'SCREEN_UPDATE_CONFLICT' ? handleUpdateConflictError(error, '存模板失败，存在并发冲突') : handleLockHttpError(error, '存模板失败'));
         } finally { setIsSavingTemplate(false); }
     }, [config.description, config.name, handleLockHttpError, handleUpdateConflictError, isSavingTemplate, saveScreen]);
 
@@ -515,42 +508,28 @@ export function useScreenHeaderState() {
             if (!screenId) { alert('请先保存大屏'); return; }
             const result = await analyticsApi.publishScreen(screenId);
             const warmup = result.warmup;
-            const versionNo = result.version && result.version.versionNo != null ? result.version.versionNo : '-';
-            let warmupText = '';
-            if (warmup) {
-                warmupText = '\nWarmup: 总计 ' + (warmup.totalDatabaseSources || 0) + '，成功 ' + (warmup.warmed || 0) + '，跳过 ' + (warmup.skipped || 0) + '，失败 ' + (warmup.failed || 0);
-            }
+            const versionNo = result.version?.versionNo ?? '-';
+            const warmupText = warmup ? `\nWarmup: 总计 ${warmup.totalDatabaseSources || 0}，成功 ${warmup.warmed || 0}，跳过 ${warmup.skipped || 0}，失败 ${warmup.failed || 0}` : '';
             const previewUrl = buildAbsoluteScreenAppUrl(window.location.origin, buildScreenPreviewPath(screenId));
             let publicUrl: string | null = null;
-            try {
-                const policy = await analyticsApi.createScreenPublicLink(screenId, {});
-                if (policy?.uuid) publicUrl = buildAbsoluteScreenAppUrl(window.location.origin, buildPublicScreenPath(policy.uuid));
-            } catch (linkError) { console.warn('Publish succeeded but creating public link failed:', linkError); }
+            try { const policy = await analyticsApi.createScreenPublicLink(screenId, {}); if (policy?.uuid) publicUrl = buildAbsoluteScreenAppUrl(window.location.origin, buildPublicScreenPath(policy.uuid)); }
+            catch (linkError) { console.warn('Publish: public link failed:', linkError); }
             setPublishNotice({ screenId, versionNo, previewUrl, publicUrl, warmupText });
             alert('发布成功，版本 v' + versionNo + warmupText);
         } catch (error) {
             console.error('Failed to publish screen:', error);
-            const message = error instanceof HttpError && error.code === 'SCREEN_UPDATE_CONFLICT'
-                ? handleUpdateConflictError(error, '发布失败，存在并发冲突')
-                : handleLockHttpError(error, '发布失败');
-            alert(message);
+            alert(error instanceof HttpError && error.code === 'SCREEN_UPDATE_CONFLICT' ? handleUpdateConflictError(error, '发布失败，存在并发冲突') : handleLockHttpError(error, '发布失败'));
         } finally { setIsPublishing(false); }
     }, [handleLockHttpError, handleUpdateConflictError, isPublishing, saveScreen]);
 
-    // Hydrate published notice
     useEffect(() => {
         if (!id || !permissions.canRead || publishNotice || publishNoticeDismissed) return;
         let cancelled = false;
-        const hydratePublishedNotice = async () => {
-            try {
-                const published = await analyticsApi.getScreen(id, { mode: 'published' });
-                if (cancelled) return;
-                const versionNo = Number(published?.publishedVersionNo || 0);
-                if (versionNo <= 0) return;
-                setPublishNotice({ screenId: id, versionNo, previewUrl: buildAbsoluteScreenAppUrl(window.location.origin, buildScreenPreviewPath(id)), publicUrl: null, warmupText: '' });
-            } catch { /* no published version or no permission, keep silent */ }
-        };
-        void hydratePublishedNotice();
+        analyticsApi.getScreen(id, { mode: 'published' }).then((published) => {
+            if (cancelled) return;
+            const versionNo = Number(published?.publishedVersionNo || 0);
+            if (versionNo > 0) setPublishNotice({ screenId: id, versionNo, previewUrl: buildAbsoluteScreenAppUrl(window.location.origin, buildScreenPreviewPath(id)), publicUrl: null, warmupText: '' });
+        }).catch(() => {});
         return () => { cancelled = true; };
     }, [id, permissions.canRead, publishNotice, publishNoticeDismissed]);
 
@@ -564,13 +543,6 @@ export function useScreenHeaderState() {
         handleVersionHistory, handleConfirmVersionRollback,
         handleVersionCompare, handleConfirmVersionCompare,
     } = useVersionHandlers({ id, handleLockHttpError, applyScreenDetail });
-
-    const handlePreview = () => {
-        if (id) {
-            const suffix = previewDeviceMode === 'auto' ? '' : `?device=${encodeURIComponent(previewDeviceMode)}`;
-            window.open(`${buildScreenPreviewPath(id)}${suffix}`, '_blank', 'noopener,noreferrer');
-        } else { alert('请先保存大屏后再预览'); }
-    };
 
     // --- Import / Share / Misc ---
     const handleOpenImport = () => { importInputRef.current?.click(); };
@@ -635,19 +607,6 @@ export function useScreenHeaderState() {
 
     // --- Export handlers ---
     const { handleExportJson, handleExportPng, handleExportPdf } = useExportHandlers({ id, config, previewDeviceMode });
-
-    // Ctrl+Shift+P preview shortcut
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            const hotkey = event.ctrlKey || event.metaKey;
-            if (!hotkey || !event.shiftKey || event.key.toLowerCase() !== 'p') return;
-            if (isTypingTarget(event.target)) return;
-            event.preventDefault();
-            handlePreview();
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handlePreview]);
 
     // --- Menu action dispatchers ---
     const executeMenuAction = useCallback((action: () => void | Promise<void>) => {
