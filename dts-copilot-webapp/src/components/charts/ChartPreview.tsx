@@ -1,5 +1,11 @@
-import ReactECharts from "echarts-for-react";
+import ReactEChartsCore from "echarts-for-react/lib/core";
+import * as echarts from "echarts/core";
+import { BarChart, LineChart, PieChart, ScatterChart } from "echarts/charts";
+import { GridComponent, TitleComponent, TooltipComponent, LegendComponent } from "echarts/components";
+import { CanvasRenderer } from "echarts/renderers";
 import { useMemo } from "react";
+
+echarts.use([BarChart, LineChart, PieChart, ScatterChart, GridComponent, TitleComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
 
 export interface ChartConfig {
 	chartType: "line" | "bar" | "pie" | "area" | "scatter" | "column";
@@ -19,7 +25,7 @@ interface Props {
 
 export default function ChartPreview({ config, height = 400 }: Props) {
 	const option = useMemo(() => buildEChartsOption(config), [config]);
-	return <ReactECharts option={option} style={{ height, width: "100%" }} />;
+	return <ReactEChartsCore echarts={echarts} option={option} style={{ height, width: "100%" }} />;
 }
 
 function buildEChartsOption(config: ChartConfig): Record<string, unknown> {

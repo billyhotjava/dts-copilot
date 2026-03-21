@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import {
 	analyticsApi,
+	type AnalysisDraftDetail,
 	type CardDetail,
 	type CardQueryResponse,
 	type CollectionListItem,
@@ -85,10 +86,15 @@ export default function CardEditorPage() {
 	const location = useLocation();
 	const params = useParams();
 	const cardId = params.id ? String(params.id) : null;
+	const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+	const analysisDraftId = !cardId ? searchParams.get("draft")?.trim() || null : null;
 
 	const [databases, setDatabases] = useState<LoadState<DatabaseListItem[]>>({ state: "loading" });
 	const [collections, setCollections] = useState<LoadState<CollectionListItem[]>>({ state: "loading" });
 	const [card, setCard] = useState<LoadState<CardDetail> | null>(cardId ? { state: "loading" } : null);
+	const [analysisDraft, setAnalysisDraft] = useState<LoadState<AnalysisDraftDetail> | null>(
+		analysisDraftId ? { state: "loading" } : null,
+	);
 	const [name, setName] = useState("");
 	const [databaseId, setDatabaseId] = useState<number | null>(null);
 	const [collectionId, setCollectionId] = useState<number | null>(null);
@@ -173,6 +179,33 @@ export default function CardEditorPage() {
 	}, [cardId]);
 
 	useEffect(() => {
+		let cancelled = false;
+		if (!analysisDraftId || cardId) return;
+		setAnalysisDraft({ state: "loading" });
+		analyticsApi
+			.getAnalysisDraft(analysisDraftId)
+			.then((value) => {
+				if (cancelled) return;
+				setAnalysisDraft({ state: "loaded", value });
+				setName(value.title ?? value.question ?? "");
+				setDatabaseId(typeof value.database_id === "number" ? value.database_id : null);
+				setCollectionId(null);
+				setMode("sql");
+				setSql(value.sql_text ?? "");
+				setDisplayType((value.suggested_display as VisualizationType) || "table");
+				setBuilderInitialDatasetQuery(null);
+				setBuilderDatasetQuery(null);
+			})
+			.catch((e) => {
+				if (cancelled) return;
+				setAnalysisDraft({ state: "error", error: e });
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [analysisDraftId, cardId]);
+
+	useEffect(() => {
 		if (databaseId) return;
 		if (databases.state !== "loaded") return;
 		if (databases.value.length > 0) {
@@ -195,6 +228,7 @@ export default function CardEditorPage() {
 
 	useEffect(() => {
 		if (cardId) return;
+		if (analysisDraftId) return;
 		const sp = new URLSearchParams(location.search);
 
 		// Support ?sql=<encoded_sql>&db=<id> for pre-populating SQL mode (e.g. from NL2SQL)
@@ -227,7 +261,18 @@ export default function CardEditorPage() {
 		const init = { database: preDb, type: "query", query: { "source-table": preTable } } as Record<string, unknown>;
 		setBuilderInitialDatasetQuery(init);
 		setBuilderDatasetQuery(init);
-	}, [cardId, location.search, databases, databaseId]);
+	}, [analysisDraftId, cardId, location.search, databases, databaseId]);
+
+	const loadedDraft = analysisDraft?.state === "loaded" ? analysisDraft.value : null;
+	const isDraftDirty = useMemo(() => {
+		if (!loadedDraft) return false;
+		return (
+			(name.trim() || "") !== ((loadedDraft.title ?? loadedDraft.question ?? "").trim()) ||
+			(sql.trim() || "") !== ((loadedDraft.sql_text ?? "").trim()) ||
+			(databaseId ?? null) !== (loadedDraft.database_id ?? null) ||
+			displayType !== ((loadedDraft.suggested_display as VisualizationType | undefined) || "table")
+		);
+	}, [loadedDraft, name, sql, databaseId, displayType]);
 
 	const canRun = mode === "sql" ? Boolean(databaseId && sql.trim()) : Boolean(builderDatasetQuery);
 	const canSave =
@@ -277,6 +322,17 @@ export default function CardEditorPage() {
 
 		setSaveState({ state: "loading" });
 		try {
+			if (analysisDraftId && !cardId && !isDraftDirty) {
+				const saved = await analyticsApi.saveAnalysisDraftCard(analysisDraftId);
+				if (saved.draft) {
+					setAnalysisDraft({ state: "loaded", value: saved.draft });
+				}
+				if (saved.card?.id != null) {
+					navigate(`/questions/${saved.card.id}`, { replace: true });
+					return;
+				}
+			}
+
 			const datasetQuery =
 				mode === "builder"
 					? builderDatasetQuery
@@ -343,16 +399,17 @@ export default function CardEditorPage() {
 	return (
 		<PageContainer>
 			<PageHeader
-				title={cardId ? `${t(locale, "questions.edit")} #${cardId}` : t(locale, "questions.new")}
+				title={cardId ? `${t(locale, "questions.edit")} #${cardId}` : loadedDraft ? "Copilot 草稿查询" : t(locale, "questions.new")}
 				breadcrumbs={
 					<Breadcrumb items={[
 						{ label: t(locale, "nav.questions"), href: "/questions" },
-						{ label: cardId ? `#${cardId}` : t(locale, "questions.unsaved") }
+						{ label: cardId ? `#${cardId}` : loadedDraft ? "Copilot 草稿" : t(locale, "questions.unsaved") }
 					]} />
 				}
 			/>
 
 			{card?.state === "error" && <ErrorNotice locale={locale} error={card.error} />}
+			{analysisDraft?.state === "error" && <ErrorNotice locale={locale} error={analysisDraft.error} />}
 			{databases.state === "error" && <ErrorNotice locale={locale} error={databases.error} />}
 			{collections.state === "error" && <ErrorNotice locale={locale} error={collections.error} />}
 			{saveState?.state === "error" && <ErrorNotice locale={locale} error={saveState.error} />}
@@ -371,6 +428,34 @@ export default function CardEditorPage() {
 					</CardBody>
 				</Card>
 			) : null}
+
+			{loadedDraft && !cardId && (
+				<Card style={{ marginBottom: "var(--spacing-lg)" }}>
+					<CardBody>
+						<div style={{ display: "flex", flexDirection: "column", gap: "var(--spacing-sm)" }}>
+							<div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-sm)", flexWrap: "wrap" }}>
+								<Badge variant="default">来源：AI Copilot</Badge>
+								<Badge variant={loadedDraft.status === "SAVED_QUERY" ? "success" : "warning"}>
+									{loadedDraft.status === "SAVED_QUERY" ? "已转正式查询" : "草稿"}
+								</Badge>
+								{loadedDraft.session_id && (
+									<Link to="/explore-sessions" className="link">
+										查看分析会话
+									</Link>
+								)}
+							</div>
+							{loadedDraft.question && (
+								<div style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
+									原始问题：{loadedDraft.question}
+								</div>
+							)}
+							<div style={{ color: "var(--color-text-tertiary)", fontSize: "var(--font-size-xs)" }}>
+								{isDraftDirty ? "当前内容已脱离原始草稿，保存时将按当前编辑内容新建正式查询。" : "当前内容仍与 Copilot 草稿保持一致，可直接转成正式查询。"}
+							</div>
+						</div>
+					</CardBody>
+				</Card>
+			)}
 
 			<Card style={{ marginBottom: "var(--spacing-lg)" }}>
 				<CardHeader title={t(locale, "questions.settings")} />
@@ -462,7 +547,7 @@ export default function CardEditorPage() {
 							disabled={dbEmpty || !canSave || saveState?.state === "loading"}
 							loading={saveState?.state === "loading"}
 						>
-							{t(locale, "questions.save")}
+							{loadedDraft && !cardId && !isDraftDirty ? "保存正式查询" : t(locale, "questions.save")}
 						</Button>
 						<Button
 							variant="tertiary"

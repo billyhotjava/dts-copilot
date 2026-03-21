@@ -86,6 +86,41 @@ export type CardDetail = CardListItem & {
 	result_metadata?: unknown;
 };
 
+export type AnalysisDraftListItem = {
+	id: number;
+	entity_id?: string;
+	title?: string | null;
+	source_type?: string | null;
+	session_id?: string | null;
+	message_id?: string | null;
+	question?: string | null;
+	database_id?: number | null;
+	sql_text?: string | null;
+	explanation_text?: string | null;
+	suggested_display?: string | null;
+	status?: string | null;
+	linked_card_id?: number | null;
+	linked_dashboard_id?: number | null;
+	linked_screen_id?: number | null;
+	created_at?: string;
+	updated_at?: string;
+};
+
+export type AnalysisDraftDetail = AnalysisDraftListItem;
+
+export type AnalysisDraftRunResponse = {
+	rows?: unknown[];
+	cols?: Array<Record<string, unknown>>;
+	results_metadata?: Array<Record<string, unknown>>;
+	results_timezone?: string;
+	row_count?: number;
+};
+
+export type AnalysisDraftSaveCardResponse = {
+	draft?: AnalysisDraftDetail;
+	card?: CardDetail;
+};
+
 export type CardQueryResponse = {
 	status?: string;
 	row_count?: number;
@@ -1887,6 +1922,18 @@ export const analyticsApi = {
 	createCard: (body: unknown) => sendJson<CardDetail>("/api/analytics/card", body),
 	updateCard: (id: string | number, body: unknown) =>
 		requestJson<CardDetail>(`/api/analytics/card/${encodeURIComponent(String(id))}`, "PUT", body),
+	listAnalysisDrafts: () => fetchJson<AnalysisDraftListItem[]>("/api/analytics/analysis-drafts"),
+	getAnalysisDraft: (id: string | number) =>
+		fetchJson<AnalysisDraftDetail>(`/api/analytics/analysis-drafts/${encodeURIComponent(String(id))}`),
+	createAnalysisDraft: (body: unknown) => sendJson<AnalysisDraftDetail>("/api/analytics/analysis-drafts", body),
+	archiveAnalysisDraft: (id: string | number) =>
+		sendJson<AnalysisDraftDetail>(`/api/analytics/analysis-drafts/${encodeURIComponent(String(id))}/archive`, {}),
+	deleteAnalysisDraft: (id: string | number) =>
+		requestJson<void>(`/api/analytics/analysis-drafts/${encodeURIComponent(String(id))}`, "DELETE"),
+	runAnalysisDraft: (id: string | number, body?: unknown) =>
+		sendJson<AnalysisDraftRunResponse>(`/api/analytics/analysis-drafts/${encodeURIComponent(String(id))}/run`, body ?? {}),
+	saveAnalysisDraftCard: (id: string | number) =>
+		sendJson<AnalysisDraftSaveCardResponse>(`/api/analytics/analysis-drafts/${encodeURIComponent(String(id))}/save-card`, {}),
 	queryCard: (id: string | number, body?: unknown) =>
 		sendJson<CardQueryResponse>(`/api/analytics/card/${encodeURIComponent(String(id))}/query`, body ?? {}),
 	runDatasetQuery: (body: unknown) => sendJson<CardQueryResponse>("/api/analytics/dataset", body),

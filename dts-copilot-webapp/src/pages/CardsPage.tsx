@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useEffect, useMemo, useState, type JSX } from "react";
-import { analyticsApi, type CardListItem } from "../api/analyticsApi";
+import { analyticsApi, type AnalysisDraftListItem, type CardListItem } from "../api/analyticsApi";
 import { PageContainer, PageHeader, EmptyState } from "../components/PageContainer/PageContainer";
 import { Card } from "../ui/Card/Card";
 import { Button } from "../ui/Button/Button";
@@ -11,6 +11,13 @@ import { CardGrid } from "../components/DashboardGrid/DashboardGrid";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
 import { usePageContext } from "../hooks/usePageContext";
+import {
+	buildQueryAssetTabs,
+	filterQueryAssets,
+	normalizeQueryAssets,
+	type QueryAssetItem,
+	type QueryAssetTab,
+} from "./queryAssetCenterModel";
 import "./page.css";
 
 type LoadState<T> =
@@ -98,9 +105,11 @@ function getDisplayTypeIcon(display?: string) {
 export default function CardsPage() {
 	const locale: Locale = useMemo(() => getEffectiveLocale(), []);
 	usePageContext({ module: "analytics/question", resourceType: "question" });
-	const [state, setState] = useState<LoadState<CardListItem[]>>({ state: "loading" });
+	const [cardsState, setCardsState] = useState<LoadState<CardListItem[]>>({ state: "loading" });
+	const [draftsState, setDraftsState] = useState<LoadState<AnalysisDraftListItem[]>>({ state: "loading" });
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const [searchQuery, setSearchQuery] = useState("");
+	const [activeTab, setActiveTab] = useState<QueryAssetTab>("all");
 
 	useEffect(() => {
 		let cancelled = false;
@@ -108,26 +117,45 @@ export default function CardsPage() {
 			.listCards()
 			.then((value) => {
 				if (cancelled) return;
-				setState({ state: "loaded", value });
+				setCardsState({ state: "loaded", value });
 			})
 			.catch((e) => {
 				if (cancelled) return;
-				setState({ state: "error", error: e });
+				setCardsState({ state: "error", error: e });
+			});
+		analyticsApi
+			.listAnalysisDrafts()
+			.then((value) => {
+				if (cancelled) return;
+				setDraftsState({ state: "loaded", value });
+			})
+			.catch((e) => {
+				if (cancelled) return;
+				setDraftsState({ state: "error", error: e });
 			});
 		return () => {
 			cancelled = true;
 		};
 	}, []);
 
-	const filteredCards = useMemo(() => {
-		if (state.state !== "loaded") return [];
-		if (!searchQuery.trim()) return state.value;
-		const query = searchQuery.toLowerCase();
-		return state.value.filter((c) =>
-			(c.name || "").toLowerCase().includes(query) ||
-			(c.description || "").toLowerCase().includes(query)
-		);
-	}, [state, searchQuery]);
+	const allAssets = useMemo(() => {
+		if (cardsState.state !== "loaded" || draftsState.state !== "loaded") return [];
+		return normalizeQueryAssets(cardsState.value, draftsState.value);
+	}, [cardsState, draftsState]);
+
+	const tabs = useMemo(() => {
+		if (cardsState.state !== "loaded" || draftsState.state !== "loaded") return [];
+		return buildQueryAssetTabs(cardsState.value, draftsState.value);
+	}, [cardsState, draftsState]);
+
+	const filteredAssets = useMemo(
+		() => filterQueryAssets(allAssets, activeTab, searchQuery),
+		[allAssets, activeTab, searchQuery],
+	);
+
+	const hasLoadedAssets = cardsState.state === "loaded" && draftsState.state === "loaded";
+	const isLoading = cardsState.state === "loading" || draftsState.state === "loading";
+	const errorState = cardsState.state === "error" ? cardsState.error : draftsState.state === "error" ? draftsState.error : null;
 
 	return (
 		<PageContainer>
@@ -171,8 +199,24 @@ export default function CardsPage() {
 				</div>
 			</div>
 
+			{tabs.length > 0 && (
+				<div className="query-asset-tabs" role="tablist" aria-label="查询资产分组">
+					{tabs.map((tab) => (
+						<Button
+							key={tab.id}
+							variant={activeTab === tab.id ? "primary" : "secondary"}
+							size="sm"
+							onClick={() => setActiveTab(tab.id)}
+							aria-pressed={activeTab === tab.id}
+						>
+							{tab.label} <span className="query-asset-tabs__count">{tab.count}</span>
+						</Button>
+					))}
+				</div>
+			)}
+
 			{/* Loading State */}
-			{state.state === "loading" && (
+			{isLoading && (
 				<CardGrid columns={3} gap="md">
 					{[1, 2, 3, 4, 5, 6].map((i) => (
 						<CardSkeleton key={i} lines={2} />
@@ -181,14 +225,14 @@ export default function CardsPage() {
 			)}
 
 			{/* Error State */}
-			{state.state === "error" && <ErrorNotice locale={locale} error={state.error} />}
+			{errorState ? <ErrorNotice locale={locale} error={errorState} /> : null}
 
 			{/* Empty State */}
-			{state.state === "loaded" && state.value.length === 0 && (
+			{hasLoadedAssets && allAssets.length === 0 && (
 				<EmptyState
 					icon={<QuestionIcon />}
 					title={t(locale, "common.empty")}
-					description={t(locale, "questions.emptyDesc")}
+					description="还没有创建任何正式查询或 Copilot 草稿。"
 					action={
 						<Link to="/questions/new">
 							<Button variant="primary" icon={<PlusIcon />}>
@@ -200,7 +244,7 @@ export default function CardsPage() {
 			)}
 
 			{/* No Results */}
-			{state.state === "loaded" && state.value.length > 0 && filteredCards.length === 0 && (
+			{hasLoadedAssets && allAssets.length > 0 && filteredAssets.length === 0 && (
 				<EmptyState
 					title={t(locale, "common.noResults")}
 					description={t(locale, "common.noResultsDesc")}
@@ -213,21 +257,35 @@ export default function CardsPage() {
 			)}
 
 			{/* Grid View */}
-			{state.state === "loaded" && filteredCards.length > 0 && viewMode === "grid" && (
+			{hasLoadedAssets && filteredAssets.length > 0 && viewMode === "grid" && (
 				<CardGrid columns={3} gap="md">
-					{filteredCards.map((c) => (
-						<Link key={c.id} to={`/questions/${c.id}`} style={{ textDecoration: "none" }}>
+					{filteredAssets.map((item) => (
+						<Link key={`${item.assetType}-${item.id}`} to={item.href} style={{ textDecoration: "none" }}>
 							<Card variant="hoverable" padding="md">
 								<div className="question-card">
 									<div className="question-card__icon">
-										{getDisplayTypeIcon(c.display)}
+										{getDisplayTypeIcon(item.display ?? undefined)}
 									</div>
 									<div className="question-card__content">
-										<h3 className="question-card__title">{c.name || t(locale, "common.untitled")}</h3>
-										{c.display && (
-											<Badge size="sm" variant="default">
-												{c.display}
+										<h3 className="question-card__title">{item.title || t(locale, "common.untitled")}</h3>
+										<div className="question-card__meta">
+											<Badge size="sm" variant={item.assetType === "draft" ? "warning" : "default"}>
+												{item.sourceLabel}
 											</Badge>
+											<Badge size="sm" variant={item.assetType === "draft" ? "default" : "success"}>
+												{item.statusLabel}
+											</Badge>
+											{item.display && (
+												<Badge size="sm" variant="default">
+													{item.display}
+												</Badge>
+											)}
+										</div>
+										{item.question && (
+											<p className="question-card__question">{item.question}</p>
+										)}
+										{item.description && !item.question && (
+											<p className="question-card__question">{item.description}</p>
 										)}
 									</div>
 								</div>
@@ -238,32 +296,44 @@ export default function CardsPage() {
 			)}
 
 			{/* List View */}
-			{state.state === "loaded" && filteredCards.length > 0 && viewMode === "list" && (
+			{hasLoadedAssets && filteredAssets.length > 0 && viewMode === "list" && (
 				<Card padding="none">
 					<table className="table">
 						<thead>
 							<tr>
 								<th>{t(locale, "common.name")}</th>
+								<th>来源</th>
+								<th>状态</th>
 								<th>{t(locale, "common.type")}</th>
 								<th style={{ width: 80 }}>{t(locale, "common.id")}</th>
 							</tr>
 						</thead>
 						<tbody>
-							{filteredCards.map((c) => (
-								<tr key={String(c.id)}>
+							{filteredAssets.map((item) => (
+								<tr key={`${item.assetType}-${item.id}`}>
 									<td>
-										<Link to={`/questions/${c.id}`} className="link">
-											{c.name || t(locale, "common.untitled")}
+										<Link to={item.href} className="link">
+											{item.title || t(locale, "common.untitled")}
 										</Link>
 									</td>
 									<td>
-										{c.display && (
+										<Badge size="sm" variant={item.assetType === "draft" ? "warning" : "default"}>
+											{item.sourceLabel}
+										</Badge>
+									</td>
+									<td>
+										<Badge size="sm" variant={item.assetType === "draft" ? "default" : "success"}>
+											{item.statusLabel}
+										</Badge>
+									</td>
+									<td>
+										{item.display && (
 											<Badge size="sm" variant="default">
-												{c.display}
+												{item.display}
 											</Badge>
 										)}
 									</td>
-									<td className="muted">{c.id}</td>
+									<td className="muted">{item.id}</td>
 								</tr>
 							))}
 						</tbody>
@@ -298,6 +368,18 @@ export default function CardsPage() {
 					gap: var(--spacing-xs);
 				}
 
+				.query-asset-tabs {
+					display: flex;
+					flex-wrap: wrap;
+					gap: var(--spacing-xs);
+					margin-bottom: var(--spacing-md);
+				}
+
+				.query-asset-tabs__count {
+					margin-left: 4px;
+					opacity: 0.75;
+				}
+
 				.question-card__title {
 					margin: 0;
 					font-size: var(--font-size-md);
@@ -306,6 +388,23 @@ export default function CardsPage() {
 					overflow: hidden;
 					text-overflow: ellipsis;
 					white-space: nowrap;
+				}
+
+				.question-card__meta {
+					display: flex;
+					flex-wrap: wrap;
+					gap: var(--spacing-xs);
+				}
+
+				.question-card__question {
+					margin: 0;
+					font-size: var(--font-size-sm);
+					color: var(--color-text-secondary);
+					line-height: 1.5;
+					display: -webkit-box;
+					-webkit-line-clamp: 2;
+					-webkit-box-orient: vertical;
+					overflow: hidden;
 				}
 			`}</style>
 		</PageContainer>
