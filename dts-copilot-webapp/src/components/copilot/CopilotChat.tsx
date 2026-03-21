@@ -66,6 +66,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 	const [sessions, setSessions] = useState<AiAgentChatSession[]>([]);
 	const [messages, setMessages] = useState<AiAgentChatMessage[]>([]);
 	const [input, setInput] = useState("");
+	const [queuedInput, setQueuedInput] = useState<string | null>(null);
 	const [sending, setSending] = useState(false);
 	const [pendingAction, setPendingAction] =
 		useState<AiAgentPendingAction | null>(null);
@@ -80,6 +81,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 	const activeStreamingSessionIdRef = useRef<string | null>(null);
 	const streamInFlightRef = useRef(false);
 	const streamAbortRef = useRef<AbortController | null>(null);
+	const queuedInputRef = useRef<string | null>(null);
 	const sortedMessages = useMemo(() => sortMessages(messages), [messages]);
 	const approvalSchema = useMemo(
 		() => normalizeMicroForm(pendingAction),
@@ -265,14 +267,28 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 		streamAbortRef.current = null;
 	}, []);
 
-	const handleStopStreaming = useCallback(() => {
+	useEffect(() => {
+		if (sending || !queuedInput) return;
+		queuedInputRef.current = null;
+		setQueuedInput(null);
+		void handleSendText(queuedInput);
+	}, [sending, queuedInput]);
+
+	const abortStreaming = useCallback((notice?: string) => {
 		if (!streamAbortRef.current) {
-			return;
+			return false;
 		}
 		streamAbortRef.current.abort();
 		streamAbortRef.current = null;
-		setError("已停止本次回答生成。");
+		if (notice) {
+			setError(notice);
+		}
+		return true;
 	}, []);
+
+	const handleStopStreaming = useCallback(() => {
+		abortStreaming("已停止本次回答生成。");
+	}, [abortStreaming]);
 
 	async function handleSendText(text: string) {
 		if (!copilotEnabled) {
@@ -436,7 +452,8 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 				? e.name === "AbortError"
 				: e instanceof Error && e.name === "AbortError";
 			if (aborted) {
-				if (!streamTimedOut) {
+				const interruptedForReplacement = queuedInputRef.current != null;
+				if (!streamTimedOut && !interruptedForReplacement) {
 					setMessages((prev) => prev.map((m) =>
 						m.id === assistantId && !m.content
 							? {
@@ -487,6 +504,19 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 	}
 
 	async function handleSend() {
+		const trimmed = input.trim();
+		if (sending) {
+			if (!trimmed) {
+				handleStopStreaming();
+				return;
+			}
+			queuedInputRef.current = trimmed;
+			setQueuedInput(trimmed);
+			setInput("");
+			setError(null);
+			abortStreaming();
+			return;
+		}
 		await handleSendText(input);
 	}
 
@@ -602,6 +632,8 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 	}
 
 	function handleNewChat() {
+		queuedInputRef.current = null;
+		setQueuedInput(null);
 		setSessionId(null);
 		setMessages([]);
 		setPendingAction(null);
@@ -982,7 +1014,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 					<button
 						type="button"
 						className="copilot-chat__send-btn"
-						onClick={sendAction.mode === "stop" ? handleStopStreaming : handleSend}
+						onClick={sendAction.mode === "stop" ? handleStopStreaming : () => void handleSend()}
 						disabled={sendAction.disabled}
 					>
 						{sendAction.label}
@@ -991,4 +1023,3 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 			</div>
 		);
 }
-

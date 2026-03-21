@@ -5,13 +5,20 @@ export interface CopilotSendActionInput {
 }
 
 export interface CopilotSendAction {
-	mode: 'send' | 'stop';
+	mode: 'send' | 'stop' | 'interrupt-and-send';
 	label: string;
 	disabled: boolean;
 }
 
 export function resolveCopilotSendAction(input: CopilotSendActionInput): CopilotSendAction {
 	if (input.requestInFlight) {
+		if (input.input.trim().length > 0) {
+			return {
+				mode: 'interrupt-and-send',
+				label: '发送',
+				disabled: false,
+			}
+		}
 		return {
 			mode: 'stop',
 			label: '停止',
