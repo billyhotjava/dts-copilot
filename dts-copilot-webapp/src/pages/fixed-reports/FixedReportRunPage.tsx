@@ -265,29 +265,23 @@ export default function FixedReportRunPage() {
 							{runState?.state === "error" && <ErrorNotice locale={locale} error={runState.error} />}
 							{runState?.state === "loaded" && (
 								<div className="col" style={{ gap: "var(--spacing-sm)" }}>
-									<div><span className="small muted">{t(locale, "fixedReports.route")}:</span> {runState.value.route ?? "-"}</div>
-									<div><span className="small muted">{t(locale, "fixedReports.sourceType")}:</span> {runState.value.sourceType ?? "-"}</div>
-									<div><span className="small muted">{t(locale, "fixedReports.freshness")}:</span> {runState.value.freshness ?? "-"}</div>
-									<div><span className="small muted">{t(locale, "fixedReports.status")}:</span> {runState.value.executionStatus ?? "-"}</div>
-									<div><span className="small muted">{t(locale, "fixedReports.rationale")}:</span> {runState.value.rationale ?? "-"}</div>
-									{runState.value.resultPreview?.databaseName && (
-										<div><span className="small muted">{t(locale, "fixedReports.dataSource")}:</span> {runState.value.resultPreview.databaseName}</div>
-									)}
+									{/* 执行状态摘要 - 只显示关键信息 */}
+									<div style={{ display: "flex", gap: "var(--spacing-md)", alignItems: "center", flexWrap: "wrap" }}>
+										<Badge variant={runState.value.executionStatus === "COMPLETED" ? "success" : "default"} size="sm">
+											{runState.value.executionStatus === "COMPLETED" ? "执行成功" : (runState.value.executionStatus ?? "-")}
+										</Badge>
+										{runState.value.resultPreview?.databaseName && (
+											<span className="small muted">数据源: {runState.value.resultPreview.databaseName}</span>
+										)}
+										<span className="small muted">共 {previewRowCount} 条记录</span>
+									</div>
+
 									{runState.value.resultPreview && (
-										<div
-											style={{
-												marginTop: "var(--spacing-sm)",
-												paddingTop: "var(--spacing-sm)",
-												borderTop: "1px solid var(--color-border)",
-											}}
-										>
-											<div className="small muted" style={{ marginBottom: "var(--spacing-sm)" }}>
-												{`${t(locale, "fixedReports.previewSummary")} ${previewRowCount}`}
-											</div>
+										<div style={{ marginTop: "var(--spacing-sm)" }}>
 											{previewColumns.length === 0 || previewRows.length === 0 ? (
 												<div className="text-muted">{t(locale, "fixedReports.previewEmpty")}</div>
 											) : (
-												<div style={{ overflowX: "auto" }}>
+												<div style={{ overflowX: "auto", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
 													<table
 														style={{
 															width: "100%",
@@ -302,30 +296,39 @@ export default function FixedReportRunPage() {
 																		key={column.key ?? column.label ?? "column"}
 																		style={{
 																			textAlign: "left",
-																			padding: "8px",
-																			borderBottom: "1px solid var(--color-border)",
+																			padding: "10px 12px",
+																			borderBottom: "2px solid var(--color-border)",
+																			background: "var(--color-bg-secondary, #f5f7fa)",
 																			color: "var(--color-text-secondary)",
-																			fontWeight: "var(--font-weight-semibold)",
+																			fontWeight: 600,
+																			fontSize: "12px",
+																			whiteSpace: "nowrap",
 																		}}
 																	>
-																		{column.label ?? column.key ?? "-"}
+																		{translateColumnLabel(column.label ?? column.key ?? "-")}
 																	</th>
 																))}
 															</tr>
 														</thead>
 														<tbody>
 															{previewRows.map((row, rowIndex) => (
-																<tr key={`preview-row-${rowIndex}`}>
+																<tr
+																	key={`preview-row-${rowIndex}`}
+																	style={{
+																		background: rowIndex % 2 === 0 ? "transparent" : "var(--color-bg-secondary, #fafbfc)",
+																	}}
+																>
 																	{previewColumns.map((column) => (
 																		<td
 																			key={`${rowIndex}-${column.key ?? column.label ?? "column"}`}
 																			style={{
-																				padding: "8px",
-																				borderBottom: "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)",
+																				padding: "8px 12px",
+																				borderBottom: "1px solid color-mix(in srgb, var(--color-border) 40%, transparent)",
 																				verticalAlign: "top",
+																				fontSize: "13px",
 																			}}
 																		>
-																			{String(row[column.key ?? ""] ?? "-")}
+																			{formatCellValue(row[column.key ?? ""])}
 																		</td>
 																	))}
 																</tr>
@@ -344,4 +347,82 @@ export default function FixedReportRunPage() {
 			)}
 		</PageContainer>
 	)
+}
+
+/** 列名英文→中文映射 */
+const COLUMN_LABEL_MAP: Record<string, string> = {
+	// 库存相关
+	STOREHOUSENAME: "所属库房",
+	GOODNAME: "物品名称",
+	GOODSPECS: "规格",
+	GOODNORMS: "花盆",
+	GOODNUMBER: "库存数量",
+	OUTCOST: "成本价",
+	SALEPRICE: "售价",
+	GOODUNIT: "单位",
+	GOODTYPE: "物品类型",
+	STOREHOUSE_TYPE: "库房类型",
+	// 项目相关
+	PROJECT_NAME: "项目名称",
+	PROJECT_CODE: "项目编号",
+	CUSTOMER_NAME: "客户名称",
+	CONTRACT_TITLE: "合同名称",
+	MANAGER_NAME: "项目经理",
+	BIZ_USER_NAME: "业务经理",
+	POSITION_NAME: "摆位名称",
+	POSITION_FULL_NAME: "摆位全称",
+	// 绿植相关
+	GREEN_NAME: "绿植名称",
+	GOOD_NAME: "物品名称",
+	GOOD_NORMS: "规格",
+	GOOD_SPECS: "花盆",
+	GOOD_NUMBER: "数量",
+	RENT: "月租金",
+	COST: "成本",
+	POSE_TIME: "摆放时间",
+	// 报花业务
+	BIZ_CODE: "业务单号",
+	BIZ_TYPE_NAME: "业务类型",
+	BIZ_STATUS_NAME: "业务状态",
+	APPLY_USER_NAME: "发起人",
+	APPLY_TIME: "发起时间",
+	FINISH_TIME: "完成时间",
+	PLANT_NUMBER: "数量",
+	BIZ_TOTAL_RENT: "总租金",
+	BIZ_TOTAL_COST: "总成本",
+	// 结算
+	SETTLEMENT_MONTH: "结算月份",
+	TOTAL_RENT: "应收租金",
+	RECEIVED_AMOUNT: "已收金额",
+	OUTSTANDING_AMOUNT: "未收金额",
+	// 任务
+	TASK_CODE: "任务编号",
+	TASK_TITLE: "任务标题",
+	TASK_TYPE_NAME: "任务类型",
+	TASK_STATUS_NAME: "任务状态",
+	// 养护
+	CURING_USER_NAME: "养护人",
+	CURING_TIME: "养护时间",
+	CURING_COUNT: "养护次数",
+	// 通用
+	ID: "编号",
+	NAME: "名称",
+	CODE: "编号",
+	STATUS: "状态",
+	CREATE_TIME: "创建时间",
+	UPDATE_TIME: "更新时间",
+	REMARK: "备注",
+}
+
+function translateColumnLabel(raw: string): string {
+	const upper = raw.toUpperCase()
+	return COLUMN_LABEL_MAP[upper] ?? COLUMN_LABEL_MAP[raw] ?? raw
+}
+
+function formatCellValue(value: unknown): string {
+	if (value == null) return "-"
+	if (typeof value === "number") return value.toLocaleString("zh-CN")
+	const str = String(value)
+	if (str === "" || str === "null" || str === "undefined") return "-"
+	return str
 }
