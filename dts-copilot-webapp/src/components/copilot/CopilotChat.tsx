@@ -27,157 +27,31 @@ import type { CopilotSessionFocusRequest } from "./copilotSessionFocus";
 import { shouldRestorePersistedCopilotSession } from "./copilotSessionBootstrap";
 import { createCopilotStreamWatchdog, resolveCopilotSendAction } from "./copilotStreamControl";
 import { canUseCopilot } from "./copilotAccessPolicy";
+import {
+	SESSION_ID_KEY,
+	DATASOURCE_ID_KEY,
+	STREAM_IDLE_TIMEOUT_MS,
+	STREAM_PENDING_REASONING,
+	getStoredDatasourceId,
+	MICRO_FORM_PRESETS,
+	getStoredSessionId,
+	resolveUiError,
+	toArray,
+	sortMessages,
+	normalizeMicroForm,
+	buildInitialApprovalValues,
+	getToolMessagesForAssistant,
+	getUserQuestionForAssistant,
+} from "./CopilotChat.helpers";
 import "./CopilotChat.css";
 
 type CopilotSendBody = Parameters<typeof analyticsApi.aiAgentChatSend>[0];
 type FormValues = Record<string, string | number | undefined>;
 
-const SESSION_ID_KEY = "dts-analytics.copilot.sessionId";
-const DATASOURCE_ID_KEY = "dts-analytics.copilotDatasourceId";
-const STREAM_IDLE_TIMEOUT_MS = 30000;
-const STREAM_PENDING_REASONING = "正在思考…";
-
-function getStoredDatasourceId(): number | null {
-	try {
-		const value = sessionStorage.getItem(DATASOURCE_ID_KEY);
-		if (value == null) return null;
-		const num = Number(value);
-		return Number.isFinite(num) ? num : null;
-	} catch {
-		return null;
-	}
-}
-
-const MICRO_FORM_PRESETS: Record<string, MicroFormSchema> = {
-	validate_sql: {
-		title: "SQL 执行前确认",
-		description: "AI 已补全主要参数，请补齐缺失项后再执行。",
-		riskLevel: "MEDIUM",
-		riskNote: "将触发真实 SQL 校验并读取元数据。",
-		fields: [
-			{ key: "datasourceId", label: "数据源", required: true, placeholder: "例如: pg-main", source: "session_context" },
-			{
-				key: "schemaName",
-				label: "Schema",
-				required: true,
-				placeholder: "例如: analytics",
-				source: "metadata_profile",
-			},
-			{ key: "sql", label: "SQL", type: "textarea", required: true, source: "ai_draft" },
-		],
-	},
-	generate_task: {
-		title: "任务创建确认",
-		description: "请确认任务内容和优先级，避免误建任务。",
-		riskLevel: "LOW",
-		fields: [
-			{ key: "title", label: "任务标题", required: true, source: "ai_summary" },
-			{
-				key: "priority",
-				label: "优先级",
-				type: "select",
-				required: true,
-				value: "P2",
-				options: [
-					{ label: "P1", value: "P1" },
-					{ label: "P2", value: "P2" },
-					{ label: "P3", value: "P3" },
-				],
-			},
-			{ key: "description", label: "任务描述", type: "textarea", required: true, source: "ai_plan" },
-		],
-	},
-	trigger_pipeline: {
-		title: "流水线触发确认",
-		description: "该操作会触发 Airflow DAG 执行，请确认 DAG 参数。",
-		riskLevel: "HIGH",
-		riskNote: "属于执行类操作，建议二次确认后再执行。",
-		fields: [
-			{ key: "dagId", label: "DAG ID", required: true, placeholder: "例如: dbt_load", source: "session_context" },
-			{
-				key: "confJson",
-				label: "运行参数(JSON，可选)",
-				type: "textarea",
-				placeholder: '{"bizDate":"2026-03-03"}',
-				helpText: "仅支持 JSON 对象格式，留空则不传 conf。",
-			},
-		],
-	},
-};
-
-function getStoredSessionId(): string | null {
-	try {
-		const value = sessionStorage.getItem(SESSION_ID_KEY);
-		return value?.trim() ? value : null;
-	} catch {
-		return null;
-	}
-}
 
 interface Props {
 	hasSessionAccess?: boolean;
-	focusRequest?: (CopilotSessionFocusRequest & { nonce: number }) | null;
-}
-
-function resolveUiError(error: unknown, fallback: string): string {
-	if (error instanceof AuthError) {
-		return "登录状态已失效，请刷新页面后重试。";
-	}
-	return error instanceof Error ? error.message : fallback;
-}
-
-function toArray<T>(value: unknown): T[] {
-	return Array.isArray(value) ? (value as T[]) : [];
-}
-
-function sortMessages(messages: AiAgentChatMessage[]): AiAgentChatMessage[] {
-	return [...messages].sort((left, right) => {
-		const seq = (left.sequenceNum ?? 0) - (right.sequenceNum ?? 0);
-		if (seq !== 0) return seq;
-		return (left.createdAt ?? "").localeCompare(right.createdAt ?? "");
-	});
-}
-
-function normalizeMicroForm(action: AiAgentPendingAction | null): MicroFormSchema | undefined {
-	if (!action) return undefined;
-	if (action.microForm?.fields?.length) {
-		return action.microForm;
-	}
-	const inlineSchema = action.params?.microForm as MicroFormSchema | undefined;
-	if (inlineSchema?.fields?.length) {
-		return inlineSchema;
-	}
-	return MICRO_FORM_PRESETS[action.toolId];
-}
-
-function buildInitialApprovalValues(
-	action: AiAgentPendingAction | null,
-	schema: MicroFormSchema | undefined,
-): FormValues {
-	if (!action || !schema) return {};
-	const values: FormValues = {};
-	for (const field of schema.fields) {
-		if (field.value !== undefined) {
-			values[field.key] = field.value;
-			continue;
-		}
-		const paramValue = action.params?.[field.key];
-		if (typeof paramValue === "string" || typeof paramValue === "number") {
-			values[field.key] = paramValue;
-		}
-	}
-	if (
-		schema.fields.some((field) => field.key === "confJson")
-		&& action.params?.conf
-		&& typeof action.params.conf === "object"
-	) {
-		try {
-			values.confJson = JSON.stringify(action.params.conf);
-		} catch {
-			/* ignore */
-		}
-	}
-	return values;
+	focusRequest?: CopilotSessionFocusRequest | null;
 }
 
 export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: Props) {
@@ -356,7 +230,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 	}, [copilotEnabled, sessionId, reloadMessages]);
 
 	useEffect(() => {
-		setApprovalValues(buildInitialApprovalValues(pendingAction, approvalSchema));
+		setApprovalValues(buildInitialApprovalValues(pendingAction, approvalSchema, selectedDbId));
 	}, [pendingAction, approvalSchema]);
 
 	useEffect(() => {
@@ -1119,44 +993,3 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 		);
 }
 
-/**
- * Collect tool messages that belong to a given assistant message.
- * Groups tool messages between the preceding user message and this assistant message.
- */
-function getToolMessagesForAssistant(
-	allMessages: AiAgentChatMessage[],
-	assistantMsg: AiAgentChatMessage,
-): AiAgentChatMessage[] {
-	const assistantSeq = assistantMsg.sequenceNum ?? 0;
-	// Find the last user message before this assistant message
-	let lastUserSeq = -1;
-	for (const m of allMessages) {
-		const seq = m.sequenceNum ?? 0;
-		if (m.role === "user" && seq < assistantSeq) {
-			lastUserSeq = Math.max(lastUserSeq, seq);
-		}
-	}
-	return allMessages.filter(
-		(m) =>
-			m.role === "tool" &&
-			(m.sequenceNum ?? 0) > lastUserSeq &&
-		(m.sequenceNum ?? 0) < assistantSeq,
-	);
-}
-
-function getUserQuestionForAssistant(
-	allMessages: AiAgentChatMessage[],
-	assistantMsg: AiAgentChatMessage,
-): string | null {
-	const assistantSeq = assistantMsg.sequenceNum ?? 0;
-	let matched: AiAgentChatMessage | null = null;
-	for (const message of allMessages) {
-		const seq = message.sequenceNum ?? 0;
-		if (message.role === "user" && seq < assistantSeq) {
-			if (!matched || seq > (matched.sequenceNum ?? 0)) {
-				matched = message;
-			}
-		}
-	}
-	return matched?.content?.trim() || null;
-}

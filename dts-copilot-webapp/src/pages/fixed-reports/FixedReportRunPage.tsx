@@ -66,6 +66,16 @@ export default function FixedReportRunPage() {
 		},
 	)
 
+	const previewColumns = runState?.state === "loaded"
+		? (runState.value.resultPreview?.columns ?? [])
+		: []
+	const previewRows = runState?.state === "loaded"
+		? (runState.value.resultPreview?.rows ?? [])
+		: []
+	const previewRowCount = runState?.state === "loaded"
+		? (runState.value.resultPreview?.rowCount ?? previewRows.length)
+		: 0
+
 	useEffect(() => {
 		setFormValues(buildFixedReportInitialParameterValues(fields))
 	}, [fields])
@@ -252,6 +262,72 @@ export default function FixedReportRunPage() {
 									<div><span className="small muted">{t(locale, "fixedReports.freshness")}:</span> {runState.value.freshness ?? "-"}</div>
 									<div><span className="small muted">{t(locale, "fixedReports.status")}:</span> {runState.value.executionStatus ?? "-"}</div>
 									<div><span className="small muted">{t(locale, "fixedReports.rationale")}:</span> {runState.value.rationale ?? "-"}</div>
+									{runState.value.resultPreview?.databaseName && (
+										<div><span className="small muted">{t(locale, "fixedReports.dataSource")}:</span> {runState.value.resultPreview.databaseName}</div>
+									)}
+									{runState.value.resultPreview && (
+										<div
+											style={{
+												marginTop: "var(--spacing-sm)",
+												paddingTop: "var(--spacing-sm)",
+												borderTop: "1px solid var(--color-border)",
+											}}
+										>
+											<div className="small muted" style={{ marginBottom: "var(--spacing-sm)" }}>
+												{`${t(locale, "fixedReports.previewSummary")} ${previewRowCount}`}
+											</div>
+											{previewColumns.length === 0 || previewRows.length === 0 ? (
+												<div className="text-muted">{t(locale, "fixedReports.previewEmpty")}</div>
+											) : (
+												<div style={{ overflowX: "auto" }}>
+													<table
+														style={{
+															width: "100%",
+															borderCollapse: "collapse",
+															fontSize: "var(--font-size-sm)",
+														}}
+													>
+														<thead>
+															<tr>
+																{previewColumns.map((column) => (
+																	<th
+																		key={column.key ?? column.label ?? "column"}
+																		style={{
+																			textAlign: "left",
+																			padding: "8px",
+																			borderBottom: "1px solid var(--color-border)",
+																			color: "var(--color-text-secondary)",
+																			fontWeight: "var(--font-weight-semibold)",
+																		}}
+																	>
+																		{column.label ?? column.key ?? "-"}
+																	</th>
+																))}
+															</tr>
+														</thead>
+														<tbody>
+															{previewRows.map((row, rowIndex) => (
+																<tr key={`preview-row-${rowIndex}`}>
+																	{previewColumns.map((column) => (
+																		<td
+																			key={`${rowIndex}-${column.key ?? column.label ?? "column"}`}
+																			style={{
+																				padding: "8px",
+																				borderBottom: "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)",
+																				verticalAlign: "top",
+																			}}
+																		>
+																			{String(row[column.key ?? ""] ?? "-")}
+																		</td>
+																	))}
+																</tr>
+															))}
+														</tbody>
+													</table>
+												</div>
+											)}
+										</div>
+									)}
 								</div>
 							)}
 						</CardBody>

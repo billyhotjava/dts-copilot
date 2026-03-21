@@ -47,6 +47,11 @@ import { renderInteractionConfig, renderActionConfig } from './InteractionConfig
 import { renderDrillDownConfig } from './DrillDownConfig';
 import { ChartAnnotationConfig } from './SpecializedConfigs';
 
+// NOTE: ~1366 lines — already split into 8 sub-renderers (ComponentConfig, DataSourceConfig,
+// InteractionConfig, DrillDownConfig, QuickChartConfig, PluginSchemaFields, SpecializedConfigs,
+// FieldMappingPanel). The remaining code is the coordinator shell: section toggles, quick actions,
+// layout/position controls, and glue JSX. Further splitting would require passing 10+ props
+// for tightly-coupled state and would add complexity rather than reduce it.
 export function PropertyPanel() {
     const {
         state,

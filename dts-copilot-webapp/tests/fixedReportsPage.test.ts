@@ -186,7 +186,8 @@ test('report factory page exposes fixed report quick start entry', () => {
 
 	assert.match(reportFactorySource, /固定报表快捷入口/)
 	assert.match(reportFactorySource, /buildFixedReportCreationFlowPath\("reportFactory", item\.templateCode \|\| ""\)/)
-	assert.match(reportFactorySource, /固定报表创建上下文/)
+	assert.match(reportFactorySource, /基于固定报表/)
+	assert.match(reportFactorySource, /查看固定报表/)
 })
 
 test('dashboards page exposes fixed report quick start entry', () => {
@@ -195,7 +196,8 @@ test('dashboards page exposes fixed report quick start entry', () => {
 
 	assert.match(dashboardsPageSource, /固定报表快捷入口/)
 	assert.match(dashboardsPageSource, /buildFixedReportCreationFlowPath\('dashboard', item\.templateCode \|\| ''\)/)
-	assert.match(dashboardEditorSource, /固定报表创建上下文/)
+	assert.match(dashboardEditorSource, /基于固定报表/)
+	assert.match(dashboardEditorSource, /查看固定报表/)
 })
 
 test('screens page exposes fixed report quick start entry', () => {
@@ -204,6 +206,14 @@ test('screens page exposes fixed report quick start entry', () => {
 	assert.match(screensPageSource, /固定报表快捷入口/)
 	assert.match(screensPageSource, /buildFixedReportCreationFlowPath\('screen', item\.templateCode \|\| ''\)/)
 	assert.match(screensPageSource, /基于该报表生成大屏/)
+})
+
+test('fixed report run page renders result preview table when execution returns rows', () => {
+	const runPageSource = readFileSync(resolve(WEBAPP_ROOT, 'src/pages/fixed-reports/FixedReportRunPage.tsx'), 'utf8')
+
+	assert.match(runPageSource, /resultPreview\?\.databaseName/)
+	assert.match(runPageSource, /previewColumns\.length === 0 \|\| previewRows\.length === 0/)
+	assert.match(runPageSource, /<table/)
 })
 
 test('analytics API exposes fixed report catalog and execute methods', async () => {

@@ -405,6 +405,18 @@ export type FixedReportRunResponse = {
 	legacyPageTitle?: string | null;
 	legacyPagePath?: string | null;
 	parameters?: Record<string, unknown>;
+	resultPreview?: {
+		databaseId?: number | string;
+		databaseName?: string | null;
+		rowCount?: number;
+		truncated?: boolean;
+		columns?: Array<{
+			key?: string;
+			label?: string;
+			baseType?: string | null;
+		}>;
+		rows?: Array<Record<string, unknown>>;
+	} | null;
 };
 
 export type ReportRunItem = {
