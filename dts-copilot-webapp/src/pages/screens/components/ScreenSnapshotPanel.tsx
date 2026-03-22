@@ -8,6 +8,7 @@
  */
 import { useState, useCallback, useEffect } from 'react';
 import { analyticsApi } from '../../../api/analyticsApi';
+import { formatTime } from '../../../shared/utils';
 
 /* ---------- types (mirror backend DTOs) ---------- */
 
@@ -44,16 +45,6 @@ interface ScreenSnapshotPanelProps {
 
 /* ---------- helpers ---------- */
 
-function formatDate(value?: string | null): string {
-    if (!value) return '-';
-    try {
-        const d = new Date(value);
-        const pad = (n: number) => String(n).padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    } catch {
-        return String(value);
-    }
-}
 
 const CRON_PRESETS = [
     { label: '每小时', value: '0 0 * * * ?' },
@@ -517,7 +508,7 @@ export function ScreenSnapshotPanel({ open, screenId, onClose }: ScreenSnapshotP
                                 }}
                             >
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>{formatDate(task.createdAt)}</span>
+                                    <span>{formatTime(task.createdAt)}</span>
                                     <span style={{
                                         fontSize: 10,
                                         padding: '1px 6px',

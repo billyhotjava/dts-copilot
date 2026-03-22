@@ -25,7 +25,29 @@ export function formatTime(ts: string | null | undefined): string {
 	if (!ts) return "-";
 	const d = new Date(ts);
 	if (Number.isNaN(d.getTime())) return ts;
-	return d.toLocaleString();
+	return d.toLocaleString("zh-CN", {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hour12: false,
+	});
+}
+
+/**
+ * Format a date (no time) for display in Chinese locale.
+ */
+export function formatDate(ts: string | null | undefined): string {
+	if (!ts) return "-";
+	const d = new Date(ts);
+	if (Number.isNaN(d.getTime())) return ts;
+	return d.toLocaleDateString("zh-CN", {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	});
 }
 
 // ---------------------------------------------------------------------------

@@ -33,7 +33,7 @@ describe("DataTable", () => {
 		// Create 5 rows with pageSize=2, should show pagination
 		const manyRows = Array.from({ length: 5 }, (_, i) => [i + 1, `项目${i + 1}`, (i + 1) * 100]);
 		render(<DataTable cols={sampleCols} rows={manyRows} pageSize={2} />);
-		expect(screen.getByText("5 rows")).toBeInTheDocument();
+		expect(screen.getByText("5 行")).toBeInTheDocument();
 		expect(screen.getByText("1 / 3")).toBeInTheDocument();
 		expect(screen.getByText("Next")).toBeInTheDocument();
 		expect(screen.getByText("Prev")).toBeInTheDocument();

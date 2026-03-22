@@ -6,6 +6,7 @@
  */
 import { useState, useMemo, useCallback } from 'react';
 import type { ScreenVersion, ScreenVersionDiff } from '../../../api/analyticsApi';
+import { formatTime } from '../../../shared/utils';
 import {
     diffScreenConfigs,
     formatDiffSummary,
@@ -39,16 +40,6 @@ function asId(value: unknown): string {
     return String(value ?? '').trim();
 }
 
-function formatDate(value?: string | null): string {
-    if (!value) return '-';
-    try {
-        const d = new Date(value);
-        const pad = (n: number) => String(n).padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    } catch {
-        return value;
-    }
-}
 
 function changeTypeBadge(ct: 'added' | 'removed' | 'modified'): { label: string; color: string; bg: string } {
     switch (ct) {
@@ -546,7 +537,7 @@ export function VersionHistoryPanel({
                                     )}
                                 </div>
                                 <div style={{ fontSize: 11, opacity: 0.6 }}>
-                                    {formatDate(version.publishedAt || version.createdAt)}
+                                    {formatTime(version.publishedAt || version.createdAt)}
                                     {version.name ? ` · ${version.name}` : ''}
                                 </div>
                                 {version.description && (
@@ -573,7 +564,7 @@ export function VersionHistoryPanel({
                         <span style={{ fontWeight: 600 }}>选中:</span>
                         <span>v{selectedVersion.versionNo ?? '?'}</span>
                         <span style={{ opacity: 0.6 }}>
-                            {formatDate(selectedVersion.publishedAt || selectedVersion.createdAt)}
+                            {formatTime(selectedVersion.publishedAt || selectedVersion.createdAt)}
                         </span>
                     </div>
 

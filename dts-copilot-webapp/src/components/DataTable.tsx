@@ -28,7 +28,7 @@ function renderCell(value: unknown): ReactNode {
 	if (typeof value === "number") {
 		return (
 			<span style={{ fontVariantNumeric: "tabular-nums" }}>
-				{value.toLocaleString()}
+				{value.toLocaleString('zh-CN')}
 			</span>
 		);
 	}
@@ -168,11 +168,11 @@ export function DataTable({ cols, rows, maxRows = 5000, pageSize = 50 }: Props) 
 				}}>
 					<div>
 						<Badge variant="default" size="sm">
-							{safeRows.length.toLocaleString()} rows
+							{safeRows.length.toLocaleString('zh-CN')} 行
 						</Badge>
 						{safeRows.length < (Array.isArray(rows) ? rows.length : 0) && (
 							<span style={{ marginLeft: "var(--spacing-xs, 4px)" }}>
-								(truncated from {(Array.isArray(rows) ? rows.length : 0).toLocaleString()})
+								（已截断，共 {(Array.isArray(rows) ? rows.length : 0).toLocaleString('zh-CN')} 行）
 							</span>
 						)}
 					</div>

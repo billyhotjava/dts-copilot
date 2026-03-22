@@ -179,16 +179,16 @@ function formatScalarNumber(n: number, compact: boolean): string {
   }
 
   if (Number.isInteger(n)) {
-    return n.toLocaleString();
+    return n.toLocaleString('zh-CN');
   }
 
   if (Math.abs(n) >= 100) {
-    return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    return n.toLocaleString('zh-CN', { maximumFractionDigits: 0 });
   }
   if (Math.abs(n) >= 1) {
-    return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
   }
-  return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  return n.toLocaleString('zh-CN', { maximumFractionDigits: 4 });
 }
 
 export default ScalarChart;
