@@ -102,9 +102,10 @@ export function getUserRoles(): string[] {
 // ── Breadcrumb ─────────────────────────────────────────────────────────
 
 const ROUTE_NAV_MAP: { path: string; section: string; nav?: string }[] = [
+	{ path: "/agent-bi", section: "nav.section.core", nav: "nav.agentReports" },
 	{ path: "/dashboards", section: "nav.section.core", nav: "nav.dashboards" },
 	{ path: "/screens", section: "nav.section.core", nav: "nav.screens" },
-	{ path: "/data", section: "nav.section.data", nav: "nav.data" },
+	{ path: "/data", section: "nav.section.data", nav: "nav.dataSources" },
 	{ path: "/models", section: "nav.section.data", nav: "nav.models" },
 	{ path: "/metrics", section: "nav.section.data", nav: "nav.metrics" },
 	{ path: "/trash", section: "nav.section.data", nav: "nav.trash" },

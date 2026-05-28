@@ -156,7 +156,53 @@
 }
 
 .copilot-chat__msg-content {
+	white-space: normal;
+}
+
+.copilot-message-text {
 	white-space: pre-wrap;
+}
+
+.copilot-message-table-wrap {
+	max-width: 100%;
+	margin: 8px 0;
+	overflow-x: auto;
+	border: 1px solid rgba(80, 158, 227, 0.32);
+	border-radius: 8px;
+	background: #fff;
+}
+
+.copilot-message-table {
+	width: 100%;
+	min-width: 320px;
+	border-collapse: separate;
+	border-spacing: 0;
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+.copilot-message-table__header-cell {
+	position: sticky;
+	top: 0;
+	padding: 8px 10px;
+	background: var(--color-brand, #509ee3);
+	color: #fff;
+	font-weight: 700;
+	text-align: left;
+	white-space: nowrap;
+}
+
+.copilot-message-table__body-cell {
+	padding: 8px 10px;
+	border-top: 1px solid rgba(80, 158, 227, 0.14);
+	background: #fff;
+	color: var(--color-text-primary, #1f2329);
+	vertical-align: top;
+}
+
+.copilot-message-table__body-cell + .copilot-message-table__body-cell,
+.copilot-message-table__header-cell + .copilot-message-table__header-cell {
+	border-left: 1px solid rgba(80, 158, 227, 0.14);
 }
 
 .copilot-chat__reasoning {
@@ -332,6 +378,45 @@
 	background: #f9fafb;
 	color: #4b5563;
 	font-size: 12px;
+}
+
+.copilot-chat__generated-report {
+	margin-top: 10px;
+	padding: 10px 12px;
+	border: 1px solid rgba(80, 158, 227, 0.24);
+	border-radius: 8px;
+	background: rgba(80, 158, 227, 0.08);
+	color: var(--color-text-primary);
+}
+
+.copilot-chat__generated-report-title {
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--color-brand, #509ee3);
+}
+
+.copilot-chat__generated-report-desc {
+	margin-top: 4px;
+	font-size: 12px;
+	color: var(--color-text-secondary);
+}
+
+.copilot-chat__generated-report-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+.copilot-chat__generated-report-meta span {
+	display: inline-flex;
+	max-width: 100%;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: var(--color-bg-primary, #fff);
+	color: #4b5563;
+	font-size: 11px;
+	overflow-wrap: anywhere;
 }
 
 /* Input area */

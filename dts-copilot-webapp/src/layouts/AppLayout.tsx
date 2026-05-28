@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Link, Navigate, Outlet, useLocation } from "react-router";
 import { analyticsApi, type CurrentUser } from "../api/analyticsApi";
 import { setCopilotSessionAccess } from "../api/copilotAuth";
@@ -8,7 +8,6 @@ import { CopilotSidebar } from "../components/copilot/CopilotSidebar";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { MobileTabBar } from "../components/nav/MobileTabBar";
 import {
-	SidebarButton,
 	SidebarDivider,
 	SidebarItem,
 	SidebarNav,
@@ -24,21 +23,9 @@ import {
 import { ThemeToggle } from "../ui/ThemeToggle/ThemeToggle";
 import { resolvePrivilegedAccess } from "./privilegedAccessPolicy";
 import {
-	AnalyzeIcon,
-	QuestionIcon,
+	AgentReportIcon,
 	DashboardIcon,
-	CollectionIcon,
 	DatabaseIcon,
-	ModelIcon,
-	MetricIcon,
-	TrashIcon,
-	SearchIcon,
-	ScreenIcon,
-	ExploreSessionIcon,
-	ReportFactoryIcon,
-	FixedReportIcon,
-	MetricLensIcon,
-	ExpertModeIcon,
 	SettingsIcon,
 	UserIcon,
 	LogoutIcon,
@@ -49,8 +36,26 @@ import {
 	getUserRoles,
 	HeaderBreadcrumb,
 } from "./AppLayout.helpers";
+import {
+	getVisibleNavigation,
+	type NavigationIconKey,
+} from "./appNavigation";
 import "./layout.css";
 
+function getNavigationIcon(icon: NavigationIconKey) {
+	switch (icon) {
+		case "agentReports":
+			return <AgentReportIcon />;
+		case "dashboards":
+			return <DashboardIcon />;
+		case "dataSources":
+			return <DatabaseIcon />;
+		case "users":
+			return <UserIcon />;
+		case "settings":
+			return <SettingsIcon />;
+	}
+}
 
 export function AppLayout() {
 	const location = useLocation();
@@ -148,6 +153,10 @@ export function AppLayout() {
 		sessionUser?.username ||
 		"";
 	const displayName = userInfo.fullName || userInfo.username || sessionUserName || "用户";
+	const navigationSections = getVisibleNavigation({
+		privileged,
+		superuser: Boolean(sessionUser?.is_superuser),
+	});
 
 	const handleLogout = async () => {
 		// Revoke session cookie via DELETE /api/session
@@ -157,10 +166,6 @@ export function AppLayout() {
 		setCopilotSessionAccess(false);
 		clearSharedUserTokens();
 		window.location.href = `${basePath}/auth/login`;
-	};
-
-	const handleExpertMode = () => {
-		window.open("/expert/", "_blank");
 	};
 
 	const Logo = (
@@ -492,125 +497,22 @@ export function AppLayout() {
 		<SidebarProvider>
 				<div className="layout">
 					<SidebarNav logo={Logo} logoCollapsed={LogoCollapsed} footer={null}>
-						{/* Core: all users see dashboards and screens */}
-						<SidebarSection title={t(locale, "nav.section.core")}>
-							<SidebarItem
-								to={APP_HOME_PATH}
-								icon={<DashboardIcon />}
-								label={t(locale, "nav.dashboards")}
-								end
-							/>
-							<SidebarItem
-								to="/screens"
-								icon={<ScreenIcon />}
-								label={t(locale, "nav.screens")}
-							/>
-						</SidebarSection>
-
-						{/* Data + Tools: privileged users only */}
-						{privileged && (
-							<>
-								<SidebarDivider />
-
-								<SidebarSection title={t(locale, "nav.section.data")}>
-									{/* 数据源管理：仅管理员 */}
-									{sessionUser?.is_superuser && (
+						{navigationSections.map((section, index) => (
+							<Fragment key={section.id}>
+								{index > 0 && <SidebarDivider />}
+								<SidebarSection title={t(locale, section.titleKey)}>
+									{section.items.map((item) => (
 										<SidebarItem
-											to="/data"
-											icon={<DatabaseIcon />}
-											label={t(locale, "nav.data")}
-											end
+											key={item.id}
+											to={item.to}
+											icon={getNavigationIcon(item.icon)}
+											label={t(locale, item.labelKey)}
+											end={item.end}
 										/>
-									)}
-									<SidebarItem
-										to="/models"
-										icon={<ModelIcon />}
-										label={t(locale, "nav.models")}
-									/>
-									<SidebarItem
-										to="/metrics"
-										icon={<MetricIcon />}
-										label={t(locale, "nav.metrics")}
-									/>
-									<SidebarItem
-										to="/trash"
-										icon={<TrashIcon />}
-										label={t(locale, "nav.trash")}
-									/>
+									))}
 								</SidebarSection>
-
-								<SidebarDivider />
-
-								<SidebarSection title={t(locale, "nav.section.tools")}>
-									<SidebarItem
-										to="/analyze"
-										icon={<AnalyzeIcon />}
-										label={t(locale, "nav.analyze")}
-									/>
-									<SidebarItem
-										to="/questions"
-										icon={<QuestionIcon />}
-										label={t(locale, "nav.questions")}
-									/>
-									<SidebarItem
-										to="/collections"
-										icon={<CollectionIcon />}
-										label={t(locale, "nav.collections")}
-										end
-									/>
-									<SidebarItem
-										to="/explore-sessions"
-										icon={<ExploreSessionIcon />}
-										label={t(locale, "nav.exploreSessions")}
-									/>
-									<SidebarItem
-										to="/report-factory"
-										icon={<ReportFactoryIcon />}
-										label={t(locale, "nav.reportFactory")}
-									/>
-									<SidebarItem
-										to="/fixed-reports"
-										icon={<FixedReportIcon />}
-										label={t(locale, "nav.fixedReports")}
-									/>
-									<SidebarItem
-										to="/metric-lens"
-										icon={<MetricLensIcon />}
-										label={t(locale, "nav.metricLens")}
-									/>
-									<SidebarItem
-										to="/search"
-										icon={<SearchIcon />}
-										label={t(locale, "nav.search")}
-									/>
-								</SidebarSection>
-
-								{/* 管理区：仅管理员可见（用户管理 + LLM/系统配置） */}
-								{sessionUser?.is_superuser && (
-									<>
-										<SidebarDivider />
-
-										<SidebarSection title={t(locale, "nav.section.admin")}>
-											<SidebarItem
-												to="/admin/users"
-												icon={<UserIcon />}
-												label={t(locale, "nav.users")}
-											/>
-											<SidebarItem
-												to="/admin/settings/copilot"
-												icon={<SettingsIcon />}
-												label={t(locale, "nav.systemSettings")}
-											/>
-											<SidebarButton
-												icon={<ExpertModeIcon />}
-												label={t(locale, "nav.expertMode")}
-												onClick={handleExpertMode}
-											/>
-										</SidebarSection>
-									</>
-								)}
-							</>
-						)}
+							</Fragment>
+						))}
 					</SidebarNav>
 
 					<main className="main">

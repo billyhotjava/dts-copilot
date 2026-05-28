@@ -1,4 +1,4 @@
-export type AnalysisDraftSurface = 'dashboard' | 'reportFactory' | 'screen'
+export type AnalysisDraftSurface = 'dashboard' | 'reportFactory'
 
 export const ANALYSIS_DRAFT_QUERY_KEY = 'analysisDraft'
 
@@ -9,8 +9,6 @@ export function buildAnalysisDraftCreationFlowPath(surface: AnalysisDraftSurface
 			return `/dashboards/new?${params.toString()}`
 		case 'reportFactory':
 			return `/report-factory?${params.toString()}`
-		case 'screen':
-			return `/screens?${params.toString()}`
 		default:
 			return `/questions/new?draft=${encodeURIComponent(String(draftId))}`
 	}

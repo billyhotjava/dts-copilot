@@ -5,6 +5,10 @@ import {
 	COPILOT_SESSION_FOCUS_EVENT,
 	type CopilotSessionFocusRequest,
 } from "./copilotSessionFocus";
+import {
+	COPILOT_PROMPT_REQUEST_EVENT,
+	type CopilotPromptRequest,
+} from "./copilotPromptRequest";
 import { canUseCopilot, resolveInitialCopilotExpanded } from "./copilotAccessPolicy";
 import "./CopilotSidebar.css";
 
@@ -90,6 +94,7 @@ export function CopilotSidebar({ hasSessionAccess = false }: Props) {
 	);
 	const [width, setWidth] = useState(getStoredWidth);
 	const [focusRequest, setFocusRequest] = useState<(CopilotSessionFocusRequest & { nonce: number }) | null>(null);
+	const [promptRequest, setPromptRequest] = useState<(CopilotPromptRequest & { nonce: number }) | null>(null);
 	const isDragging = useRef(false);
 	const startX = useRef(0);
 	const startWidth = useRef(0);
@@ -119,9 +124,18 @@ export function CopilotSidebar({ hasSessionAccess = false }: Props) {
 			setExpanded(true);
 			setFocusRequest({ ...detail, nonce: Date.now() });
 		};
+		const handlePromptRequest = (event: Event) => {
+			const customEvent = event as CustomEvent<CopilotPromptRequest>;
+			const detail = customEvent.detail;
+			if (!detail?.prompt?.trim()) return;
+			setExpanded(true);
+			setPromptRequest({ ...detail, prompt: detail.prompt.trim(), nonce: Date.now() });
+		};
 		window.addEventListener(COPILOT_SESSION_FOCUS_EVENT, handleFocusRequest as EventListener);
+		window.addEventListener(COPILOT_PROMPT_REQUEST_EVENT, handlePromptRequest as EventListener);
 		return () => {
 			window.removeEventListener(COPILOT_SESSION_FOCUS_EVENT, handleFocusRequest as EventListener);
+			window.removeEventListener(COPILOT_PROMPT_REQUEST_EVENT, handlePromptRequest as EventListener);
 		};
 	}, []);
 
@@ -190,7 +204,11 @@ export function CopilotSidebar({ hasSessionAccess = false }: Props) {
 							</button>
 						</div>
 						<div className="copilot-sidebar__body">
-							<CopilotChat hasSessionAccess={sessionAccess} focusRequest={focusRequest} />
+							<CopilotChat
+								hasSessionAccess={sessionAccess}
+								focusRequest={focusRequest}
+								promptRequest={promptRequest}
+							/>
 						</div>
 					</>
 				) : (

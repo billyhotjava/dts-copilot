@@ -15,6 +15,7 @@ const DOMAIN_META: Record<string, { role: string; icon: string }> = {
 	curing: { role: '现场养护', icon: '🌿' },
 	pendulum: { role: '初摆实施', icon: '🚧' },
 	green: { role: '绿植管理', icon: '🌱' },
+	PRS租赁: { role: 'PRS租赁报表', icon: '🌸' },
 	财务: { role: '财务', icon: '💰' },
 	采购: { role: '采购', icon: '🧾' },
 	仓库: { role: '仓库', icon: '📦' },
@@ -22,19 +23,19 @@ const DOMAIN_META: Record<string, { role: string; icon: string }> = {
 
 export const DEFAULT_WELCOME_GROUPS: WelcomeQuestionGroup[] = [
 	{
-		role: '财务',
-		icon: '💰',
-		questions: ['财务结算汇总', '财务结算列表-待收款明细', '预支申请'],
+		role: 'PRS租赁报表',
+		icon: '🌸',
+		questions: ['PRS 租赁经营总览', 'PRS 租赁报花执行看板', 'PRS 销售坏账与费用看板'],
 	},
 	{
-		role: '采购',
-		icon: '🧾',
-		questions: ['采购汇总', '采购计划明细-待处理', '配送记录-在途采购'],
+		role: 'PRS钻取明细',
+		icon: '📋',
+		questions: ['PRS 报花单明细钻取', 'PRS 变更明细钻取', 'PRS 回收明细钻取'],
 	},
 	{
-		role: '仓库',
-		icon: '📦',
-		questions: ['库存现量', '入库管理-待入库清单', '库存现量-低库存预警'],
+		role: 'Agent报表',
+		icon: '📝',
+		questions: ['从2025年5月到现在，租赁收入按月趋势怎么样', '帮我生成一张PRS租赁项目月度趋势报表', '坏账金额最高的客户和项目排行'],
 	},
 	{
 		role: '项目履约',

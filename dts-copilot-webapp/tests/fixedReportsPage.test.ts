@@ -15,7 +15,7 @@ import {
 	getFixedReportTemplateAvailability,
 	isPlaceholderFixedReport,
 } from '../src/pages/fixed-reports/fixedReportCatalogModel.ts'
-import { buildFixedReportCreationFlowPath, readSelectedFixedReportTemplate } from '../src/pages/fixed-reports/fixedReportSurfaceEntry.ts'
+import { buildFixedReportCreationFlowPath, buildFixedReportRunPath, readSelectedFixedReportTemplate } from '../src/pages/fixed-reports/fixedReportSurfaceEntry.ts'
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url))
 const WEBAPP_ROOT = resolve(TEST_DIR, '..')
@@ -171,14 +171,21 @@ test('builds creation flow paths and reads selected fixed report template from q
 		'/report-factory?fixedReportTemplate=PROC-SUPPLIER-AMOUNT-RANK',
 	)
 	assert.equal(
-		buildFixedReportCreationFlowPath('screen', 'WH-STOCK-OVERVIEW'),
-		'/screens?fixedReportTemplate=WH-STOCK-OVERVIEW',
-	)
-	assert.equal(
 		readSelectedFixedReportTemplate('?fixedReportTemplate=FIN-AR-OVERVIEW'),
 		'FIN-AR-OVERVIEW',
 	)
 	assert.equal(readSelectedFixedReportTemplate(''), null)
+})
+
+test('PRS fixed report run path opens the table-backed fixed report page', () => {
+	assert.equal(
+		buildFixedReportRunPath('PRS-FLOWERBIZ-OVERVIEW', 'screen.prs-flowerbiz-overview-v1'),
+		'/fixed-reports/PRS-FLOWERBIZ-OVERVIEW/run',
+	)
+	assert.equal(
+		buildFixedReportRunPath('FIN-AR-OVERVIEW'),
+		'/fixed-reports/FIN-AR-OVERVIEW/run',
+	)
 })
 
 test('report factory page exposes fixed report quick start entry', () => {
@@ -200,12 +207,12 @@ test('dashboards page exposes fixed report quick start entry', () => {
 	assert.match(dashboardEditorSource, /查看固定报表/)
 })
 
-test('screens page exposes fixed report quick start entry', () => {
-	const screensPageSource = readFileSync(resolve(WEBAPP_ROOT, 'src/pages/screens/ScreensPage.tsx'), 'utf8')
+test('screens center route redirects to fixed reports', () => {
+	const routesSource = readFileSync(resolve(WEBAPP_ROOT, 'src/routes.tsx'), 'utf8')
 
-	assert.match(screensPageSource, /固定报表快捷入口/)
-	assert.match(screensPageSource, /buildFixedReportCreationFlowPath\('screen', item\.templateCode \|\| ''\)/)
-	assert.match(screensPageSource, /基于该报表生成大屏/)
+	assert.match(routesSource, /function ScreensCenterRedirect/)
+	assert.match(routesSource, /<Navigate to="\/fixed-reports" replace \/>/)
+	assert.match(routesSource, /path: "\/screens", Component: ScreensCenterRedirect/)
 })
 
 test('fixed report run page renders result preview table when execution returns rows', () => {
@@ -286,9 +293,9 @@ test('analytics API exposes fixed report catalog and execute methods', async () 
 
 test('routes and navigation expose fixed report center pages', async () => {
 	const routesSource = readFileSync(resolve(WEBAPP_ROOT, 'src/routes.tsx'), 'utf8')
-	const layoutSource = readFileSync(resolve(WEBAPP_ROOT, 'src/layouts/AppLayout.tsx'), 'utf8')
+	const navigationSource = readFileSync(resolve(WEBAPP_ROOT, 'src/layouts/appNavigation.ts'), 'utf8')
 
 	assert.match(routesSource, /path:\s*"\/fixed-reports"/)
 	assert.match(routesSource, /path:\s*"\/fixed-reports\/:templateCode\/run"/)
-	assert.match(layoutSource, /to="\/fixed-reports"/)
+	assert.match(navigationSource, /"fixedReports"/)
 })

@@ -6,26 +6,52 @@ import type {
 	AiAgentChatSession,
 	AiAgentPendingAction,
 	DatabaseListItem,
-	MicroFormSchema,
 } from "../../api/analyticsApi";
-import { getCopilotApiKey, hasCopilotSessionAccess } from "../../api/copilotAuth";
-import { AuthError, analyticsApi, aiAgentChatSendStream, type CopilotStreamEvent } from "../../api/analyticsApi";
+import {
+	getCopilotApiKey,
+	hasCopilotSessionAccess,
+} from "../../api/copilotAuth";
+import {
+	analyticsApi,
+	aiAgentChatSendStream,
+	type CopilotStreamEvent,
+} from "../../api/analyticsApi";
 import { extractSqlFromMarkdown } from "../../utils/sqlExtractor";
 import { FeedbackButtons } from "./FeedbackButtons";
 import { InlineSqlPreview } from "./InlineSqlPreview";
 import { TracePanel } from "./TracePanel";
 import { VoiceInputButton } from "./VoiceInputButton";
 import { WelcomeCard } from "./WelcomeCard";
+import { CopilotMessageContent } from "./CopilotMessageContent";
+import { buildCopilotAnalysisDraftPayload } from "./copilotAnalysisDraft";
+import { attachAnalysisDraftLinksToMessages } from "./copilotAnalysisDraftLinks";
 import { canEditCopilotComposer } from "./copilotComposerState";
 import {
 	getFixedReportCandidates,
-	shouldShowFixedReportShortcut,
+	getFixedReportShortcut,
 } from "./copilotFixedReportMessage";
+import {
+	getGeneratedReportDraftNotice,
+	inferGeneratedReportSuggestedDisplay,
+	isGeneratedReportDraftMessage,
+} from "./copilotGeneratedReportMessage";
+import { resolveCopilotSqlDatabaseId } from "./copilotReportDatabase";
 import { shouldSubmitCopilotInputOnEnter } from "./copilotInputBehavior";
-import { appendReasoningDelta, appendToolProgressLine } from "./copilotReasoningState";
+import {
+	appendReasoningDelta,
+	appendToolProgressLine,
+} from "./copilotReasoningState";
 import type { CopilotSessionFocusRequest } from "./copilotSessionFocus";
+import type { CopilotPromptRequest } from "./copilotPromptRequest";
+import {
+	createCopilotPromptRequestGate,
+	resolveCopilotPromptHandoff,
+} from "./copilotPromptHandoff";
 import { shouldRestorePersistedCopilotSession } from "./copilotSessionBootstrap";
-import { createCopilotStreamWatchdog, resolveCopilotSendAction } from "./copilotStreamControl";
+import {
+	createCopilotStreamWatchdog,
+	resolveCopilotSendAction,
+} from "./copilotStreamControl";
 import { canUseCopilot } from "./copilotAccessPolicy";
 import {
 	SESSION_ID_KEY,
@@ -33,7 +59,6 @@ import {
 	STREAM_IDLE_TIMEOUT_MS,
 	STREAM_PENDING_REASONING,
 	getStoredDatasourceId,
-	MICRO_FORM_PRESETS,
 	getStoredSessionId,
 	resolveUiError,
 	toArray,
@@ -48,20 +73,24 @@ import "./CopilotChat.css";
 type CopilotSendBody = Parameters<typeof analyticsApi.aiAgentChatSend>[0];
 type FormValues = Record<string, string | number | undefined>;
 
-
 interface Props {
 	hasSessionAccess?: boolean;
 	focusRequest?: CopilotSessionFocusRequest | null;
+	promptRequest?: CopilotPromptRequest | null;
 }
 
-export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: Props) {
+export function CopilotChat({
+	hasSessionAccess = false,
+	focusRequest = null,
+	promptRequest = null,
+}: Props) {
 	const initialStoredSessionId = useRef(getStoredSessionId());
 	const copilotEnabled = canUseCopilot(
 		getCopilotApiKey(),
 		hasSessionAccess || hasCopilotSessionAccess(),
 	);
-	const [sessionId, setSessionId] = useState<string | null>(() =>
-		initialStoredSessionId.current,
+	const [sessionId, setSessionId] = useState<string | null>(
+		() => initialStoredSessionId.current,
 	);
 	const [sessions, setSessions] = useState<AiAgentChatSession[]>([]);
 	const [messages, setMessages] = useState<AiAgentChatMessage[]>([]);
@@ -72,16 +101,20 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 		useState<AiAgentPendingAction | null>(null);
 	const [approvalValues, setApprovalValues] = useState<FormValues>({});
 	const [databases, setDatabases] = useState<DatabaseListItem[]>([]);
-	const [selectedDbId, setSelectedDbId] = useState<number | null>(() => getStoredDatasourceId());
+	const [selectedDbId, setSelectedDbId] = useState<number | null>(() =>
+		getStoredDatasourceId(),
+	);
 	const [error, setError] = useState<string | null>(null);
 	const [expandedTraces, setExpandedTraces] = useState<Set<string>>(new Set());
 	const [focusNotice, setFocusNotice] = useState<string | null>(null);
 	const [focusedMessageId, setFocusedMessageId] = useState<string | null>(null);
 	const scrollRef = useRef<HTMLDivElement>(null);
+	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const activeStreamingSessionIdRef = useRef<string | null>(null);
 	const streamInFlightRef = useRef(false);
 	const streamAbortRef = useRef<AbortController | null>(null);
 	const queuedInputRef = useRef<string | null>(null);
+	const promptRequestGateRef = useRef(createCopilotPromptRequestGate());
 	const sortedMessages = useMemo(() => sortMessages(messages), [messages]);
 	const approvalSchema = useMemo(
 		() => normalizeMicroForm(pendingAction),
@@ -114,20 +147,30 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 		}
 	}, [copilotEnabled]);
 
-	const reloadMessages = useCallback(async (sid: string) => {
-		if (!copilotEnabled) {
-			setMessages([]);
-			setPendingAction(null);
-			return;
-		}
-		try {
-			const detail = await analyticsApi.getAiAgentSession(sid);
-			setMessages(sortMessages(detail.messages ?? []));
-			setPendingAction(detail.pendingAction ?? null);
-		} catch {
-			/* ignore */
-		}
-	}, [copilotEnabled]);
+	const reloadMessages = useCallback(
+		async (sid: string) => {
+			if (!copilotEnabled) {
+				setMessages([]);
+				setPendingAction(null);
+				return;
+			}
+			try {
+				const detail = await analyticsApi.getAiAgentSession(sid);
+				let nextMessages = sortMessages(detail.messages ?? []);
+				try {
+					const drafts = await analyticsApi.listAnalysisDrafts();
+					nextMessages = attachAnalysisDraftLinksToMessages(nextMessages, drafts);
+				} catch {
+					/* draft linking is best-effort */
+				}
+				setMessages(nextMessages);
+				setPendingAction(detail.pendingAction ?? null);
+			} catch {
+				/* ignore */
+			}
+		},
+		[copilotEnabled],
+	);
 
 	useEffect(() => {
 		try {
@@ -160,7 +203,9 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 				/* ignore */
 			}
 		})();
-		return () => { active = false; };
+		return () => {
+			active = false;
+		};
 	}, [copilotEnabled]);
 
 	// Persist selected datasource to sessionStorage.
@@ -184,9 +229,13 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 			const list = await reloadSessions();
 			if (!active) return;
 			const restoredSessionId = initialStoredSessionId.current;
-			if (restoredSessionId && list.some((item) => item.id === restoredSessionId)) {
+			if (
+				restoredSessionId &&
+				list.some((item) => item.id === restoredSessionId)
+			) {
 				try {
-					const detail = await analyticsApi.getAiAgentSession(restoredSessionId);
+					const detail =
+						await analyticsApi.getAiAgentSession(restoredSessionId);
 					if (!active) return;
 					if (!shouldRestorePersistedCopilotSession(detail)) {
 						setSessionId(null);
@@ -204,7 +253,11 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 					/* ignore */
 				}
 			}
-			if (sessionId && list.length > 0 && !list.some((item) => item.id === sessionId)) {
+			if (
+				sessionId &&
+				list.length > 0 &&
+				!list.some((item) => item.id === sessionId)
+			) {
 				setSessionId(null);
 			}
 		})();
@@ -225,14 +278,19 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 			setPendingAction(null);
 			return;
 		}
-		if (streamInFlightRef.current && activeStreamingSessionIdRef.current === sessionId) {
+		if (
+			streamInFlightRef.current &&
+			activeStreamingSessionIdRef.current === sessionId
+		) {
 			return;
 		}
 		void reloadMessages(sessionId);
 	}, [copilotEnabled, sessionId, reloadMessages]);
 
 	useEffect(() => {
-		setApprovalValues(buildInitialApprovalValues(pendingAction, approvalSchema, selectedDbId));
+		setApprovalValues(
+			buildInitialApprovalValues(pendingAction, approvalSchema, selectedDbId),
+		);
 	}, [pendingAction, approvalSchema]);
 
 	useEffect(() => {
@@ -242,6 +300,36 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 		setFocusedMessageId(focusRequest.messageId ?? null);
 		void reloadMessages(focusRequest.sessionId);
 	}, [focusRequest, reloadMessages]);
+
+	useEffect(() => {
+		if (!promptRequestGateRef.current.shouldConsume(promptRequest)) return;
+		const decision = resolveCopilotPromptHandoff({
+			request: promptRequest,
+			sending,
+		});
+		if (decision.mode === "ignore") return;
+		setFocusNotice(decision.notice);
+		if (decision.mode === "queue") {
+			queuedInputRef.current = decision.prompt;
+			setQueuedInput(decision.prompt);
+			setInput("");
+			setError(null);
+			abortStreaming();
+			return;
+		}
+		if (decision.mode === "submit") {
+			setInput("");
+			void handleSendText(decision.prompt);
+			return;
+		}
+		setInput(decision.prompt);
+		requestAnimationFrame(() => {
+			inputRef.current?.focus();
+			if (!inputRef.current) return;
+			inputRef.current.style.height = "auto";
+			inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 160)}px`;
+		});
+	}, [promptRequest]);
 
 	// Scroll to bottom when conversation content updates.
 	useEffect(() => {
@@ -262,10 +350,13 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 		return () => cancelAnimationFrame(frame);
 	}, [sortedMessages, focusedMessageId]);
 
-	useEffect(() => () => {
-		streamAbortRef.current?.abort();
-		streamAbortRef.current = null;
-	}, []);
+	useEffect(
+		() => () => {
+			streamAbortRef.current?.abort();
+			streamAbortRef.current = null;
+		},
+		[],
+	);
 
 	useEffect(() => {
 		if (sending || !queuedInput) return;
@@ -296,7 +387,8 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 			return;
 		}
 		const trimmed = text.trim();
-		if (!trimmed || sending) return;
+		if (!trimmed || sending || streamInFlightRef.current) return;
+		streamInFlightRef.current = true;
 		setInput("");
 		setSending(true);
 		setError(null);
@@ -319,7 +411,6 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 		};
 		const assistantId = `stream-${Date.now()}`;
 		let streamedContent = "";
-		let streamFailed = false;
 		let streamedSessionId = sessionId;
 		let sawStreamEvent = false;
 		let streamTimedOut = false;
@@ -334,155 +425,284 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 					prev.map((m) =>
 						m.id === assistantId && !m.content
 							? {
-								...m,
-								content: "本次回答因响应超时被中断，请重试。",
-								reasoningContent: m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
-							}
+									...m,
+									content: "本次回答因响应超时被中断，请重试。",
+									reasoningContent:
+										m.reasoningContent === STREAM_PENDING_REASONING
+											? undefined
+											: m.reasoningContent,
+								}
 							: m,
 					),
 				);
 			},
 		});
 
+		async function createGeneratedReportDraft(
+			event: Extract<CopilotStreamEvent, { type: "done" }>,
+		) {
+			const draftDatabaseId = resolveCopilotSqlDatabaseId({
+				selectedDatabaseId: selectedDbId,
+				databases,
+				dataSurface: event.dataSurface,
+				sql: event.generatedSql,
+				sourceRefs: event.sourceRefs,
+			});
+			if (
+				event.responseKind !== "REPORT_DRAFT" ||
+				!event.generatedSql ||
+				draftDatabaseId == null
+			) {
+				return;
+			}
+			setMessages((prev) =>
+				prev.map((m) =>
+					m.id === assistantId
+						? {
+								...m,
+								analysisDraftStatus: "saving",
+								analysisDraftError: undefined,
+							}
+						: m,
+				),
+			);
+			const suggestedDisplay =
+				event.suggestedDisplay ??
+				inferGeneratedReportSuggestedDisplay({
+					question: trimmed,
+					sql: event.generatedSql,
+				});
+			try {
+				const draft = await analyticsApi.createAnalysisDraft(
+					buildCopilotAnalysisDraftPayload({
+						question: trimmed,
+						sql: event.generatedSql,
+						databaseId: draftDatabaseId,
+						explanationText: streamedContent || undefined,
+						sessionId: streamedSessionId ?? sessionId ?? undefined,
+						messageId: assistantId,
+						suggestedDisplay,
+						responseKind: event.responseKind,
+						dataSurface: event.dataSurface,
+						qualityLevel: event.qualityLevel,
+						qualityNotes: event.qualityNotes,
+						reportCode: event.reportCode,
+					}),
+				);
+				setMessages((prev) =>
+					prev.map((m) =>
+						m.id === assistantId
+							? {
+									...m,
+									analysisDraftId: draft.id,
+									analysisDraftStatus: "saved",
+									analysisDraftError: undefined,
+								}
+							: m,
+					),
+				);
+			} catch (e) {
+				setMessages((prev) =>
+					prev.map((m) =>
+						m.id === assistantId
+							? {
+									...m,
+									analysisDraftStatus: "error",
+									analysisDraftError:
+										e instanceof Error ? e.message : "保存失败",
+								}
+							: m,
+					),
+				);
+			}
+		}
+
 		// Try SSE streaming first, fallback to sync
 		try {
-			streamInFlightRef.current = true;
 			activeStreamingSessionIdRef.current = sessionId;
 			streamAbortRef.current = abortController;
 			streamWatchdog.start();
 
 			// Add placeholder assistant message
-				setMessages((prev) => [...prev, {
+			setMessages((prev) => [
+				...prev,
+				{
 					id: assistantId,
 					sessionId: sessionId ?? "",
 					role: "assistant" as const,
 					content: "",
 					reasoningContent: STREAM_PENDING_REASONING,
 					sequenceNum: messages.length + 1,
-				}]);
+				},
+			]);
 
-			await aiAgentChatSendStream(body, (event: CopilotStreamEvent) => {
-				sawStreamEvent = true;
-				streamWatchdog.markActivity();
-				switch (event.type) {
-					case "session":
-						streamedSessionId = event.sessionId;
-						activeStreamingSessionIdRef.current = event.sessionId;
-						setSessionId(event.sessionId);
-						try { sessionStorage.setItem(SESSION_ID_KEY, event.sessionId); } catch {}
-						break;
-					case "heartbeat":
-						break;
-					case "reasoning":
-						setMessages((prev) => prev.map((m) =>
-							m.id === assistantId
-								? {
-									...m,
-									reasoningContent: appendReasoningDelta(
-										m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
-										event.content,
-									),
-								}
-								: m
-						));
-						break;
-					case "token":
-						streamedContent += event.content;
-						setMessages((prev) => prev.map((m) =>
-							m.id === assistantId
-								? {
-									...m,
-									content: streamedContent,
-									reasoningContent: m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
-								}
-								: m
-						));
-						break;
-					case "tool":
-						setMessages((prev) => prev.map((m) =>
-							m.id === assistantId
-								? {
-									...m,
-									reasoningContent: appendToolProgressLine(
-										m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
-										{
-											tool: event.tool,
-											status: event.status,
-										},
-									),
-								}
-								: m
-						));
-						break;
-					case "done":
-						setMessages((prev) => prev.map((m) =>
-							m.id === assistantId
-								? {
-									...m,
-									generatedSql: event.generatedSql,
-									templateCode: event.templateCode,
-									routedDomain: event.routedDomain,
-									targetView: event.targetView,
-									responseKind: event.responseKind,
-								}
-								: m
-						));
-						break;
-					case "error":
-						streamFailed = true;
-						setError(event.error);
-						setMessages((prev) => prev.map((m) =>
-							m.id === assistantId
-								? {
-									...m,
-									content: event.error,
-									reasoningContent: m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
-								}
-								: m
-						));
-						break;
-				}
-			}, { signal: abortController.signal });
+			await aiAgentChatSendStream(
+				body,
+				(event: CopilotStreamEvent) => {
+					sawStreamEvent = true;
+					streamWatchdog.markActivity();
+					switch (event.type) {
+						case "session":
+							streamedSessionId = event.sessionId;
+							activeStreamingSessionIdRef.current = event.sessionId;
+							setSessionId(event.sessionId);
+							try {
+								sessionStorage.setItem(SESSION_ID_KEY, event.sessionId);
+							} catch {}
+							break;
+						case "heartbeat":
+							break;
+						case "reasoning":
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantId
+										? {
+												...m,
+												reasoningContent: appendReasoningDelta(
+													m.reasoningContent === STREAM_PENDING_REASONING
+														? undefined
+														: m.reasoningContent,
+													event.content,
+												),
+											}
+										: m,
+								),
+							);
+							break;
+						case "token":
+							streamedContent += event.content;
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantId
+										? {
+												...m,
+												content: streamedContent,
+												reasoningContent:
+													m.reasoningContent === STREAM_PENDING_REASONING
+														? undefined
+														: m.reasoningContent,
+											}
+										: m,
+								),
+							);
+							break;
+						case "tool":
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantId
+										? {
+												...m,
+												reasoningContent: appendToolProgressLine(
+													m.reasoningContent === STREAM_PENDING_REASONING
+														? undefined
+														: m.reasoningContent,
+													{
+														tool: event.tool,
+														status: event.status,
+													},
+												),
+											}
+										: m,
+								),
+							);
+							break;
+						case "done":
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantId
+										? {
+												...m,
+												generatedSql: event.generatedSql,
+												templateCode: event.templateCode,
+												routedDomain: event.routedDomain,
+												targetView: event.targetView,
+												responseKind: event.responseKind,
+												suggestedDisplay: event.suggestedDisplay,
+												dataSurface: event.dataSurface,
+												qualityLevel: event.qualityLevel,
+												qualityNotes: event.qualityNotes,
+												reportCode: event.reportCode,
+												sourceRefs: event.sourceRefs,
+											}
+										: m,
+								),
+							);
+							void createGeneratedReportDraft(event);
+							break;
+						case "error":
+							setError(event.error);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantId
+										? {
+												...m,
+												content: event.error,
+												reasoningContent:
+													m.reasoningContent === STREAM_PENDING_REASONING
+														? undefined
+														: m.reasoningContent,
+											}
+										: m,
+								),
+							);
+							break;
+					}
+				},
+				{ signal: abortController.signal },
+			);
 			// Don't reloadMessages — streamed content (including reasoning) is
 			// already rendered.  Reloading would race with the persist and may
 			// momentarily replace the message list, causing reasoning to flash away.
 			void reloadSessions();
 		} catch (e) {
-			const aborted = e instanceof DOMException
-				? e.name === "AbortError"
-				: e instanceof Error && e.name === "AbortError";
+			const aborted =
+				e instanceof DOMException
+					? e.name === "AbortError"
+					: e instanceof Error && e.name === "AbortError";
 			if (aborted) {
 				const interruptedForReplacement = queuedInputRef.current != null;
 				if (!streamTimedOut && !interruptedForReplacement) {
-					setMessages((prev) => prev.map((m) =>
-						m.id === assistantId && !m.content
-							? {
-								...m,
-								content: "已停止本次回答生成。",
-								reasoningContent: m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
-							}
-							: m
-					));
+					setMessages((prev) =>
+						prev.map((m) =>
+							m.id === assistantId && !m.content
+								? {
+										...m,
+										content: "已停止本次回答生成。",
+										reasoningContent:
+											m.reasoningContent === STREAM_PENDING_REASONING
+												? undefined
+												: m.reasoningContent,
+									}
+								: m,
+						),
+					);
 				}
 				return;
 			}
 			if (sawStreamEvent) {
 				setError(resolveUiError(e, "流式响应中断，请重试。"));
-				setMessages((prev) => prev.map((m) =>
-					m.id === assistantId && !m.content
-						? {
-							...m,
-							content: "流式响应中断，请重试。",
-							reasoningContent: m.reasoningContent === STREAM_PENDING_REASONING ? undefined : m.reasoningContent,
-						}
-						: m
-				));
+				setMessages((prev) =>
+					prev.map((m) =>
+						m.id === assistantId && !m.content
+							? {
+									...m,
+									content: "流式响应中断，请重试。",
+									reasoningContent:
+										m.reasoningContent === STREAM_PENDING_REASONING
+											? undefined
+											: m.reasoningContent,
+								}
+							: m,
+					),
+				);
 				return;
 			}
 			// Fallback to synchronous API
 			try {
 				setMessages((prev) => prev.filter((m) => !m.id.startsWith("stream-")));
-				const res = (await analyticsApi.aiAgentChatSend(body)) as AiAgentChatResponse;
+				const res = (await analyticsApi.aiAgentChatSend(
+					body,
+				)) as AiAgentChatResponse;
 				if (res.sessionId) {
 					setSessionId(res.sessionId);
 					await reloadMessages(res.sessionId);
@@ -493,11 +713,11 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 				void reloadSessions();
 			} catch (e) {
 				setError(resolveUiError(e, "发送失败"));
-				}
-			} finally {
-				streamWatchdog.stop();
-				streamAbortRef.current = null;
-				streamInFlightRef.current = false;
+			}
+		} finally {
+			streamWatchdog.stop();
+			streamAbortRef.current = null;
+			streamInFlightRef.current = false;
 			activeStreamingSessionIdRef.current = null;
 			setSending(false);
 		}
@@ -534,7 +754,8 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 				const payload: Record<string, unknown> = {};
 				for (const field of approvalSchema.fields) {
 					const raw = approvalValues[field.key];
-					const missing = raw == null || (typeof raw === "string" && raw.trim().length === 0);
+					const missing =
+						raw == null || (typeof raw === "string" && raw.trim().length === 0);
 					if (missing) {
 						if (field.required) {
 							setError(`缺少参数: ${field.label}`);
@@ -559,7 +780,11 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 					if (confRaw.length > 0) {
 						try {
 							const parsed = JSON.parse(confRaw);
-							if (parsed == null || Array.isArray(parsed) || typeof parsed !== "object") {
+							if (
+								parsed == null ||
+								Array.isArray(parsed) ||
+								typeof parsed !== "object"
+							) {
 								setError("运行参数必须是 JSON 对象");
 								setSending(false);
 								return;
@@ -575,7 +800,11 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 				formData = Object.keys(payload).length > 0 ? payload : undefined;
 			}
 
-			await analyticsApi.aiAgentChatApprove(sessionId, pendingAction.actionId, formData);
+			await analyticsApi.aiAgentChatApprove(
+				sessionId,
+				pendingAction.actionId,
+				formData,
+			);
 			setPendingAction(null);
 			await reloadMessages(sessionId);
 			await reloadSessions();
@@ -616,7 +845,8 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 		try {
 			await analyticsApi.deleteAiAgentSession(sessionId);
 			const list = await reloadSessions();
-			const nextSessionId = list.find((item) => item.id !== sessionId)?.id ?? null;
+			const nextSessionId =
+				list.find((item) => item.id !== sessionId)?.id ?? null;
 			setSessionId(nextSessionId);
 			if (nextSessionId) {
 				await reloadMessages(nextSessionId);
@@ -704,7 +934,8 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 					>
 						{databases.map((db) => (
 							<option key={db.id} value={db.id}>
-								{db.name ?? `DB #${db.id}`}{db.engine ? ` (${db.engine})` : ""}
+								{db.name ?? `DB #${db.id}`}
+								{db.engine ? ` (${db.engine})` : ""}
 							</option>
 						))}
 					</select>
@@ -719,68 +950,101 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 					<WelcomeCard onQuestionClick={(q) => void handleSendText(q)} />
 				) : null}
 				{focusNotice ? (
-					<div className="copilot-chat__notice copilot-chat__notice--focus">{focusNotice}</div>
+					<div className="copilot-chat__notice copilot-chat__notice--focus">
+						{focusNotice}
+					</div>
 				) : null}
 				{sortedMessages
 					.filter((m) => m.role === "user" || m.role === "assistant")
-						.map((msg) => {
-							// For assistant messages, collect preceding tool calls
+					.map((msg) => {
+						// For assistant messages, collect preceding tool calls
 						const toolMsgs =
 							msg.role === "assistant"
 								? getToolMessagesForAssistant(sortedMessages, msg)
 								: [];
 						const hasTrace = toolMsgs.length > 0;
 						const traceExpanded = expandedTraces.has(msg.id);
-							const extractedSql = msg.role === "assistant"
-								? (msg.generatedSql ?? extractSqlFromMarkdown(msg.content ?? ""))
+						const extractedSql =
+							msg.role === "assistant"
+								? (msg.generatedSql ??
+									extractSqlFromMarkdown(msg.content ?? ""))
 								: null;
-							const sourceQuestion =
-								msg.role === "assistant"
-									? getUserQuestionForAssistant(sortedMessages, msg)
-									: null;
-							const fixedReportCandidates = getFixedReportCandidates(msg);
-								return (
-								<div
-									key={msg.id}
-									className={`copilot-chat__msg copilot-chat__msg--${msg.role}${msg.id === focusedMessageId ? " copilot-chat__msg--focused" : ""}`}
-									data-copilot-message-id={msg.id}
-								>
-									<div className="copilot-chat__msg-content">
-										{msg.role === "assistant" &&
-										msg.id.startsWith("stream-") &&
-										!msg.content &&
-										msg.reasoningContent === STREAM_PENDING_REASONING ? (
-											<div className="copilot-chat__streaming-placeholder">正在思考…</div>
-										) : null}
-										{msg.reasoningContent &&
+						const sourceQuestion =
+							msg.role === "assistant"
+								? getUserQuestionForAssistant(sortedMessages, msg)
+								: null;
+						const fixedReportShortcut = getFixedReportShortcut(msg);
+						const fixedReportCandidates = getFixedReportCandidates(msg);
+						const generatedReportNotice = getGeneratedReportDraftNotice(msg);
+						const suggestedDisplay = extractedSql
+							? inferGeneratedReportSuggestedDisplay({
+									message: msg,
+									question: sourceQuestion,
+									sql: extractedSql,
+								})
+							: "table";
+						const previewDatabaseId = extractedSql
+							? resolveCopilotSqlDatabaseId({
+									selectedDatabaseId: selectedDbId,
+									databases,
+									dataSurface: msg.dataSurface,
+									sql: extractedSql,
+									sourceRefs: msg.sourceRefs,
+								})
+							: selectedDbId;
+						return (
+							<div
+								key={msg.id}
+								className={`copilot-chat__msg copilot-chat__msg--${msg.role}${msg.id === focusedMessageId ? " copilot-chat__msg--focused" : ""}`}
+								data-copilot-message-id={msg.id}
+							>
+								<div className="copilot-chat__msg-content">
+									{msg.role === "assistant" &&
+									msg.id.startsWith("stream-") &&
+									!msg.content &&
+									msg.reasoningContent === STREAM_PENDING_REASONING ? (
+										<div className="copilot-chat__streaming-placeholder">
+											正在思考…
+										</div>
+									) : null}
+									{msg.reasoningContent &&
 										msg.reasoningContent !== STREAM_PENDING_REASONING && (
 											<div className="copilot-chat__reasoning">
-												<div className="copilot-chat__reasoning-label">思考过程</div>
-										<div className="copilot-chat__reasoning-content">{msg.reasoningContent}</div>
+												<div className="copilot-chat__reasoning-label">
+													思考过程
+												</div>
+												<div className="copilot-chat__reasoning-content">
+													{msg.reasoningContent}
+												</div>
 											</div>
 										)}
-									{msg.content}
+									<CopilotMessageContent content={msg.content} />
 								</div>
-								{shouldShowFixedReportShortcut(msg) && (
+								{fixedReportShortcut && (
 									<div className="copilot-chat__fixed-report-action">
-											<Link
-												className="copilot-chat__fixed-report-link"
-												to={`/fixed-reports/${encodeURIComponent(msg.templateCode!)}/run`}
-											>
-											查看固定报表
+										<Link
+											className="copilot-chat__fixed-report-link"
+											to={fixedReportShortcut.href}
+										>
+											{fixedReportShortcut.label}
 										</Link>
 									</div>
 								)}
 								{fixedReportCandidates.length > 0 && (
 									<div className="copilot-chat__fixed-report-candidates">
-										<div className="copilot-chat__fixed-report-candidates-label">固定报表候选</div>
+										<div className="copilot-chat__fixed-report-candidates-label">
+											固定报表候选
+										</div>
 										<div className="copilot-chat__fixed-report-candidates-list">
 											{fixedReportCandidates.map((candidate) =>
 												candidate.templateCode ? (
 													<Link
 														key={`${msg.id}-${candidate.templateCode}`}
 														className="copilot-chat__fixed-report-link"
-														to={`/fixed-reports/${encodeURIComponent(candidate.templateCode)}/run`}
+														to={
+															candidate.href ??
+															`/fixed-reports/${encodeURIComponent(candidate.templateCode)}/run`
+														}
 													>
 														{candidate.label}
 													</Link>
@@ -795,18 +1059,44 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 											)}
 										</div>
 									</div>
-									)}
-									{extractedSql && (
-										<InlineSqlPreview
-											sql={extractedSql}
-											databaseId={selectedDbId ?? undefined}
-											question={sourceQuestion ?? undefined}
-											explanationText={msg.content ?? undefined}
-											sessionId={sessionId ?? msg.sessionId}
-											messageId={msg.id}
-											suggestedDisplay="table"
-										/>
-									)}
+								)}
+								{generatedReportNotice && (
+									<div className="copilot-chat__generated-report">
+										<div className="copilot-chat__generated-report-title">
+											{generatedReportNotice.title}
+										</div>
+										<div className="copilot-chat__generated-report-desc">
+											{generatedReportNotice.description}
+										</div>
+										{generatedReportNotice.meta.length > 0 && (
+											<div className="copilot-chat__generated-report-meta">
+												{generatedReportNotice.meta.map((item) => (
+													<span key={item}>{item}</span>
+												))}
+											</div>
+										)}
+									</div>
+								)}
+								{extractedSql && (
+									<InlineSqlPreview
+										sql={extractedSql}
+										databaseId={previewDatabaseId ?? undefined}
+										question={sourceQuestion ?? undefined}
+										explanationText={msg.content ?? undefined}
+										sessionId={sessionId ?? msg.sessionId}
+										messageId={msg.id}
+										suggestedDisplay={suggestedDisplay}
+										responseKind={msg.responseKind}
+										dataSurface={msg.dataSurface}
+										qualityLevel={msg.qualityLevel}
+										qualityNotes={msg.qualityNotes}
+										reportCode={msg.reportCode}
+										variant={
+											isGeneratedReportDraftMessage(msg) ? "report" : "sql"
+										}
+										initialDraftId={msg.analysisDraftId}
+									/>
+								)}
 								{hasTrace && (
 									<>
 										<button
@@ -824,7 +1114,8 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 											<span className="trace-toggle__icon">
 												{traceExpanded ? "\u25B2" : "\u25BC"}
 											</span>
-											{traceExpanded ? "隐藏" : "查看"}推理过程（{toolMsgs.length} 步）
+											{traceExpanded ? "隐藏" : "查看"}推理过程（
+											{toolMsgs.length} 步）
 										</button>
 										{traceExpanded && <TracePanel toolMessages={toolMsgs} />}
 									</>
@@ -834,9 +1125,13 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 										messageId={msg.id}
 										sessionId={sessionId ?? ""}
 										{...(extractedSql ? { generatedSql: extractedSql } : {})}
-										{...(msg.routedDomain ? { routedDomain: msg.routedDomain } : {})}
+										{...(msg.routedDomain
+											? { routedDomain: msg.routedDomain }
+											: {})}
 										{...(msg.targetView ? { targetView: msg.targetView } : {})}
-										{...(msg.templateCode ? { templateCode: msg.templateCode } : {})}
+										{...(msg.templateCode
+											? { templateCode: msg.templateCode }
+											: {})}
 									/>
 								)}
 							</div>
@@ -870,7 +1165,10 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 								{approvalSchema.fields.map((field) => {
 									const value = approvalValues[field.key];
 									return (
-										<label key={field.key} className="copilot-chat__approval-field">
+										<label
+											key={field.key}
+											className="copilot-chat__approval-field"
+										>
 											<span className="copilot-chat__approval-label">
 												{field.label}
 												{field.required ? " *" : ""}
@@ -901,7 +1199,10 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 												>
 													<option value="">请选择</option>
 													{(field.options ?? []).map((option) => (
-														<option key={String(option.value)} value={String(option.value)}>
+														<option
+															key={String(option.value)}
+															value={String(option.value)}
+														>
 															{option.label}
 														</option>
 													))}
@@ -966,6 +1267,7 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 					+
 				</button>
 				<textarea
+					ref={inputRef}
 					className="copilot-chat__input"
 					rows={1}
 					value={input}
@@ -974,19 +1276,21 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 						// Auto-resize: reset height then set to scrollHeight
 						const el = e.target;
 						el.style.height = "auto";
-						el.style.height = Math.min(el.scrollHeight, 160) + "px";
+						el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
 					}}
 					onKeyDown={(e) => {
 						const nativeEvent = e.nativeEvent as KeyboardEvent & {
 							isComposing?: boolean;
 							keyCode?: number;
 						};
-						if (shouldSubmitCopilotInputOnEnter({
-							key: e.key,
-							shiftKey: e.shiftKey,
-							isComposing: nativeEvent.isComposing,
-							keyCode: nativeEvent.keyCode,
-						})) {
+						if (
+							shouldSubmitCopilotInputOnEnter({
+								key: e.key,
+								shiftKey: e.shiftKey,
+								isComposing: nativeEvent.isComposing,
+								keyCode: nativeEvent.keyCode,
+							})
+						) {
 							e.preventDefault();
 							handleSend();
 							// Reset height after send
@@ -1003,23 +1307,27 @@ export function CopilotChat({ hasSessionAccess = false, focusRequest = null }: P
 					}
 					disabled={!canEditComposer}
 				/>
-					<VoiceInputButton
-						onTranscript={(text, isFinal) => {
-							if (isFinal) {
-								setInput((prev) => (prev ? prev + " " + text : text));
-							}
-						}}
-						disabled={!canEditComposer || sending}
-					/>
-					<button
-						type="button"
-						className="copilot-chat__send-btn"
-						onClick={sendAction.mode === "stop" ? handleStopStreaming : () => void handleSend()}
-						disabled={sendAction.disabled}
-					>
-						{sendAction.label}
-					</button>
-				</div>
+				<VoiceInputButton
+					onTranscript={(text, isFinal) => {
+						if (isFinal) {
+							setInput((prev) => (prev ? `${prev} ${text}` : text));
+						}
+					}}
+					disabled={!canEditComposer || sending}
+				/>
+				<button
+					type="button"
+					className="copilot-chat__send-btn"
+					onClick={
+						sendAction.mode === "stop"
+							? handleStopStreaming
+							: () => void handleSend()
+					}
+					disabled={sendAction.disabled}
+				>
+					{sendAction.label}
+				</button>
 			</div>
-		);
+		</div>
+	);
 }

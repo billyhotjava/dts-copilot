@@ -8,11 +8,6 @@ vi.mock("../../api/analyticsApi", () => ({
 	},
 }));
 
-vi.mock("./copilotAnalysisDraft", () => ({
-	buildCopilotAnalysisDraftPayload: vi.fn().mockReturnValue({}),
-	buildCopilotDraftEditorHref: vi.fn().mockReturnValue("/draft/1"),
-}));
-
 describe("InlineSqlPreview", () => {
 	const defaultProps = {
 		sql: "SELECT * FROM projects WHERE status = 'active'",

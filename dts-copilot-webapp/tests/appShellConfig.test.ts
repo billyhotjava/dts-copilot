@@ -7,12 +7,12 @@ import {
 	REMOVED_ROUTE_PREFIXES,
 } from '../src/appShellConfig.ts'
 
-test('uses dashboards as the only app home entry', () => {
-	assert.equal(APP_HOME_PATH, '/dashboards')
+test('uses Agent BI as the app home entry', () => {
+	assert.equal(APP_HOME_PATH, '/agent-bi')
 	assert.deepEqual(APP_HOME_ALIASES, ['/home', '/modern'])
 })
 
 test('removes ontology routes from core navigation and app shell', () => {
-	assert.deepEqual(CORE_NAV_PATHS, ['/dashboards', '/screens'])
+	assert.deepEqual(CORE_NAV_PATHS, ['/agent-bi', '/dashboards'])
 	assert.deepEqual(REMOVED_ROUTE_PREFIXES, ['/objects'])
 })

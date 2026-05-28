@@ -25,7 +25,7 @@ test('stream done event carries fixed report metadata', async () => {
 									'data: {"sessionId":"sess-1"}',
 									'',
 									'event: done',
-									'data: {"templateCode":"FIN-CUSTOMER-AR-RANK","responseKind":"FIXED_REPORT","routedDomain":"财务","targetView":"mart.finance.customer_ar_rank_daily"}',
+									'data: {"templateCode":"PRS-FLOWERBIZ-OVERVIEW","responseKind":"FIXED_REPORT","routedDomain":"flowerbiz","targetView":"screen.prs-flowerbiz-overview-v1"}',
 									'',
 								].join('\n'),
 							),
@@ -43,7 +43,7 @@ test('stream done event carries fixed report metadata', async () => {
 
 	try {
 		await aiAgentChatSendStream(
-			{ userMessage: '客户欠款排行', datasourceId: '7' },
+			{ userMessage: '打开PRS租赁经营总览大屏', datasourceId: '7' },
 			(event) => events.push(event),
 		)
 	} finally {
@@ -57,10 +57,10 @@ test('stream done event carries fixed report metadata', async () => {
 		{ type: 'session', sessionId: 'sess-1' },
 		{
 			type: 'done',
-			templateCode: 'FIN-CUSTOMER-AR-RANK',
+			templateCode: 'PRS-FLOWERBIZ-OVERVIEW',
 			responseKind: 'FIXED_REPORT',
-			routedDomain: '财务',
-			targetView: 'mart.finance.customer_ar_rank_daily',
+			routedDomain: 'flowerbiz',
+			targetView: 'screen.prs-flowerbiz-overview-v1',
 		},
 	])
 })
@@ -71,7 +71,7 @@ test('fixed report shortcut only shows for fixed-report response messages', () =
 		sessionId: 'sess-1',
 		role: 'assistant',
 		content: '已命中固定报表模板。',
-		templateCode: 'FIN-CUSTOMER-AR-RANK',
+		templateCode: 'PRS-FLOWERBIZ-OVERVIEW',
 		responseKind: 'FIXED_REPORT',
 	}
 	const sqlTemplateMessage: AiAgentChatMessage = {
@@ -94,18 +94,30 @@ test('fixed report candidate response extracts page-aligned report links', () =>
 		role: 'assistant',
 		responseKind: 'FIXED_REPORT_CANDIDATES',
 		content: [
-			'当前更适合先查看已沉淀的固定报表（财务），可以先试这几个：',
-			'- 财务结算汇总',
-			'- 财务结算列表待收款明细',
-			'- 开票管理',
+			'当前更适合先查看已沉淀的固定报表（flowerbiz），可以先试这几个：',
+			'- PRS 租赁经营总览',
+			'- PRS 租赁报花执行看板',
+			'- PRS 销售坏账与费用看板',
 			'',
 			'如果这些都不符合，再继续进入探索式分析。',
 		].join('\n'),
 	}
 
 	assert.deepEqual(getFixedReportCandidates(candidateMessage), [
-		{ label: '财务结算汇总', templateCode: 'FIN-AR-OVERVIEW' },
-		{ label: '财务结算列表待收款明细', templateCode: 'FIN-PENDING-RECEIPTS-DETAIL' },
-		{ label: '开票管理', templateCode: 'FIN-INVOICE-RECONCILIATION' },
+		{
+			label: 'PRS 租赁经营总览',
+			templateCode: 'PRS-FLOWERBIZ-OVERVIEW',
+			href: '/fixed-reports/PRS-FLOWERBIZ-OVERVIEW/run',
+		},
+		{
+			label: 'PRS 租赁报花执行看板',
+			templateCode: 'PRS-FLOWERBIZ-LEASE-EXECUTION',
+			href: '/fixed-reports/PRS-FLOWERBIZ-LEASE-EXECUTION/run',
+		},
+		{
+			label: 'PRS 销售坏账与费用看板',
+			templateCode: 'PRS-FLOWERBIZ-FINANCE-COST',
+			href: '/fixed-reports/PRS-FLOWERBIZ-FINANCE-COST/run',
+		},
 	])
 })

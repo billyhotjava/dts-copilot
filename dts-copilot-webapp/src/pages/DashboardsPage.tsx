@@ -119,7 +119,7 @@ export default function DashboardsPage() {
 					<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--spacing-md)", marginBottom: "var(--spacing-sm)" }}>
 						<div>
 							<div style={{ fontWeight: 600 }}>固定报表快捷入口</div>
-							<div className="muted small">复用已认证的财务、采购、仓库固定报表模板。</div>
+							<div className="muted small">复用已认证的 PRS dbt 固定报表表格模板。</div>
 						</div>
 						{fixedReports.state === "loaded" ? <Badge>{fixedReportQuickStarts.length}</Badge> : null}
 					</div>

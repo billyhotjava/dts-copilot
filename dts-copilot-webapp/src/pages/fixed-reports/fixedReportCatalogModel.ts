@@ -1,3 +1,5 @@
+import { PRS_SCREEN_SHORTCUTS } from "../../shared/prsScreenShortcuts.ts"
+
 export type FixedReportCatalogItem = {
 	id?: number | string
 	name?: string
@@ -66,6 +68,7 @@ type FixedReportAvailabilityLabels = {
 }
 
 const DOMAIN_PRIORITY = new Map([
+	["PRS租赁", 0],
 	["财务", 0],
 	["采购", 1],
 	["仓库", 2],
@@ -74,6 +77,10 @@ const DOMAIN_PRIORITY = new Map([
 	["项目点", 5],
 	["运营", 6],
 ])
+
+const TEMPLATE_PRIORITY = new Map(
+	PRS_SCREEN_SHORTCUTS.map((item, index) => [item.templateCode, index]),
+)
 
 function normalizeText(value: string | null | undefined): string {
 	return String(value ?? "").trim()
@@ -96,6 +103,10 @@ function isCertifiedTemplate(item: FixedReportCatalogItem): boolean {
 
 function sortTemplates(rows: FixedReportCatalogItem[]): FixedReportCatalogItem[] {
 	return [...rows].sort((left, right) => {
+		const priority = compareTemplatePriority(left, right)
+		if (priority !== 0) {
+			return priority
+		}
 		const leftTime = normalizeText(left.updatedAt)
 		const rightTime = normalizeText(right.updatedAt)
 		if (leftTime !== rightTime) {
@@ -106,6 +117,10 @@ function sortTemplates(rows: FixedReportCatalogItem[]): FixedReportCatalogItem[]
 }
 
 function compareBusinessPriority(left: FixedReportCatalogItem, right: FixedReportCatalogItem): number {
+	const templatePriority = compareTemplatePriority(left, right)
+	if (templatePriority !== 0) {
+		return templatePriority
+	}
 	const leftDomain = normalizeText(left.domain)
 	const rightDomain = normalizeText(right.domain)
 	const leftPriority = DOMAIN_PRIORITY.get(leftDomain) ?? 99
@@ -119,6 +134,15 @@ function compareBusinessPriority(left: FixedReportCatalogItem, right: FixedRepor
 		return rightTime.localeCompare(leftTime)
 	}
 	return normalizeText(left.templateCode).localeCompare(normalizeText(right.templateCode))
+}
+
+function compareTemplatePriority(left: FixedReportCatalogItem, right: FixedReportCatalogItem): number {
+	const leftPriority = TEMPLATE_PRIORITY.get(normalizeText(left.templateCode)) ?? 999
+	const rightPriority = TEMPLATE_PRIORITY.get(normalizeText(right.templateCode)) ?? 999
+	if (leftPriority !== rightPriority) {
+		return leftPriority - rightPriority
+	}
+	return 0
 }
 
 function matchesDomain(row: FixedReportCatalogItem, domain: string): boolean {
@@ -139,6 +163,16 @@ export function buildFixedReportLegacyPageHref(path?: string | null): string | n
 	}
 	const routePath = normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`
 	return `https://app.xycyl.com/#${routePath}`
+}
+
+export function buildFixedReportOpenPath(item?: FixedReportCatalogItem | null): string {
+	const templateCode = normalizeText(item?.templateCode)
+	return `/fixed-reports/${encodeURIComponent(templateCode)}/run`
+}
+
+export function isScreenBackedFixedReport(item?: FixedReportCatalogItem | null): boolean {
+	void item
+	return false
 }
 
 export function getFixedReportTemplateAvailability(

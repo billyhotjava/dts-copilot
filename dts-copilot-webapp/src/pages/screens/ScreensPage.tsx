@@ -1,10 +1,15 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { analyticsApi, type AnalysisDraftDetail, type FixedReportCatalogItem, ScreenListItem, type ScreenAiGenerationResponse } from '../../api/analyticsApi';
+import { analyticsApi, type AnalysisDraftDetail, type FixedReportCatalogItem, type ScreenListItem, type ScreenAiGenerationResponse } from '../../api/analyticsApi';
 import { AnalysisProvenancePanel } from '../../components/analysis/AnalysisProvenancePanel';
 import { writeTextToClipboard } from '../../hooks/clipboard';
+import {
+    readPrsScreenRequest,
+    resolvePrsScreenFromList,
+    resolvePrsScreenRequestLabel,
+} from '../../shared/prsScreenShortcuts';
 import { buildFixedReportQuickStartItems } from '../fixed-reports/fixedReportCatalogModel';
-import { buildFixedReportCreationFlowPath, buildFixedReportRunPath, readSelectedFixedReportTemplate } from '../fixed-reports/fixedReportSurfaceEntry';
+import { buildFixedReportRunPath, readSelectedFixedReportTemplate } from '../fixed-reports/fixedReportSurfaceEntry';
 import { readSelectedAnalysisDraft } from '../analysisDraftSurfaceEntry';
 import { appendAnalysisAssetProvenance } from '../analysisAssetProvenanceEntry';
 import { buildAnalysisDraftScreenPrompt } from '../analysisDraftReuseModel';
@@ -83,6 +88,34 @@ export default function ScreensPage() {
         }
     });
     const searchInputRef = useRef<HTMLInputElement | null>(null);
+    const prsScreenRequest = useMemo(() => readPrsScreenRequest(location.search), [location.search]);
+    const requestedPrsScreenLabel = useMemo(
+        () => resolvePrsScreenRequestLabel(prsScreenRequest),
+        [prsScreenRequest],
+    );
+    const requestedPrsScreen = useMemo(
+        () => resolvePrsScreenFromList(screens, prsScreenRequest),
+        [prsScreenRequest, screens],
+    );
+
+    useEffect(() => {
+        if (!prsScreenRequest) {
+            return;
+        }
+        const nextKeyword = (requestedPrsScreen?.name || requestedPrsScreenLabel).trim();
+        if (nextKeyword && searchKeyword !== nextKeyword) {
+            setSearchKeyword(nextKeyword);
+        }
+        if (publishFilter !== 'all') {
+            setPublishFilter('all');
+        }
+    }, [
+        prsScreenRequest,
+        publishFilter,
+        requestedPrsScreen?.name,
+        requestedPrsScreenLabel,
+        searchKeyword,
+    ]);
 
     useEffect(() => {
         if (activeCardMenuId === null) {
@@ -294,21 +327,6 @@ export default function ScreensPage() {
         setAiRefineMode('apply');
         setAiResult(null);
         setAiContextHistory([`分析草稿上下文: ${subject}`]);
-        setShowAiGenerator(true);
-    };
-
-    const handleOpenFixedReportAiGenerator = () => {
-        if (!selectedFixedReport) {
-            handleOpenAiGenerator();
-            return;
-        }
-        const reportName = selectedFixedReport.name || selectedFixedReport.templateCode || '固定报表';
-        const domain = selectedFixedReport.domain || '业务';
-        setAiPrompt(`基于固定报表“${reportName}”生成一张${domain}大屏，包含核心指标、趋势图和明细列表，适合运营查看。`);
-        setAiRefinePrompt('改成三列布局，增加筛选区和环比/同比辅助信息，适合领导汇报展示');
-        setAiRefineMode('apply');
-        setAiResult(null);
-        setAiContextHistory([`固定报表上下文: ${reportName}`]);
         setShowAiGenerator(true);
     };
 
@@ -610,12 +628,49 @@ export default function ScreensPage() {
                                 <Link to={buildFixedReportRunPath(selectedFixedReport.templateCode || '')} className="primary-btn" style={{ textDecoration: 'none' }}>
                                     查看固定报表
                                 </Link>
-                                <button className="primary-btn" type="button" onClick={handleOpenFixedReportAiGenerator}>
-                                    基于该报表生成大屏
-                                </button>
                             </>
                         }
                     />
+                ) : null}
+                {prsScreenRequest ? (
+                    <div
+                        style={{
+                            marginBottom: 16,
+                            padding: 16,
+                            borderRadius: 12,
+                            border: '1px solid var(--color-primary, #1677ff)',
+                            background: 'color-mix(in srgb, var(--color-primary, #1677ff) 8%, var(--color-bg-card))',
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                            <div>
+                                <div style={{ fontWeight: 600 }}>Copilot 已定位大屏</div>
+                                <div className="muted small">
+                                    {requestedPrsScreen
+                                        ? `已匹配 “${requestedPrsScreen.name || requestedPrsScreenLabel || requestedPrsScreen.id}”。`
+                                        : `未找到 “${requestedPrsScreenLabel || prsScreenRequest.slug || '目标大屏'}”，已按名称筛选列表。`}
+                                </div>
+                            </div>
+                            {requestedPrsScreen ? (
+                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                    <button
+                                        type="button"
+                                        className="primary-btn"
+                                        onClick={() => handlePreview(requestedPrsScreen.id)}
+                                    >
+                                        预览大屏
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="screens-toolbar-reset"
+                                        onClick={() => handleEdit(requestedPrsScreen.id)}
+                                    >
+                                        编辑
+                                    </button>
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
                 ) : null}
                 <div
                     style={{
@@ -629,7 +684,7 @@ export default function ScreensPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                         <div>
                             <div style={{ fontWeight: 600 }}>固定报表快捷入口</div>
-                            <div className="muted small">可直接跳转到财务、采购、仓库固定报表运行页。</div>
+                            <div className="muted small">固定报表以表格方式查看；可视化大屏请在 BI 中使用。</div>
                         </div>
                         <span className="screen-status-tag draft">{fixedReportQuickStarts.length}</span>
                     </div>
@@ -642,7 +697,7 @@ export default function ScreensPage() {
                             {fixedReportQuickStarts.map((item) => (
                                 <Link
                                     key={item.templateCode || item.name}
-                                    to={buildFixedReportCreationFlowPath('screen', item.templateCode || '')}
+                                    to={buildFixedReportRunPath(item.templateCode || '')}
                                     className="screen-card-link"
                                     style={{
                                         display: 'inline-flex',

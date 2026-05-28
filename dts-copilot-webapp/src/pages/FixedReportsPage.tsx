@@ -5,6 +5,7 @@ import { ErrorNotice } from "../components/ErrorNotice"
 import { EmptyState } from "../components/EmptyState"
 import { PageContainer, PageHeader } from "../components/PageContainer/PageContainer"
 import {
+	buildFixedReportOpenPath,
 	buildFixedReportDomainTabs,
 	filterFixedReportTemplates,
 	getFixedReportTemplateAvailability,
@@ -90,6 +91,8 @@ export default function FixedReportsPage() {
 									backedLabel: t(locale, "fixedReports.backed"),
 									placeholderLabel: t(locale, "fixedReports.placeholder"),
 								})
+								const openPath = buildFixedReportOpenPath(report)
+								const openLabel = t(locale, "fixedReports.run")
 								return (
 									<Card key={report.templateCode ?? String(report.id)} variant="hoverable">
 										<CardBody>
@@ -117,9 +120,9 @@ export default function FixedReportsPage() {
 										<div style={{ marginTop: "var(--spacing-md)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--spacing-sm)" }}>
 											<div className="small muted">{report.templateCode ?? "-"}</div>
 											{availability.canRun ? (
-												<Link to={`/fixed-reports/${encodeURIComponent(report.templateCode ?? "")}/run`}>
+												<Link to={openPath}>
 													<Button variant="primary" size="sm">
-														{t(locale, "fixedReports.run")}
+														{openLabel}
 													</Button>
 												</Link>
 											) : (

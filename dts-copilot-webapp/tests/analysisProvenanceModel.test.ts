@@ -96,7 +96,7 @@ test('builds fixed-report provenance with legacy page hint', () => {
 
 	assert.equal(model.heading, '固定报表创建上下文')
 	assert.equal(model.title, '采购汇总')
-	assert.match(model.summary, /生成关联大屏草稿/)
+	assert.match(model.summary, /表格运行页/)
 	assert.deepEqual(model.badges.map((item) => item.label), ['固定报表', '现网页面可追溯'])
 	assert.deepEqual(model.details.map((item) => item.label), ['模板编码', '现网页面'])
 })

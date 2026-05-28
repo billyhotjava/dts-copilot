@@ -74,6 +74,12 @@ export function normalizeLegacyAiChatSessionDetail(payload: unknown) {
 			routedDomain?: string
 			targetView?: string
 			templateCode?: string
+			dataSurface?: string
+			qualityLevel?: string
+			qualityNotes?: string
+			suggestedDisplay?: string
+			reportCode?: string
+			sourceRefs?: string
 			createdAt?: string
 		} = {
 			id: toStringId(message.id),
@@ -87,6 +93,12 @@ export function normalizeLegacyAiChatSessionDetail(payload: unknown) {
 		const routedDomain = pickString(message, ['routedDomain'])
 		const targetView = pickString(message, ['targetView'])
 		const templateCode = pickString(message, ['templateCode'])
+		const dataSurface = pickString(message, ['dataSurface'])
+		const qualityLevel = pickString(message, ['qualityLevel'])
+		const qualityNotes = pickString(message, ['qualityNotes'])
+		const suggestedDisplay = pickString(message, ['suggestedDisplay'])
+		const reportCode = pickString(message, ['reportCode'])
+		const sourceRefs = pickString(message, ['sourceRefs'])
 		const createdAt = pickString(message, ['createdAt'])
 		if (content) normalized.content = content
 		if (reasoningContent) normalized.reasoningContent = reasoningContent
@@ -95,6 +107,12 @@ export function normalizeLegacyAiChatSessionDetail(payload: unknown) {
 		if (routedDomain) normalized.routedDomain = routedDomain
 		if (targetView) normalized.targetView = targetView
 		if (templateCode) normalized.templateCode = templateCode
+		if (dataSurface) normalized.dataSurface = dataSurface
+		if (qualityLevel) normalized.qualityLevel = qualityLevel
+		if (qualityNotes) normalized.qualityNotes = qualityNotes
+		if (suggestedDisplay) normalized.suggestedDisplay = suggestedDisplay
+		if (reportCode) normalized.reportCode = reportCode
+		if (sourceRefs) normalized.sourceRefs = sourceRefs
 		if (createdAt) normalized.createdAt = createdAt
 		return normalized
 	})

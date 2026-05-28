@@ -1,7 +1,28 @@
 import { NavLink } from "react-router";
-import { APP_HOME_PATH } from "../../appShellConfig";
 import { getEffectiveLocale, t } from "../../i18n";
+import { MOBILE_NAV_ITEMS, type NavigationIconKey } from "../../layouts/appNavigation";
 import "./MobileTabBar.css";
+
+const AgentReportIcon = () => (
+	<svg
+		width="20"
+		height="20"
+		role="img"
+		aria-label="agent reports"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
+		<path d="M6 3h8l4 4v14H6z" />
+		<path d="M14 3v5h5" />
+		<path d="M9 13h6" />
+		<path d="M9 17h4" />
+		<path d="M19 11l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z" />
+	</svg>
+);
 
 const DashboardIcon = () => (
 	<svg
@@ -28,24 +49,6 @@ const DashboardIcon = () => (
 	</svg>
 );
 
-const MetricsIcon = () => (
-	<svg
-		width="20"
-		height="20"
-		role="img"
-		aria-label="metrics"
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-	>
-		<path d="M3 3v18h18" />
-		<path d="m19 9-5 5-4-4-3 3" />
-	</svg>
-);
-
 const DataIcon = () => (
 	<svg
 		width="20"
@@ -65,91 +68,26 @@ const DataIcon = () => (
 	</svg>
 );
 
-const MetricsAlertIcon = () => (
-	<svg
-		width="20"
-		height="20"
-		role="img"
-		aria-label="metrics"
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-	>
-		<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-		<path d="M12 9v4" />
-		<path d="M12 17h.01" />
-	</svg>
-);
-
-const MoreIcon = () => (
-	<svg
-		width="20"
-		height="20"
-		role="img"
-		aria-label="more"
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-	>
-		<circle cx="12" cy="12" r="1" />
-		<circle cx="19" cy="12" r="1" />
-		<circle cx="5" cy="12" r="1" />
-	</svg>
-);
-
-const ScreenIcon = () => (
-	<svg
-		width="20"
-		height="20"
-		role="img"
-		aria-label="screen"
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-	>
-		<rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-		<path d="M8 21h8" />
-		<path d="M12 17v4" />
-	</svg>
-);
-
-const tabs = [
-	{ to: APP_HOME_PATH, icon: <DashboardIcon />, labelKey: "nav.dashboards" as const, end: true },
-	{
-		to: "/data",
-		icon: <DataIcon />,
-		labelKey: "nav.data" as const,
-		end: false,
-	},
-	{
-		to: "/metrics",
-		icon: <MetricsIcon />,
-		labelKey: "nav.metrics" as const,
-		end: false,
-	},
-	{
-		to: "/screens",
-		icon: <ScreenIcon />,
-		labelKey: "nav.screens" as const,
-		end: false,
-	},
-];
+function getMobileIcon(icon: NavigationIconKey) {
+	switch (icon) {
+		case "agentReports":
+			return <AgentReportIcon />;
+		case "dataSources":
+			return <DataIcon />;
+		case "dashboards":
+			return <DashboardIcon />;
+		case "users":
+		case "settings":
+			return <DashboardIcon />;
+	}
+}
 
 export function MobileTabBar() {
 	const locale = getEffectiveLocale();
 
 	return (
 		<nav className="mobile-tab-bar">
-			{tabs.map((tab) => (
+			{MOBILE_NAV_ITEMS.map((tab) => (
 				<NavLink
 					key={tab.to}
 					to={tab.to}
@@ -158,7 +96,7 @@ export function MobileTabBar() {
 						`mobile-tab-bar__item ${isActive ? "mobile-tab-bar__item--active" : ""}`
 					}
 				>
-					<span className="mobile-tab-bar__icon">{tab.icon}</span>
+					<span className="mobile-tab-bar__icon">{getMobileIcon(tab.icon)}</span>
 					<span className="mobile-tab-bar__label">
 						{t(locale, tab.labelKey)}
 					</span>

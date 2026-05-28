@@ -1,9 +1,16 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CardQueryResponse } from "../../api/analyticsApi";
 import { analyticsApi } from "../../api/analyticsApi";
 import { Button } from "../../ui/Button/Button";
 import { DataTable } from "../DataTable";
-import { buildCopilotAnalysisDraftPayload, buildCopilotDraftEditorHref } from "./copilotAnalysisDraft";
+import {
+	buildCopilotAnalysisDraftPayload,
+	buildCopilotDraftEditorHref,
+} from "./copilotAnalysisDraft";
+import {
+	resolveInlineSqlPreviewPresentation,
+	type InlineSqlPreviewVariant,
+} from "./inlineSqlPreviewPresentation";
 import "./InlineSqlPreview.css";
 
 interface Props {
@@ -14,6 +21,13 @@ interface Props {
 	sessionId?: string;
 	messageId?: string;
 	suggestedDisplay?: string;
+	responseKind?: string;
+	dataSurface?: string;
+	qualityLevel?: string;
+	qualityNotes?: string[] | string;
+	reportCode?: string;
+	variant?: InlineSqlPreviewVariant;
+	initialDraftId?: number | string | null;
 }
 
 type RunState =
@@ -30,18 +44,59 @@ export function InlineSqlPreview({
 	sessionId,
 	messageId,
 	suggestedDisplay,
+	responseKind,
+	dataSurface,
+	qualityLevel,
+	qualityNotes,
+	reportCode,
+	variant = "sql",
+	initialDraftId = null,
 }: Props) {
+	const normalizedInitialDraftId = useMemo(() => {
+		if (initialDraftId == null || initialDraftId === "") {
+			return null;
+		}
+		const parsed = Number(initialDraftId);
+		return Number.isFinite(parsed) ? parsed : null;
+	}, [initialDraftId]);
 	const [editing, setEditing] = useState(false);
 	const [editableSql, setEditableSql] = useState(sql);
 	const [runState, setRunState] = useState<RunState>({ status: "idle" });
 	const [copied, setCopied] = useState(false);
-	const [draftId, setDraftId] = useState<number | null>(null);
+	const [draftId, setDraftId] = useState<number | null>(
+		normalizedInitialDraftId,
+	);
 	const [draftBusy, setDraftBusy] = useState(false);
 	const [draftError, setDraftError] = useState<string | null>(null);
-	const [draftSaved, setDraftSaved] = useState(false);
+	const [draftSaved, setDraftSaved] = useState(
+		normalizedInitialDraftId != null,
+	);
+	const presentation = useMemo(
+		() =>
+			resolveInlineSqlPreviewPresentation({
+				variant,
+				suggestedDisplay,
+				dataSurface,
+				qualityLevel,
+				reportCode,
+			}),
+		[variant, suggestedDisplay, dataSurface, qualityLevel, reportCode],
+	);
+	const [sqlVisible, setSqlVisible] = useState(
+		presentation.sqlVisibleByDefault,
+	);
 
 	const currentSql = editing ? editableSql : sql;
-	const effectiveQuestion = (question?.trim() || "Copilot SQL 草稿");
+	const effectiveQuestion = question?.trim() || "Copilot SQL 草稿";
+	const isReportDraft = variant === "report";
+
+	useEffect(() => {
+		if (normalizedInitialDraftId == null || draftId != null) {
+			return;
+		}
+		setDraftId(normalizedInitialDraftId);
+		setDraftSaved(true);
+	}, [normalizedInitialDraftId, draftId]);
 
 	async function handleRun() {
 		if (!databaseId || !currentSql.trim()) return;
@@ -83,6 +138,11 @@ export function InlineSqlPreview({
 					sessionId,
 					messageId,
 					suggestedDisplay,
+					responseKind,
+					dataSurface,
+					qualityLevel,
+					qualityNotes,
+					reportCode,
 				}),
 			);
 			const nextDraftId = Number(draft.id);
@@ -112,7 +172,9 @@ export function InlineSqlPreview({
 	async function handleOpenInQuestions() {
 		const nextDraftId = await ensureDraft();
 		if (nextDraftId == null) return;
-		window.location.href = buildCopilotDraftEditorHref(nextDraftId, { autorun: true });
+		window.location.href = buildCopilotDraftEditorHref(nextDraftId, {
+			autorun: true,
+		});
 	}
 
 	async function handleCreateViz() {
@@ -127,13 +189,23 @@ export function InlineSqlPreview({
 	return (
 		<div className="inline-sql-preview">
 			<div className="inline-sql-preview__header">
-				<span className="inline-sql-preview__label">生成的 SQL</span>
+				<span className="inline-sql-preview__label">{presentation.label}</span>
 				<div className="inline-sql-preview__actions">
+					{isReportDraft && !editing && (
+						<button
+							type="button"
+							className="inline-sql-preview__action-btn"
+							onClick={() => setSqlVisible((visible) => !visible)}
+						>
+							{sqlVisible ? "隐藏 SQL" : "查看 SQL"}
+						</button>
+					)}
 					<button
 						type="button"
 						className={`inline-sql-preview__action-btn${editing ? " inline-sql-preview__action-btn--active" : ""}`}
 						onClick={() => {
 							if (!editing) setEditableSql(sql);
+							if (isReportDraft) setSqlVisible(true);
 							setEditing(!editing);
 						}}
 					>
@@ -149,6 +221,14 @@ export function InlineSqlPreview({
 				</div>
 			</div>
 
+			{isReportDraft && presentation.summaryItems.length > 0 && !editing && (
+				<div className="inline-sql-preview__summary">
+					{presentation.summaryItems.map((item) => (
+						<span key={item}>{item}</span>
+					))}
+				</div>
+			)}
+
 			{editing ? (
 				<textarea
 					className="inline-sql-preview__editor"
@@ -156,11 +236,11 @@ export function InlineSqlPreview({
 					onChange={(e) => setEditableSql(e.target.value)}
 					rows={Math.min(editableSql.split("\n").length + 1, 12)}
 				/>
-			) : (
+			) : sqlVisible ? (
 				<pre className="inline-sql-preview__code">
 					<code>{sql}</code>
 				</pre>
-			)}
+			) : null}
 
 			<div className="inline-sql-preview__toolbar">
 				<Button
@@ -179,7 +259,11 @@ export function InlineSqlPreview({
 					disabled={draftBusy || !databaseId}
 					loading={draftBusy}
 				>
-					{draftSaved ? "草稿已保存" : "保存草稿"}
+					{draftSaved
+						? "草稿已保存"
+						: isReportDraft
+							? "保存报表草稿"
+							: "保存草稿"}
 				</Button>
 				<Button
 					variant="secondary"
@@ -187,16 +271,25 @@ export function InlineSqlPreview({
 					onClick={() => void handleOpenInQuestions()}
 					disabled={draftBusy || !databaseId}
 				>
-					{draftSaved ? "在查询中继续编辑" : "在查询中打开"}
+					{draftSaved
+						? "在查询中继续编辑"
+						: isReportDraft
+							? "打开报表草稿"
+							: "在查询中打开"}
 				</Button>
-				<Button variant="secondary" size="sm" onClick={handleCreateViz}>
-					创建可视化
+				<Button
+					variant="secondary"
+					size="sm"
+					onClick={handleCreateViz}
+					disabled={draftBusy || !databaseId}
+				>
+					{isReportDraft ? "创建图表" : "创建可视化"}
 				</Button>
 			</div>
 
 			{draftSaved && draftId != null && (
 				<div className="inline-sql-preview__result-info">
-					草稿已保存，可在查询中继续编辑或创建可视化。#{draftId}
+					草稿已保存，可在查询中继续编辑；可视化请进入 BI 侧处理。#{draftId}
 				</div>
 			)}
 
@@ -209,7 +302,8 @@ export function InlineSqlPreview({
 			{runState.status === "success" && (
 				<div className="inline-sql-preview__result">
 					<div className="inline-sql-preview__result-info">
-						{runState.result.row_count ?? 0} 行结果，耗时 {runState.durationMs}ms
+						{runState.result.row_count ?? 0} 行结果，耗时 {runState.durationMs}
+						ms
 					</div>
 					<DataTable
 						cols={runState.result.data?.cols ?? []}
@@ -222,7 +316,9 @@ export function InlineSqlPreview({
 
 			{runState.status === "error" && (
 				<div className="inline-sql-preview__error">
-					<div className="inline-sql-preview__error-msg">{runState.message}</div>
+					<div className="inline-sql-preview__error-msg">
+						{runState.message}
+					</div>
 					<button
 						type="button"
 						className="inline-sql-preview__action-btn"

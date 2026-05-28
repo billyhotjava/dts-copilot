@@ -1,7 +1,9 @@
 import {
+	buildFixedReportOpenPath,
 	isPlaceholderFixedReport,
 	getFixedReportTemplateAvailability,
 	buildFixedReportParameterFields,
+	filterFixedReportTemplates,
 	type FixedReportCatalogItem,
 } from "./fixedReportCatalogModel";
 
@@ -98,5 +100,33 @@ describe("buildFixedReportParameterFields", () => {
 		});
 		const fields = buildFixedReportParameterFields(schema);
 		expect(fields[0].type).toBe("number");
+	});
+});
+
+describe("PRS fixed report screen entries", () => {
+	it("按 dts dbt 大屏清单顺序展示 PRS 固定报表", () => {
+		const templates: FixedReportCatalogItem[] = [
+			{ templateCode: "PRS-FLOWERBIZ-FINANCE-COST", domain: "PRS租赁", certificationStatus: "CERTIFIED", published: true },
+			{ templateCode: "PRS-FLOWERBIZ-OVERVIEW", domain: "PRS租赁", certificationStatus: "CERTIFIED", published: true },
+			{ templateCode: "PRS-FLOWERBIZ-DRILL-AUDIT-TRAIL", domain: "PRS租赁", certificationStatus: "CERTIFIED", published: true },
+		];
+
+		const visible = filterFixedReportTemplates(templates, "all");
+
+		expect(visible.map((item) => item.templateCode)).toEqual([
+			"PRS-FLOWERBIZ-OVERVIEW",
+			"PRS-FLOWERBIZ-FINANCE-COST",
+			"PRS-FLOWERBIZ-DRILL-AUDIT-TRAIL",
+		]);
+	});
+
+	it("PRS 固定报表入口回到表格固定报表运行页，非 PRS 继续走运行页", () => {
+		expect(buildFixedReportOpenPath({
+			templateCode: "PRS-FLOWERBIZ-OVERVIEW",
+			targetObject: "screen.prs-flowerbiz-overview-v1",
+		})).toBe("/fixed-reports/PRS-FLOWERBIZ-OVERVIEW/run");
+
+		expect(buildFixedReportOpenPath({ templateCode: "FIN-AR-OVERVIEW" }))
+			.toBe("/fixed-reports/FIN-AR-OVERVIEW/run");
 	});
 });

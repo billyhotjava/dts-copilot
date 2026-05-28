@@ -98,6 +98,11 @@ export type AnalysisDraftListItem = {
 	sql_text?: string | null;
 	explanation_text?: string | null;
 	suggested_display?: string | null;
+	response_kind?: string | null;
+	data_surface?: string | null;
+	quality_level?: string | null;
+	quality_notes?: string | null;
+	report_code?: string | null;
 	status?: string | null;
 	linked_card_id?: number | null;
 	linked_dashboard_id?: number | null;
@@ -252,6 +257,15 @@ export type AiAgentChatMessage = {
 	routedDomain?: string;
 	targetView?: string;
 	templateCode?: string;
+	suggestedDisplay?: string;
+	dataSurface?: string;
+	qualityLevel?: string;
+	qualityNotes?: string[] | string;
+	reportCode?: string;
+	sourceRefs?: string[] | string;
+	analysisDraftId?: number | string;
+	analysisDraftStatus?: "saving" | "saved" | "error";
+	analysisDraftError?: string;
 	sequenceNum?: number;
 	createdAt?: string;
 };
@@ -516,6 +530,8 @@ export type DatabaseListItem = {
 	id: number;
 	name?: string;
 	engine?: string;
+	database_role?: string;
+	databaseRole?: string;
 };
 
 export type DatabaseListResponse = {
@@ -1375,5 +1391,11 @@ export type CopilotStreamEvent =
 		routedDomain?: string;
 		targetView?: string;
 		responseKind?: string;
+		suggestedDisplay?: string;
+		dataSurface?: string;
+		qualityLevel?: string;
+		qualityNotes?: string[] | string;
+		reportCode?: string;
+		sourceRefs?: string[] | string;
 	}
 	| { type: "error"; error: string };

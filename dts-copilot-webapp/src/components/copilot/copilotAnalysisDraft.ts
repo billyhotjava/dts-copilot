@@ -6,6 +6,11 @@ export type CopilotAnalysisDraftPayloadInput = {
 	sessionId?: string | null
 	messageId?: string | null
 	suggestedDisplay?: string | null
+	responseKind?: string | null
+	dataSurface?: string | null
+	qualityLevel?: string | null
+	qualityNotes?: string[] | string | null
+	reportCode?: string | null
 }
 
 export function buildCopilotAnalysisDraftPayload(input: CopilotAnalysisDraftPayloadInput) {
@@ -19,6 +24,11 @@ export function buildCopilotAnalysisDraftPayload(input: CopilotAnalysisDraftPayl
 		sql_text: input.sql,
 		explanation_text: input.explanationText ?? undefined,
 		suggested_display: input.suggestedDisplay ?? 'table',
+		response_kind: input.responseKind ?? undefined,
+		data_surface: input.dataSurface ?? undefined,
+		quality_level: input.qualityLevel ?? undefined,
+		quality_notes: input.qualityNotes ?? undefined,
+		report_code: input.reportCode ?? undefined,
 	}
 }
 

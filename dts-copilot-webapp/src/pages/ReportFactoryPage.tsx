@@ -351,7 +351,6 @@ export default function ReportFactoryPage() {
 
 	const sourceTypeOptions = [
 		{ value: "session", label: "会话(session)" },
-		{ value: "screen", label: "大屏(screen)" },
 	];
 
 	const formatOptions = [
@@ -524,7 +523,7 @@ export default function ReportFactoryPage() {
 									label="来源ID"
 									value={sourceId}
 									onChange={(event) => setSourceId(event.target.value)}
-									placeholder="输入 sessionId 或 screenId"
+									placeholder="输入 sessionId"
 								/>
 							</div>
 							<NativeSelect

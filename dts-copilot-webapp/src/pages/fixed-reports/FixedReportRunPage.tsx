@@ -358,7 +358,7 @@ export default function FixedReportRunPage() {
 
 /**
  * 列名英文→中文映射
- * 覆盖所有 16 个固定报表模板可能查询到的字段
+ * 覆盖历史固定报表运行页可能查询到的字段
  */
 const COLUMN_LABEL_MAP: Record<string, string> = {
 	// ========== 库存/仓库 (WH-*) ==========

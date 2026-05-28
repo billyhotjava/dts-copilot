@@ -504,9 +504,6 @@ export default function CardEditorPage() {
 							<Link to={buildAnalysisDraftCreationFlowPath("reportFactory", loadedDraft.id)} className="link">
 								进入报告工厂
 							</Link>
-							<Link to={buildAnalysisDraftCreationFlowPath("screen", loadedDraft.id)} className="link">
-								进入大屏
-							</Link>
 						</>
 					}
 				/>

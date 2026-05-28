@@ -1,8 +1,9 @@
-export type FixedReportSurface = 'dashboard' | 'reportFactory' | 'screen'
+export type FixedReportSurface = 'dashboard' | 'reportFactory'
 
 export const FIXED_REPORT_TEMPLATE_QUERY_KEY = 'fixedReportTemplate'
 
-export function buildFixedReportRunPath(templateCode: string): string {
+export function buildFixedReportRunPath(templateCode: string, targetView?: string | null): string {
+	void targetView
 	return `/fixed-reports/${encodeURIComponent(templateCode)}/run`
 }
 
@@ -13,8 +14,6 @@ export function buildFixedReportCreationFlowPath(surface: FixedReportSurface, te
 			return `/dashboards/new?${params.toString()}`
 		case 'reportFactory':
 			return `/report-factory?${params.toString()}`
-		case 'screen':
-			return `/screens?${params.toString()}`
 		default:
 			return buildFixedReportRunPath(templateCode)
 	}

@@ -127,7 +127,7 @@ function resolveAnalysisDraftSummary(surface: Exclude<AnalysisProvenanceSurface,
 		case 'reportFactory':
 			return '已从分析草稿入口带入当前页面。若草稿关联了可用会话，报告生成区会默认带入该会话来源，减少手工选择。'
 		case 'screen':
-			return '已从分析草稿入口带入当前页面，可直接基于该草稿生成大屏，并继承问题语义、说明和推荐图表类型。'
+			return '已从分析草稿入口带入当前页面。Copilot 当前仅承接表格报表，可视化请进入 BI 侧处理。'
 	}
 }
 
@@ -138,7 +138,7 @@ function resolveQueryDraftSummary(
 	if (status === 'SAVED_QUERY') {
 		return isDirty
 			? '当前已基于来源草稿转成正式查询，但内容又发生了编辑。保存时将继续按当前内容更新查询资产。'
-			: '当前草稿已转成正式查询，可返回来源对话，也可继续进入仪表盘、报告工厂或大屏。'
+			: '当前草稿已转成正式查询，可返回来源对话，也可继续进入仪表盘或报告工厂。'
 	}
 	return isDirty
 		? '当前内容已脱离原始草稿，保存时将按当前编辑内容新建正式查询。'
@@ -152,6 +152,6 @@ function resolveFixedReportSummary(surface: FixedReportOptions['surface']): stri
 		case 'reportFactory':
 			return '已从固定报表入口带入当前页面。你可以继续创建报告模板草稿，或先查看固定报表运行页。'
 		case 'screen':
-			return '已从固定报表入口带入当前页面，可直接生成关联大屏草稿或先查看固定报表运行页。'
+			return '已从固定报表入口带入当前页面。Copilot 中固定报表统一以表格运行页查看。'
 	}
 }

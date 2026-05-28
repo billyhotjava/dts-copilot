@@ -280,6 +280,12 @@ export async function aiAgentChatSendStream(
 						...(parsed.routedDomain ? { routedDomain: parsed.routedDomain } : {}),
 						...(parsed.targetView ? { targetView: parsed.targetView } : {}),
 						...(parsed.responseKind ? { responseKind: parsed.responseKind } : {}),
+						...(parsed.suggestedDisplay ? { suggestedDisplay: parsed.suggestedDisplay } : {}),
+						...(parsed.dataSurface ? { dataSurface: parsed.dataSurface } : {}),
+						...(parsed.qualityLevel ? { qualityLevel: parsed.qualityLevel } : {}),
+						...(parsed.qualityNotes ? { qualityNotes: parsed.qualityNotes } : {}),
+						...(parsed.reportCode ? { reportCode: parsed.reportCode } : {}),
+						...(parsed.sourceRefs ? { sourceRefs: parsed.sourceRefs } : {}),
 					});
 					break;
 				case "error":

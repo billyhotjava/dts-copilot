@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { createBrowserRouter, useNavigate } from "react-router";
+import { createBrowserRouter, Navigate, useNavigate } from "react-router";
 import { APP_HOME_ALIASES, APP_HOME_PATH } from "./appShellConfig";
 import { AppLayout } from "./layouts/AppLayout";
 
@@ -9,6 +9,10 @@ function ModernAliasRedirect() {
 		navigate(APP_HOME_PATH, { replace: true });
 	}, [navigate]);
 	return null;
+}
+
+function ScreensCenterRedirect() {
+	return <Navigate to="/fixed-reports" replace />;
 }
 
 const lazyComponent = (importer: () => Promise<{ default: unknown }>) => async () => {
@@ -34,6 +38,7 @@ export function createRoutes() {
 					{ path: "/", Component: ModernAliasRedirect },
 					...APP_HOME_ALIASES.map((path) => ({ path, Component: ModernAliasRedirect })),
 					// Analytics pages (unchanged)
+					{ path: "/agent-bi", lazy: lazyComponent(() => import("./pages/AgentReportsPage")) },
 					{ path: "/analyze", lazy: lazyComponent(() => import("./pages/AnalyzePage")) },
 					{ path: "/collections", lazy: lazyComponent(() => import("./pages/CollectionsPage")) },
 					{ path: "/collections/:id", lazy: lazyComponent(() => import("./pages/CollectionItemsPage")) },
@@ -61,7 +66,7 @@ export function createRoutes() {
 					{ path: "/trash", lazy: lazyComponent(() => import("./pages/TrashPage")) },
 					{ path: "/public/card/:uuid", lazy: lazyComponent(() => import("./pages/PublicCardPage")) },
 					{ path: "/public/dashboard/:uuid", lazy: lazyComponent(() => import("./pages/PublicDashboardPage")) },
-					{ path: "/screens", lazy: lazyComponent(() => import("./pages/screens/ScreensPage")) },
+					{ path: "/screens", Component: ScreensCenterRedirect },
 					{ path: "/explore-sessions", lazy: lazyComponent(() => import("./pages/ExploreSessionsPage")) },
 					{ path: "/report-factory", lazy: lazyComponent(() => import("./pages/ReportFactoryPage")) },
 					{ path: "/fixed-reports", lazy: lazyComponent(() => import("./pages/FixedReportsPage")) },
