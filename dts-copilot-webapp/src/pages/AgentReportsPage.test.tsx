@@ -20,19 +20,23 @@ function renderPage() {
 }
 
 describe("AgentReportsPage", () => {
-	it("shows report asset production and business object QA lanes", async () => {
-		renderPage();
+	it("shows one stacked entry for reports and business object QA", async () => {
+		const { container } = renderPage();
 
 		expect(
-			await screen.findByRole("heading", { name: "报表资产生产器" }),
+			await screen.findByRole("heading", { name: "报表与业务对象入口" }),
 		).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: "报表问题模板" })).toBeInTheDocument();
 		expect(
-			screen.getByRole("heading", { name: "业务对象问答器" }),
+			screen.getByRole("heading", { name: "业务对象补充问答" }),
 		).toBeInTheDocument();
+		expect(screen.queryByRole("heading", { name: "业务对象问答器" })).not.toBeInTheDocument();
 		expect(screen.getByText("报花单据状态分布")).toBeInTheDocument();
 		expect(screen.getByText("项目点状态统计")).toBeInTheDocument();
 		expect(screen.getByText("银行流水未核对")).toBeInTheDocument();
 		expect(screen.getAllByText("L0_BUSINESS_OBJECT_PROFILE")).toHaveLength(5);
+		expect(container.querySelector(".agent-reports-layout")).not.toBeInTheDocument();
+		expect(container.querySelector(".agent-reports-entry-stack")).toBeInTheDocument();
 	});
 
 	it("dispatches a business-object prompt request from the object table", async () => {

@@ -108,11 +108,45 @@ export default function AgentReportsPage() {
 				</div>
 			</section>
 
-			<div className="agent-reports-layout">
+			<section className="agent-reports-entry" aria-labelledby="agent-report-entry">
+				<div className="agent-reports-section-head">
+					<h2 id="agent-report-entry">{t(locale, "agentReports.reportProducer")}</h2>
+					<p>{t(locale, "agentReports.quickStartsDesc")}</p>
+				</div>
+				<div className="agent-reports-entry__body">
+					<div className="agent-reports-entry__strategy" aria-label={t(locale, "agentReports.scope")}>
+						<strong>{t(locale, "agentReports.scope")}</strong>
+						<span>{t(locale, "agentReports.scopeDesc")}</span>
+					</div>
+					<nav className="agent-reports-asset-strip" aria-labelledby="agent-report-assets">
+						<div className="agent-reports-asset-strip__intro">
+							<strong id="agent-report-assets">{t(locale, "agentReports.assets")}</strong>
+							<span>{t(locale, "agentReports.assetsDesc")}</span>
+						</div>
+						<div className="agent-reports-asset-list">
+							{AGENT_REPORT_SUPPORTING_ASSETS.map((asset) => (
+								<Link
+									key={asset.id}
+									to={asset.to}
+									className="agent-reports-asset-link"
+								>
+									<span>
+										<strong>{asset.title}</strong>
+										<small>{asset.description}</small>
+									</span>
+									<ArrowIcon />
+								</Link>
+							))}
+						</div>
+					</nav>
+				</div>
+			</section>
+
+			<div className="agent-reports-entry-stack">
 				<section className="agent-reports-main" aria-labelledby="agent-report-prompts">
 					<div className="agent-reports-section-head">
-						<h2 id="agent-report-prompts">{t(locale, "agentReports.reportProducer")}</h2>
-						<p>{t(locale, "agentReports.quickStartsDesc")}</p>
+						<h2 id="agent-report-prompts">{t(locale, "agentReports.quickStarts")}</h2>
+						<p>{t(locale, "agentReports.reportTemplatesDesc")}</p>
 					</div>
 					<div className="agent-reports-prompt-grid">
 						{AGENT_REPORT_QUICK_STARTS.map((item) => (
@@ -149,113 +183,73 @@ export default function AgentReportsPage() {
 							</Card>
 						))}
 					</div>
-
-					<section className="agent-reports-object-section" aria-labelledby="agent-report-business-objects">
-						<div className="agent-reports-section-head">
-							<h2 id="agent-report-business-objects">{t(locale, "agentReports.businessObjects")}</h2>
-							<p>{t(locale, "agentReports.businessObjectsDesc")}</p>
-						</div>
-						<div className="agent-reports-object-table-wrap">
-							<table className="agent-reports-object-table">
-								<thead>
-									<tr>
-										<th>业务对象</th>
-										<th>页面路径</th>
-										<th>关键字段</th>
-										<th>数据面</th>
-										<th>操作</th>
-									</tr>
-								</thead>
-								<tbody>
-									{AGENT_REPORT_BUSINESS_OBJECTS.map((item) => (
-										<tr key={item.id}>
-											<td>
-												<div className="agent-reports-object-name">
-													<span>{item.domain}</span>
-													<strong>{item.title}</strong>
-													<small>{item.objectCode}</small>
-												</div>
-											</td>
-											<td>{item.pagePath}</td>
-											<td>
-												<div className="agent-reports-field-tags">
-													{item.keyFields.slice(0, 4).map((field) => (
-														<span key={field}>{field}</span>
-													))}
-												</div>
-											</td>
-											<td>
-												<div className="agent-reports-surface">
-													<strong>{item.dataSurface}</strong>
-													<span>{item.qualityLevel}</span>
-												</div>
-											</td>
-											<td>
-												<div className="agent-reports-object-actions">
-													<Button
-														variant="primary"
-														size="sm"
-														icon={<SparkIcon />}
-														onClick={() => handleBusinessObjectPrompt(item, "run")}
-													>
-														{t(locale, "agentReports.askBusinessObject")}
-													</Button>
-													<Button
-														variant="secondary"
-														size="sm"
-														onClick={() => handleBusinessObjectPrompt(item, "edit")}
-													>
-														{t(locale, "agentReports.fillCopilot")}
-													</Button>
-												</div>
-											</td>
-										</tr>
-									))}
-								</tbody>
-							</table>
-						</div>
-					</section>
 				</section>
 
-				<aside className="agent-reports-side" aria-labelledby="agent-report-assets">
-					<Card>
-						<CardBody>
-							<div className="agent-reports-section-head agent-reports-section-head--compact">
-								<h2 id="agent-report-assets">{t(locale, "agentReports.assets")}</h2>
-								<p>{t(locale, "agentReports.assetsDesc")}</p>
-							</div>
-							<div className="agent-reports-asset-list">
-								{AGENT_REPORT_SUPPORTING_ASSETS.map((asset) => (
-									<Link
-										key={asset.id}
-										to={asset.to}
-										className="agent-reports-asset-link"
-									>
-										<span>
-											<strong>{asset.title}</strong>
-											<small>{asset.description}</small>
-										</span>
-										<ArrowIcon />
-									</Link>
+				<section className="agent-reports-object-section" aria-labelledby="agent-report-business-objects">
+					<div className="agent-reports-section-head">
+						<h2 id="agent-report-business-objects">{t(locale, "agentReports.businessObjects")}</h2>
+						<p>{t(locale, "agentReports.businessObjectsDesc")}</p>
+					</div>
+					<div className="agent-reports-object-table-wrap">
+						<table className="agent-reports-object-table">
+							<thead>
+								<tr>
+									<th>业务对象</th>
+									<th>页面路径</th>
+									<th>关键字段</th>
+									<th>数据面</th>
+									<th>操作</th>
+								</tr>
+							</thead>
+							<tbody>
+								{AGENT_REPORT_BUSINESS_OBJECTS.map((item) => (
+									<tr key={item.id}>
+										<td>
+											<div className="agent-reports-object-name">
+												<span>{item.domain}</span>
+												<strong>{item.title}</strong>
+												<small>{item.objectCode}</small>
+											</div>
+										</td>
+										<td>{item.pagePath}</td>
+										<td>
+											<div className="agent-reports-field-tags">
+												{item.keyFields.slice(0, 4).map((field) => (
+													<span key={field}>{field}</span>
+												))}
+											</div>
+										</td>
+										<td>
+											<div className="agent-reports-surface">
+												<strong>{item.dataSurface}</strong>
+												<span>{item.qualityLevel}</span>
+											</div>
+										</td>
+										<td>
+											<div className="agent-reports-object-actions">
+												<Button
+													variant="primary"
+													size="sm"
+													icon={<SparkIcon />}
+													onClick={() => handleBusinessObjectPrompt(item, "run")}
+												>
+													{t(locale, "agentReports.askBusinessObject")}
+												</Button>
+												<Button
+													variant="secondary"
+													size="sm"
+													onClick={() => handleBusinessObjectPrompt(item, "edit")}
+												>
+													{t(locale, "agentReports.fillCopilot")}
+												</Button>
+											</div>
+										</td>
+									</tr>
 								))}
-							</div>
-						</CardBody>
-					</Card>
-
-					<Card>
-						<CardBody>
-							<div className="agent-reports-section-head agent-reports-section-head--compact">
-								<h2>{t(locale, "agentReports.scope")}</h2>
-								<p>{t(locale, "agentReports.scopeDesc")}</p>
-							</div>
-							<ul className="agent-reports-scope-list">
-								<li>L2 固定报表优先命中</li>
-								<li>L1 dbt 主题表自然语言分析</li>
-								<li>L0 业务只读数据兜底校验</li>
-							</ul>
-						</CardBody>
-					</Card>
-				</aside>
+							</tbody>
+						</table>
+					</div>
+				</section>
 			</div>
 		</PageContainer>
 	);
