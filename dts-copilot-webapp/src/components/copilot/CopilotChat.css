@@ -5,6 +5,14 @@
 	min-height: 0;
 }
 
+.copilot-chat--workbench {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-bg-primary, #fff);
+	overflow: hidden;
+	min-height: min(720px, calc(100vh - 300px));
+}
+
 .copilot-chat__session-bar {
 	display: flex;
 	align-items: center;
@@ -137,6 +145,10 @@
 	word-wrap: break-word;
 }
 
+.copilot-chat--workbench .copilot-chat__msg {
+	max-width: min(780px, 88%);
+}
+
 .copilot-chat__msg--user {
 	align-self: flex-end;
 	background: var(--color-brand, #509ee3);
@@ -149,6 +161,14 @@
 	background: var(--color-bg-secondary, #f0f0f0);
 	color: var(--color-text-primary);
 	border-bottom-left-radius: 4px;
+}
+
+.copilot-chat--workbench .copilot-chat__msg--assistant {
+	align-self: stretch;
+	width: 100%;
+	max-width: none;
+	border: 1px solid var(--color-border);
+	background: color-mix(in srgb, var(--color-bg-secondary) 64%, var(--color-bg-primary));
 }
 
 .copilot-chat__msg--focused {
@@ -226,6 +246,66 @@
 
 .copilot-chat__reasoning-content {
 	white-space: pre-wrap;
+}
+
+.copilot-chat__reasoning-details {
+	margin-bottom: 8px;
+	border: 1px solid rgba(80, 158, 227, 0.22);
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.72);
+	overflow: hidden;
+}
+
+.copilot-chat__reasoning-details summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 7px 10px;
+	color: var(--color-text-primary, #1f2329);
+	cursor: pointer;
+	list-style: none;
+}
+
+.copilot-chat__reasoning-details summary::-webkit-details-marker {
+	display: none;
+}
+
+.copilot-chat__reasoning-details summary::after {
+	content: "展开";
+	flex-shrink: 0;
+	border-radius: 999px;
+	background: rgba(80, 158, 227, 0.1);
+	color: var(--color-brand, #509ee3);
+	padding: 2px 8px;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.copilot-chat__reasoning-details[open] summary::after {
+	content: "收起";
+}
+
+.copilot-chat__reasoning-details summary span {
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.copilot-chat__reasoning-details summary small {
+	flex: 1;
+	min-width: 0;
+	color: var(--color-text-secondary, #666);
+	font-size: 11px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.copilot-chat__reasoning-details .copilot-chat__reasoning {
+	margin: 0;
+	border-top: 1px solid rgba(80, 158, 227, 0.14);
+	padding: 10px;
+	background: var(--color-bg-primary, #fff);
 }
 
 .copilot-chat__streaming-placeholder {

@@ -104,20 +104,20 @@ test('fixed report candidate response extracts page-aligned report links', () =>
 	}
 
 	assert.deepEqual(getFixedReportCandidates(candidateMessage), [
-		{
-			label: 'PRS 租赁经营总览',
-			templateCode: 'PRS-FLOWERBIZ-OVERVIEW',
-			href: '/fixed-reports/PRS-FLOWERBIZ-OVERVIEW/run',
-		},
-		{
-			label: 'PRS 租赁报花执行看板',
-			templateCode: 'PRS-FLOWERBIZ-LEASE-EXECUTION',
-			href: '/fixed-reports/PRS-FLOWERBIZ-LEASE-EXECUTION/run',
-		},
-		{
-			label: 'PRS 销售坏账与费用看板',
-			templateCode: 'PRS-FLOWERBIZ-FINANCE-COST',
-			href: '/fixed-reports/PRS-FLOWERBIZ-FINANCE-COST/run',
-		},
+			{
+				label: 'PRS 租赁经营总览',
+				templateCode: 'PRS-FLOWERBIZ-OVERVIEW',
+				href: '/agent-bi?fixedReport=PRS-FLOWERBIZ-OVERVIEW',
+			},
+			{
+				label: 'PRS 租赁报花执行看板',
+				templateCode: 'PRS-FLOWERBIZ-LEASE-EXECUTION',
+				href: '/agent-bi?fixedReport=PRS-FLOWERBIZ-LEASE-EXECUTION',
+			},
+			{
+				label: 'PRS 销售坏账与费用看板',
+				templateCode: 'PRS-FLOWERBIZ-FINANCE-COST',
+				href: '/agent-bi?fixedReport=PRS-FLOWERBIZ-FINANCE-COST',
+			},
 	])
 })

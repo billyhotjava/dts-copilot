@@ -34,7 +34,7 @@ export function buildCopilotAnalysisDraftPayload(input: CopilotAnalysisDraftPayl
 
 export function buildCopilotDraftEditorHref(
 	draftId: string | number,
-	options?: { autorun?: boolean; focusVisualization?: boolean },
+	options?: { autorun?: boolean; focusVisualization?: boolean; display?: string },
 ): string {
 	const params = new URLSearchParams({ draft: String(draftId) })
 	if (options?.autorun) {
@@ -42,6 +42,9 @@ export function buildCopilotDraftEditorHref(
 	}
 	if (options?.focusVisualization) {
 		params.set('focus', 'visualization')
+	}
+	if (options?.display) {
+		params.set('display', options.display)
 	}
 	return `/questions/new?${params.toString()}`
 }

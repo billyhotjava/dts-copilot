@@ -407,7 +407,7 @@ function ScreenDesignerContent() {
                             actions={
                                 <>
                                     <Link to={buildFixedReportRunPath(selectedFixedReport.templateCode || '')} className="link small">
-                                        查看固定报表
+                                        用 AI 报表打开
                                     </Link>
                                     {selectedFixedReport.legacyPagePath ? (
                                         <a

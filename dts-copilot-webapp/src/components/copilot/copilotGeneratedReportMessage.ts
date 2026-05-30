@@ -125,7 +125,7 @@ function resolveDraftDescription(message: AiAgentChatMessage): string {
 			? `自动保存草稿失败：${message.analysisDraftError}`
 			: "自动保存草稿失败，可在下方手动保存。";
 	}
-	return "可先执行预览，确认口径后保存为查询草稿，再进入固定报表或 BI 侧做可视化。";
+	return "正在自动执行表格预览，确认口径后可直接切换为 BI 侧可视化组件。";
 }
 
 function containsAny(text: string, patterns: string[]): boolean {

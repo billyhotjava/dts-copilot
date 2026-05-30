@@ -1,0 +1,57 @@
+<h2>一次回答怎么组装?歧义处理是分水岭</h2>
+<p class="subtitle">用户问「各项目本月利润」——「本月」「利润」都可能有歧义。两种风格,直接决定它聪不聪明、烦不烦人(尤其语音场景)。</p>
+
+<div class="split">
+
+  <div class="mockup">
+    <div class="mockup-header">A · 乐观执行 + 可改假设(推荐)</div>
+    <div class="mockup-body" style="font-size:12px;line-height:1.7">
+      <div style="background:#2a3142;border-radius:8px;padding:6px 10px;margin-bottom:6px">🎙 各项目本月利润</div>
+      <div style="background:#161b27;border:1px solid #30363d;border-radius:8px;padding:8px">
+        <div style="font-size:11px;opacity:.85;margin-bottom:6px">我先按最可能的口径出了结果 ——</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+          <span style="background:#1f6feb33;border:1px solid #4f7cff;border-radius:12px;padding:2px 8px">本月 = 2026-05 ✎</span>
+          <span style="background:#1f6feb33;border:1px solid #4f7cff;border-radius:12px;padding:2px 8px">利润 = 收入−成本 ✎</span>
+          <span style="background:#1f6feb33;border:1px solid #4f7cff;border-radius:12px;padding:2px 8px">范围 = 在租项目 ✎</span>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:3px;height:48px;background:#0d1117;border-radius:6px;padding:5px">
+          <div style="flex:1;background:#4f7cff;height:60%"></div><div style="flex:1;background:#4f7cff;height:90%"></div><div style="flex:1;background:#4f7cff;height:45%"></div><div style="flex:1;background:#4f7cff;height:70%"></div>
+        </div>
+        <div style="font-size:11px;opacity:.6;margin-top:6px">▸ 看 SQL 与溯源　▸ 存为卡片</div>
+      </div>
+      <div style="font-size:11px;opacity:.7;margin-top:6px">👍 假设错了点芯片就改,结果即时重算。语音友好:不被反问打断。</div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">B · 先反问澄清,再执行</div>
+    <div class="mockup-body" style="font-size:12px;line-height:1.7">
+      <div style="background:#2a3142;border-radius:8px;padding:6px 10px;margin-bottom:6px">🎙 各项目本月利润</div>
+      <div style="background:#161b27;border:1px solid #30363d;border-radius:8px;padding:8px">
+        <div style="font-size:11px;opacity:.85;margin-bottom:8px">问清楚两点再算:</div>
+        <div style="margin-bottom:6px">「本月」指?
+          <span style="background:#2a3142;border-radius:10px;padding:1px 7px">自然月</span>
+          <span style="background:#2a3142;border-radius:10px;padding:1px 7px">账期</span>
+        </div>
+        <div>「利润」口径?
+          <span style="background:#2a3142;border-radius:10px;padding:1px 7px">毛利</span>
+          <span style="background:#2a3142;border-radius:10px;padding:1px 7px">净利</span>
+        </div>
+        <div style="font-size:11px;opacity:.4;margin-top:10px;border-top:1px dashed #30363d;padding-top:6px">（选完才出图）</div>
+      </div>
+      <div style="font-size:11px;opacity:.7;margin-top:6px">👎 准但慢、每次被拦。语音场景一来一回很累。</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="section" style="margin-top:14px">
+  <div class="label">我推荐的混合策略</div>
+  <p style="font-size:13px;opacity:.9">默认走 <strong>A(乐观执行)</strong>:基于本体置信度直接出结果 + 把假设做成<strong>可改芯片</strong>。只有当置信度低到「猜了大概率错」时,才降级到 <strong>B(反问)</strong>。这样高频简单问题秒回,真歧义才打断 —— 智能体现在「知道什么时候该问」。</p>
+</div>
+
+<div class="cards" style="margin-top:8px">
+  <div class="card" data-choice="A" onclick="toggleSelect(this)"><div class="card-body"><h3>就要 A 为主</h3><p>乐观执行+可改假设,低置信才反问</p></div></div>
+  <div class="card" data-choice="B" onclick="toggleSelect(this)"><div class="card-body"><h3>偏向 B</h3><p>宁可多问一句,要稳</p></div></div>
+  <div class="card" data-choice="mix" onclick="toggleSelect(this)"><div class="card-body"><h3>你说的混合就对</h3><p>A 默认 + 置信度阈值降级 B</p></div></div>
+</div>

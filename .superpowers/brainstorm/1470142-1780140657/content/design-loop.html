@@ -1,0 +1,64 @@
+<h2>目标态 · 第 3 节:对话完整回路 + 溯源信任</h2>
+<p class="subtitle">从一句话到一个可信、可沉淀的产物,中间不断线。溯源是「敢用」的前提 —— 你们已经有 TracePanel,这里把它扶正成一等公民。</p>
+
+<div class="label">闭环六步(每一步都能继续、能回退、能沉淀)</div>
+<div style="display:flex;gap:6px;font-size:11px;margin:8px 0 16px;flex-wrap:wrap">
+  <span style="background:#2a3142;border-radius:8px;padding:6px 10px">🎙 1 提问</span>
+  <span style="align-self:center">→</span>
+  <span style="background:#2a3142;border-radius:8px;padding:6px 10px">🧠 2 本体匹配口径</span>
+  <span style="align-self:center">→</span>
+  <span style="background:#1f6feb33;border:1px solid #4f7cff;border-radius:8px;padding:6px 10px">⚡ 3 乐观出结果+假设芯片</span>
+  <span style="align-self:center">→</span>
+  <span style="background:#2a3142;border-radius:8px;padding:6px 10px">🔍 4 溯源可展开</span>
+  <span style="align-self:center">→</span>
+  <span style="background:#2a3142;border-radius:8px;padding:6px 10px">↘ 5 推荐追问</span>
+  <span style="align-self:center">→</span>
+  <span style="background:#1a2e1f;border:1px solid #22c55e;border-radius:8px;padding:6px 10px">📌 6 存为资产</span>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">结果卡(画布中的一个产物)</div>
+    <div class="mockup-body" style="font-size:11px;line-height:1.7">
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">
+        <span style="background:#1f6feb33;border:1px solid #4f7cff;border-radius:10px;padding:1px 7px">本月=05 ✎</span>
+        <span style="background:#1f6feb33;border:1px solid #4f7cff;border-radius:10px;padding:1px 7px">利润=收入−成本 ✎</span>
+      </div>
+      <div style="background:#0d1117;border-radius:6px;height:60px;display:flex;align-items:flex-end;gap:3px;padding:6px">
+        <div style="flex:1;background:#4f7cff;height:55%"></div><div style="flex:1;background:#4f7cff;height:88%"></div><div style="flex:1;background:#4f7cff;height:42%"></div><div style="flex:1;background:#4f7cff;height:73%"></div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">
+        <span style="border:1px solid #30363d;border-radius:8px;padding:2px 7px">📌 存为卡片</span>
+        <span style="border:1px solid #30363d;border-radius:8px;padding:2px 7px">📊 钉到看板</span>
+        <span style="border:1px solid #30363d;border-radius:8px;padding:2px 7px">&lt;/&gt; 溯源</span>
+        <span style="border:1px solid #30363d;border-radius:8px;padding:2px 7px">⬇ 导出</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">溯源面板(点 &lt;/&gt; 展开)· 信任锚</div>
+    <div class="mockup-body" style="font-size:11px;line-height:1.7">
+      <div class="label" style="margin-bottom:4px">命中口径(来自本体)</div>
+      <div style="opacity:.85">利润 = 收入−成本 · 报花域 · 口径v3</div>
+      <div class="label" style="margin:8px 0 4px">数据来源</div>
+      <div style="opacity:.85">表 dwd_报花明细 · 字段 amount,cost</div>
+      <div class="label" style="margin:8px 0 4px">生成 SQL</div>
+      <div style="background:#0d1117;border-radius:6px;padding:6px;font-family:monospace;opacity:.8">SELECT proj, SUM(amount-cost)…</div>
+      <div style="margin-top:8px;display:flex;gap:5px">
+        <span style="background:#3a1f1f;border:1px solid #ef4444;border-radius:8px;padding:2px 7px">⚑ 口径不对?纠正</span>
+        <span style="opacity:.6;align-self:center">→ 回流 NL2SQL 评测集</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:14px">
+  <div class="label">两个让它「更智能」的细节</div>
+  <div class="pros" style="margin-top:4px"><ul>
+    <li><b>推荐追问引擎</b>:每个结果后,agent 基于本体维度自动给「↘按区域拆 ↘环比 ↘TOP5 ↘看异常」—— 用户不必想怎么问下一句,降低 NL2SQL 冷场。</li>
+    <li><b>纠正即学习</b>:溯源里「⚑口径不对」一键纠正,直接回流到你们的 NL2SQL 评测集 / 本体草稿(对接 sprint-26 写回桩),agent 越用越准。</li>
+  </ul></div>
+</div>
+
+<p class="subtitle" style="margin-top:10px">确认这个回路吗?特别是 —— <b>溯源面板默认收起、点开才看</b>(干净),还是<b>关键口径常驻结果卡上</b>(更稳但占地)?</p>

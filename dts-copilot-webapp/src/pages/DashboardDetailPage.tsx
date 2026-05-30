@@ -321,7 +321,7 @@ export default function DashboardDetailPage() {
 							actions={
 								<>
 									<Link to={buildFixedReportRunPath(selectedFixedReport.value.templateCode || "")} className="link small">
-										查看固定报表
+										用 AI 报表打开
 									</Link>
 									{selectedFixedReport.value.legacyPagePath ? (
 										<a

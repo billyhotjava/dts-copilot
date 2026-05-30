@@ -626,7 +626,7 @@ export default function ScreensPage() {
                         actions={
                             <>
                                 <Link to={buildFixedReportRunPath(selectedFixedReport.templateCode || '')} className="primary-btn" style={{ textDecoration: 'none' }}>
-                                    查看固定报表
+                                    用 AI 报表打开
                                 </Link>
                             </>
                         }

@@ -4,7 +4,7 @@ export const FIXED_REPORT_TEMPLATE_QUERY_KEY = 'fixedReportTemplate'
 
 export function buildFixedReportRunPath(templateCode: string, targetView?: string | null): string {
 	void targetView
-	return `/fixed-reports/${encodeURIComponent(templateCode)}/run`
+	return `/agent-bi?fixedReport=${encodeURIComponent(templateCode)}`
 }
 
 export function buildFixedReportCreationFlowPath(surface: FixedReportSurface, templateCode: string): string {

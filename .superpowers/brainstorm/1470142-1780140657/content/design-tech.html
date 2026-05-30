@@ -1,0 +1,60 @@
+<h2>目标态 · 第 5 节:技术落点与分期</h2>
+<p class="subtitle">不是从零写。大量复用现有 copilot 资产,主要工作是「把浮动聊天扶正成主界面」+ 拆解 1379 行的 CopilotChat + 新增画布/信号/本体三块。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">✓ 复用(已有,改造接入)</div>
+    <div class="mockup-body" style="font-size:11px;line-height:1.9">
+      • <b>CopilotChat</b>(1379行,需拆分)→ 对话脊柱<br>
+      • <b>copilotSse</b> → 流式输出<br>
+      • <b>TracePanel</b> → 溯源面板(扶正)<br>
+      • <b>VoiceInputButton</b> → 语音入口<br>
+      • <b>InlineSqlPreview</b> → SQL 预览<br>
+      • <b>FeedbackButtons / 纠正</b> → 回流评测<br>
+      • <b>analyticsApi / 资产</b> → 存卡片看板<br>
+      • <b>本体 / NL2SQL agent</b>(后台已建)
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">＋ 新建(本设计的增量)</div>
+    <div class="mockup-body" style="font-size:11px;line-height:1.9">
+      前端:<br>
+      • <b>活产物画布 + 产物托盘</b>(核心新件)<br>
+      • <b>冷启动首屏</b>(大框+信号+资产)<br>
+      • <b>常驻假设/口径芯片</b> 组件<br>
+      • <b>推荐追问</b> 条<br>
+      • <b>本体地图</b> 画布产物<br>
+      后台:<br>
+      • <b>追问建议引擎</b>(本体维度)<br>
+      • <b>本体地图 API</b><br>
+      • <b>主动监控 job + 异常检测 + 信号库</b><br>
+      • <b>action framework 桩</b>(⑤预留)
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:14px">
+  <div class="label">三期落地(每期可独立上线、各自闭环)</div>
+  <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+    <div style="background:#10182a;border-left:3px solid #4f7cff;border-radius:8px;padding:9px">
+      <strong style="color:#7aa2ff">P1 · 核心骨架(MVP)</strong> —— 能力 ①②
+      <div style="opacity:.85;margin-top:3px">对话脊柱+活产物画布扶正为主界面 · 冷启动首屏 · 乐观 NL2SQL+口径芯片常驻 · 溯源面板 · 存卡片/看板 · <b>删旧路由、彻底重构</b>。上线即「一个入口能问数能沉淀」。</div>
+    </div>
+    <div style="background:#0f1f17;border-left:3px solid #22c55e;border-radius:8px;padding:9px">
+      <strong style="color:#4ade80">P2 · 智能增强</strong> —— 能力 ④⑥
+      <div style="opacity:.85;margin-top:3px">推荐追问引擎 · 本体探索地图 · 纠正即学习回流评测集 · 固定报表承接为起手模板/官方报表。</div>
+    </div>
+    <div style="background:#1f1a0f;border-left:3px solid #f59e0b;border-radius:8px;padding:9px">
+      <strong style="color:#fbbf24">P3 · 主动 + 预留</strong> —— 能力 ③⑤
+      <div style="opacity:.85;margin-top:3px">完整版主动洞察(后台监控+异常检测+信号调度+订阅) · action framework 桩接口 · 语音体验强化。</div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:12px">
+  <div class="label">最后两个待你拍板的点</div>
+  <div class="pros-cons">
+    <div class="cons"><h4>① 公开分享链接</h4><ul><li>/public/card·dashboard·screen 是外发链接</li><li>彻底重构时:保留可访问 / 一起删?</li></ul></div>
+    <div class="pros"><h4>② 分期是否认同</h4><ul><li>P1 先打通「一个入口·问数·沉淀」</li><li>还是你要某能力提前/推后?</li></ul></div>
+  </div>
+</div>

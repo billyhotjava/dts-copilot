@@ -1,0 +1,70 @@
+<h2>唯一入口长成什么样?三种 Agent-First 交互范式</h2>
+<p class="subtitle">定调已定:agent 是入口,报表是它的产物之一。剩下的核心分叉是 —— 「对话」和「产物画布」谁是主轴。点一个你最有共鸣的。</p>
+
+<div class="cards" data-multiselect>
+
+  <div class="card" data-choice="conversation-canvas" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0">
+      <div style="display:flex;height:150px;font-size:10px">
+        <div style="flex:0 0 42%;background:#161b27;border-right:2px solid #4f7cff;padding:8px;display:flex;flex-direction:column;gap:5px">
+          <div style="opacity:.6">💬 对话主轴</div>
+          <div style="background:#2a3142;border-radius:6px;padding:4px">问：各项目本月利润?</div>
+          <div style="background:#1f6feb33;border-radius:6px;padding:4px">→ 已生成右侧报表 ↗</div>
+          <div style="background:#2a3142;border-radius:6px;padding:4px">追问：按区域拆</div>
+          <div style="margin-top:auto;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:4px">输入…</div>
+        </div>
+        <div style="flex:1;background:#0d1117;padding:8px">
+          <div style="opacity:.6;margin-bottom:4px">📌 活产物画布</div>
+          <div style="background:#161b27;border:1px solid #30363d;border-radius:6px;height:70px;display:flex;align-items:flex-end;gap:3px;padding:6px">
+            <div style="flex:1;background:#4f7cff;height:60%"></div><div style="flex:1;background:#4f7cff;height:90%"></div><div style="flex:1;background:#4f7cff;height:40%"></div><div style="flex:1;background:#4f7cff;height:75%"></div>
+          </div>
+          <div style="opacity:.5;margin-top:4px">[ 存为卡片 ] [ 钉到看板 ]</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>① 对话 + 活产物画布 <span style="color:#4f7cff;font-size:12px">推荐</span></h3>
+      <p>左边是连续对话(分析的脉络),右边画布钉着「当前产物」,追问时产物原地演化。报表 = 对话产出的 artifact,天然一键沉淀。追问/下钻/闭环全打通。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="canvas-ambient" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0">
+      <div style="height:150px;background:#0d1117;padding:8px;font-size:10px;position:relative">
+        <div style="opacity:.6;margin-bottom:6px">🗂 看板工作台主轴</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+          <div style="background:#161b27;border:1px solid #30363d;border-radius:6px;height:42px"></div>
+          <div style="background:#161b27;border:1px solid #4f7cff;border-radius:6px;height:42px"></div>
+          <div style="background:#161b27;border:1px solid #30363d;border-radius:6px;height:42px"></div>
+          <div style="background:#161b27;border:1px solid #30363d;border-radius:6px;height:42px"></div>
+        </div>
+        <div style="position:absolute;left:8px;right:8px;bottom:8px;background:#1f6feb;border-radius:18px;padding:5px 10px;color:#fff">🤖 选中图表问 agent：为什么跌了?</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>② 看板画布 + 环境化 Agent</h3>
+      <p>工作台(现在的 BI)是主体,agent 是悬浮在万物之上的一层:选中任何图表/数字就能让它解释、下钻、对比。改造小、保留现有投入。但 agent 偏「辅助」,和「agent 即入口」的定调略冲。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="omnibox-progressive" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0">
+      <div style="height:150px;background:#0d1117;padding:10px;font-size:10px;display:flex;flex-direction:column;gap:5px">
+        <div style="background:#161b27;border:2px solid #4f7cff;border-radius:20px;padding:7px 12px">🔍 你想了解什么?</div>
+        <div style="display:flex;gap:4px"><span style="background:#2a3142;border-radius:10px;padding:2px 7px">澄清:哪个时间段?</span><span style="background:#2a3142;border-radius:10px;padding:2px 7px">本月</span></div>
+        <div style="background:#161b27;border:1px solid #30363d;border-radius:6px;padding:4px;font-family:monospace;opacity:.7">SELECT … FROM 报花 ✓溯源</div>
+        <div style="background:#161b27;border:1px solid #30363d;border-radius:6px;flex:1;display:flex;align-items:flex-end;gap:3px;padding:5px">
+          <div style="flex:1;background:#4f7cff;height:50%"></div><div style="flex:1;background:#4f7cff;height:80%"></div><div style="flex:1;background:#4f7cff;height:65%"></div>
+        </div>
+        <div style="display:flex;gap:4px"><span style="background:#1f6feb33;border-radius:10px;padding:2px 7px">↘ 追问区域</span><span style="background:#1f6feb33;border-radius:10px;padding:2px 7px">存为报表</span></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>③ 单框 Omnibox + 渐进展开</h3>
+      <p>一个大搜索框(像 Perplexity)。输入后逐层流式展开:澄清芯片 → SQL 预览+溯源 → 结果 → 推荐追问 → 存报表。冷启动最低、最「一个入口」。但复杂多产物分析在线性流里容易挤。</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:14px">我的倾向:以 <strong>①</strong> 为骨架,把 <strong>③ 的 omnibox</strong> 当作①的空状态(冷启动那一刻就是一个大框),把 <strong>② 的环境化能力</strong>(选中即问)作为画布上的增强。三者其实能合成一个,但主轴必须二选一:对话 还是 画布。可多选,告诉我你的直觉。</p>

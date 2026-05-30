@@ -49,7 +49,7 @@ function hrefForTemplateCode(
 	if (!templateCode) {
 		return undefined;
 	}
-	return `/fixed-reports/${encodeURIComponent(templateCode)}/run`;
+	return `/agent-bi?fixedReport=${encodeURIComponent(templateCode)}`;
 }
 
 export function getFixedReportShortcut(
@@ -64,8 +64,8 @@ export function getFixedReportShortcut(
 	}
 	return {
 		label: isPrsScreenTemplateCode(message.templateCode)
-			? "查看表格报表"
-			: "查看固定报表",
+			? "用 AI 报表打开"
+			: "回到 AI 报表入口",
 		href,
 	};
 }

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { createBrowserRouter, Navigate, useNavigate } from "react-router";
+import { createBrowserRouter, Navigate, useNavigate, useParams } from "react-router";
 import { APP_HOME_ALIASES, APP_HOME_PATH } from "./appShellConfig";
 import { AppLayout } from "./layouts/AppLayout";
 
@@ -12,7 +12,15 @@ function ModernAliasRedirect() {
 }
 
 function ScreensCenterRedirect() {
-	return <Navigate to="/fixed-reports" replace />;
+	return <Navigate to="/agent-bi" replace />;
+}
+
+function FixedReportsRedirect() {
+	const { templateCode } = useParams();
+	const target = templateCode
+		? `/agent-bi?fixedReport=${encodeURIComponent(templateCode)}`
+		: "/agent-bi";
+	return <Navigate to={target} replace />;
 }
 
 const lazyComponent = (importer: () => Promise<{ default: unknown }>) => async () => {
@@ -69,8 +77,8 @@ export function createRoutes() {
 					{ path: "/screens", Component: ScreensCenterRedirect },
 					{ path: "/explore-sessions", lazy: lazyComponent(() => import("./pages/ExploreSessionsPage")) },
 					{ path: "/report-factory", lazy: lazyComponent(() => import("./pages/ReportFactoryPage")) },
-					{ path: "/fixed-reports", lazy: lazyComponent(() => import("./pages/FixedReportsPage")) },
-					{ path: "/fixed-reports/:templateCode/run", lazy: lazyComponent(() => import("./pages/fixed-reports/FixedReportRunPage")) },
+					{ path: "/fixed-reports", Component: FixedReportsRedirect },
+					{ path: "/fixed-reports/:templateCode/run", Component: FixedReportsRedirect },
 					{ path: "/metric-lens", lazy: lazyComponent(() => import("./pages/MetricLensPage")) },
 					{ path: "/search", lazy: lazyComponent(() => import("./pages/SearchPage")) },
 					{ path: "*", lazy: lazyComponent(() => import("./pages/NotFoundPage")) },

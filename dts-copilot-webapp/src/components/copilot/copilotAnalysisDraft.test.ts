@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
 	buildCopilotAnalysisDraftPayload,
+	buildCopilotDraftEditorHref,
 } from './copilotAnalysisDraft'
 
 describe('copilotAnalysisDraft', () => {
@@ -31,6 +32,16 @@ describe('copilotAnalysisDraft', () => {
 			quality_notes: ['2025年5月以后数据较可用'],
 			report_code: 'prs.flowerbiz.lease_execution_monthly',
 		})
+	})
+
+	it('builds draft editor href with visualization display override', () => {
+		expect(
+			buildCopilotDraftEditorHref(12, {
+				autorun: true,
+				focusVisualization: true,
+				display: 'bar',
+			}),
+		).toBe('/questions/new?draft=12&autorun=1&focus=visualization&display=bar')
 	})
 
 })

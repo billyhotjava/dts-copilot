@@ -150,8 +150,8 @@ function resolveFixedReportSummary(surface: FixedReportOptions['surface']): stri
 		case 'dashboard':
 			return '已从固定报表入口带入当前仪表盘创建页。当前仅自动带入标题和说明，具体卡片仍需按业务需要添加。'
 		case 'reportFactory':
-			return '已从固定报表入口带入当前页面。你可以继续创建报告模板草稿，或先查看固定报表运行页。'
+			return '已从固定报表资产带入当前页面。你可以继续创建报告模板草稿，或回到 AI 报表统一入口。'
 		case 'screen':
-			return '已从固定报表入口带入当前页面。Copilot 中固定报表统一以表格运行页查看。'
+			return '已从固定报表资产带入当前页面。Copilot 中统一回到 AI 报表入口执行和预览。'
 	}
 }

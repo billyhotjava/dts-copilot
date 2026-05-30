@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardQueryResponse } from "../../api/analyticsApi";
 import { analyticsApi } from "../../api/analyticsApi";
 import { Button } from "../../ui/Button/Button";
@@ -28,6 +28,7 @@ interface Props {
 	reportCode?: string;
 	variant?: InlineSqlPreviewVariant;
 	initialDraftId?: number | string | null;
+	autoRun?: boolean;
 }
 
 type RunState =
@@ -35,6 +36,13 @@ type RunState =
 	| { status: "loading" }
 	| { status: "success"; result: CardQueryResponse; durationMs: number }
 	| { status: "error"; message: string };
+
+export type InlineSqlPreviewDatasetQuery = {
+	database: number;
+	type: "native";
+	native: { query: string };
+	context: "copilot-inline";
+};
 
 export function InlineSqlPreview({
 	sql,
@@ -51,6 +59,7 @@ export function InlineSqlPreview({
 	reportCode,
 	variant = "sql",
 	initialDraftId = null,
+	autoRun = false,
 }: Props) {
 	const normalizedInitialDraftId = useMemo(() => {
 		if (initialDraftId == null || initialDraftId === "") {
@@ -61,6 +70,7 @@ export function InlineSqlPreview({
 	}, [initialDraftId]);
 	const [editing, setEditing] = useState(false);
 	const [editableSql, setEditableSql] = useState(sql);
+	const [committedSql, setCommittedSql] = useState(sql);
 	const [runState, setRunState] = useState<RunState>({ status: "idle" });
 	const [copied, setCopied] = useState(false);
 	const [draftId, setDraftId] = useState<number | null>(
@@ -85,10 +95,25 @@ export function InlineSqlPreview({
 	const [sqlVisible, setSqlVisible] = useState(
 		presentation.sqlVisibleByDefault,
 	);
+	const [displayMode, setDisplayMode] = useState(() =>
+		normalizeInlineDisplayType(suggestedDisplay),
+	);
+	const lastAutoRunKeyRef = useRef<string | null>(null);
 
-	const currentSql = editing ? editableSql : sql;
+	const currentSql = editing ? editableSql : committedSql;
 	const effectiveQuestion = question?.trim() || "Copilot SQL 草稿";
 	const isReportDraft = variant === "report";
+
+	useEffect(() => {
+		setCommittedSql(sql);
+		setEditableSql(sql);
+		setRunState((state) => (state.status === "idle" ? state : { status: "idle" }));
+		lastAutoRunKeyRef.current = null;
+	}, [sql]);
+
+	useEffect(() => {
+		setDisplayMode(normalizeInlineDisplayType(suggestedDisplay));
+	}, [suggestedDisplay]);
 
 	useEffect(() => {
 		if (normalizedInitialDraftId == null || draftId != null) {
@@ -98,17 +123,13 @@ export function InlineSqlPreview({
 		setDraftSaved(true);
 	}, [normalizedInitialDraftId, draftId]);
 
-	async function handleRun() {
-		if (!databaseId || !currentSql.trim()) return;
+	const runSql = useCallback(async (sqlToRun: string) => {
+		const payload = buildInlineSqlPreviewDatasetQuery(databaseId, sqlToRun);
+		if (!payload) return;
 		setRunState({ status: "loading" });
 		const start = Date.now();
 		try {
-			const res = await analyticsApi.runDatasetQuery({
-				database: databaseId,
-				type: "native",
-				native: { query: currentSql.trim() },
-				context: "copilot-inline",
-			});
+			const res = await analyticsApi.runDatasetQuery(payload);
 			const durationMs = Date.now() - start;
 			if (res.error) {
 				setRunState({ status: "error", message: String(res.error) });
@@ -121,9 +142,21 @@ export function InlineSqlPreview({
 				message: e instanceof Error ? e.message : "查询执行失败",
 			});
 		}
-	}
+	}, [databaseId]);
 
-	async function ensureDraft(): Promise<number | null> {
+	useEffect(() => {
+		if (!autoRun || editing || !databaseId || !committedSql.trim()) {
+			return;
+		}
+		const autoRunKey = `${databaseId}:${committedSql.trim()}`;
+		if (lastAutoRunKeyRef.current === autoRunKey) {
+			return;
+		}
+		lastAutoRunKeyRef.current = autoRunKey;
+		void runSql(committedSql.trim());
+	}, [autoRun, committedSql, databaseId, editing, runSql]);
+
+	async function ensureDraft(displayOverride?: InlineDisplayType): Promise<number | null> {
 		if (!databaseId || !currentSql.trim()) return null;
 		if (draftId != null) return draftId;
 		setDraftBusy(true);
@@ -137,7 +170,7 @@ export function InlineSqlPreview({
 					explanationText,
 					sessionId,
 					messageId,
-					suggestedDisplay,
+					suggestedDisplay: displayOverride ?? suggestedDisplay,
 					responseKind,
 					dataSurface,
 					qualityLevel,
@@ -165,24 +198,14 @@ export function InlineSqlPreview({
 		}
 	}
 
-	async function handleSaveDraft() {
-		await ensureDraft();
-	}
-
-	async function handleOpenInQuestions() {
-		const nextDraftId = await ensureDraft();
-		if (nextDraftId == null) return;
-		window.location.href = buildCopilotDraftEditorHref(nextDraftId, {
-			autorun: true,
-		});
-	}
-
-	async function handleCreateViz() {
-		const nextDraftId = await ensureDraft();
+	async function handleCreateViz(nextDisplay: InlineDisplayType) {
+		setDisplayMode(nextDisplay);
+		const nextDraftId = await ensureDraft(nextDisplay);
 		if (nextDraftId == null) return;
 		window.location.href = buildCopilotDraftEditorHref(nextDraftId, {
 			autorun: true,
 			focusVisualization: true,
+			display: nextDisplay,
 		});
 	}
 
@@ -204,12 +227,16 @@ export function InlineSqlPreview({
 						type="button"
 						className={`inline-sql-preview__action-btn${editing ? " inline-sql-preview__action-btn--active" : ""}`}
 						onClick={() => {
-							if (!editing) setEditableSql(sql);
+							if (!editing) {
+								setEditableSql(committedSql);
+							} else {
+								setCommittedSql(editableSql);
+							}
 							if (isReportDraft) setSqlVisible(true);
 							setEditing(!editing);
 						}}
 					>
-						编辑
+						{editing ? "完成" : "编辑"}
 					</button>
 					<button
 						type="button"
@@ -238,58 +265,33 @@ export function InlineSqlPreview({
 				/>
 			) : sqlVisible ? (
 				<pre className="inline-sql-preview__code">
-					<code>{sql}</code>
+					<code>{committedSql}</code>
 				</pre>
 			) : null}
 
 			<div className="inline-sql-preview__toolbar">
-				<Button
-					variant="primary"
-					size="sm"
-					onClick={() => void handleRun()}
-					disabled={runState.status === "loading" || !databaseId}
-					loading={runState.status === "loading"}
-				>
-					{runState.status === "loading" ? "执行中..." : "执行查询"}
-				</Button>
-				<Button
-					variant="secondary"
-					size="sm"
-					onClick={() => void handleSaveDraft()}
-					disabled={draftBusy || !databaseId}
-					loading={draftBusy}
-				>
-					{draftSaved
-						? "草稿已保存"
-						: isReportDraft
-							? "保存报表草稿"
-							: "保存草稿"}
-				</Button>
-				<Button
-					variant="secondary"
-					size="sm"
-					onClick={() => void handleOpenInQuestions()}
-					disabled={draftBusy || !databaseId}
-				>
-					{draftSaved
-						? "在查询中继续编辑"
-						: isReportDraft
-							? "打开报表草稿"
-							: "在查询中打开"}
-				</Button>
-				<Button
-					variant="secondary"
-					size="sm"
-					onClick={handleCreateViz}
-					disabled={draftBusy || !databaseId}
-				>
-					{isReportDraft ? "创建图表" : "创建可视化"}
-				</Button>
+				<div className="inline-sql-preview__auto-state" aria-live="polite">
+					{resolveAutoRunText(runState, Boolean(databaseId))}
+				</div>
+				<div className="inline-sql-preview__viz-switch" aria-label="切换可视化组件">
+					{INLINE_DISPLAY_OPTIONS.map((option) => (
+						<Button
+							key={option.value}
+							variant={displayMode === option.value ? "primary" : "secondary"}
+							size="sm"
+							onClick={() => void handleCreateViz(option.value)}
+							disabled={draftBusy || !databaseId}
+							loading={draftBusy && displayMode === option.value}
+						>
+							{option.label}
+						</Button>
+					))}
+				</div>
 			</div>
 
 			{draftSaved && draftId != null && (
 				<div className="inline-sql-preview__result-info">
-					草稿已保存，可在查询中继续编辑；可视化请进入 BI 侧处理。#{draftId}
+					草稿已保存，可直接切换为 BI 侧可视化组件。#{draftId}
 				</div>
 			)}
 
@@ -328,9 +330,66 @@ export function InlineSqlPreview({
 						}}
 					>
 						编辑 SQL 修正
-					</button>
+						</button>
+						<button
+							type="button"
+							className="inline-sql-preview__action-btn"
+							onClick={() => void runSql(currentSql)}
+							disabled={!databaseId}
+						>
+							重新预览
+						</button>
 				</div>
 			)}
 		</div>
 	);
+}
+
+export type InlineDisplayType = "table" | "bar" | "line" | "pie";
+
+export const INLINE_DISPLAY_OPTIONS: { value: InlineDisplayType; label: string }[] = [
+	{ value: "table", label: "表格" },
+	{ value: "bar", label: "柱图" },
+	{ value: "line", label: "折线" },
+	{ value: "pie", label: "饼图" },
+];
+
+export function normalizeInlineDisplayType(value?: string | null): InlineDisplayType {
+	const normalized = String(value ?? "").trim().toLowerCase();
+	if (normalized === "bar" || normalized === "line" || normalized === "pie") {
+		return normalized;
+	}
+	return "table";
+}
+
+export function buildInlineSqlPreviewDatasetQuery(
+	databaseId: number | undefined,
+	sqlToRun: string,
+): InlineSqlPreviewDatasetQuery | null {
+	const query = sqlToRun.trim();
+	if (!databaseId || !query) {
+		return null;
+	}
+	return {
+		database: databaseId,
+		type: "native",
+		native: { query },
+		context: "copilot-inline",
+	};
+}
+
+export function resolveAutoRunText(runState: RunState, hasDatabase: boolean): string {
+	if (!hasDatabase) {
+		return "缺少数据源，无法自动预览";
+	}
+	if (runState.status === "loading") {
+		return "正在自动预览";
+	}
+	if (runState.status === "success") {
+		return "已自动预览";
+	}
+	if (runState.status === "error") {
+		return "自动预览失败";
+	}
+	return "等待自动预览";
 }

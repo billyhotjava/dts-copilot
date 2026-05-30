@@ -122,7 +122,6 @@ const ROUTE_NAV_MAP: { path: string; section: string; nav?: string }[] = [
 		section: "nav.section.tools",
 		nav: "nav.reportFactory",
 	},
-	{ path: "/fixed-reports", section: "nav.section.tools", nav: "nav.fixedReports" },
 	{ path: "/metric-lens", section: "nav.section.tools", nav: "nav.metricLens" },
 	{ path: "/search", section: "nav.section.tools", nav: "nav.search" },
 	{ path: "/admin/users", section: "nav.section.admin", nav: "nav.users" },

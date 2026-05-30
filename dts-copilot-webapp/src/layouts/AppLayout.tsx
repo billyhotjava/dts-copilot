@@ -60,6 +60,7 @@ function getNavigationIcon(icon: NavigationIconKey) {
 export function AppLayout() {
 	const location = useLocation();
 	const basePath = import.meta.env.VITE_BASE_PATH?.replace(/\/$/, "") || "";
+	const copilotEmbeddedInPage = location.pathname === "/agent-bi";
 
 	// Auth guard: platform token OR session cookie.
 	const isPublicRoute = location.pathname.startsWith("/public/");
@@ -532,7 +533,9 @@ export function AppLayout() {
 						</div>
 					</main>
 
-					<CopilotSidebar hasSessionAccess={sessionStatus === "ok"} />
+					{!copilotEmbeddedInPage && (
+						<CopilotSidebar hasSessionAccess={sessionStatus === "ok"} />
+					)}
 				</div>
 				<MobileTabBar />
 			</SidebarProvider>

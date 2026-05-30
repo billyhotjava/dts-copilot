@@ -451,7 +451,7 @@ export default function ReportFactoryPage() {
 					actions={
 						<>
 							<Link to={buildFixedReportRunPath(selectedFixedReport.value.templateCode || "")}>
-								<Button variant="secondary" size="sm">查看固定报表</Button>
+								<Button variant="secondary" size="sm">用 AI 报表打开</Button>
 							</Link>
 							{selectedFixedReport.value.legacyPagePath ? (
 								<a

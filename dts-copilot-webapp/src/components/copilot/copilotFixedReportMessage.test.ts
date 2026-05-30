@@ -14,8 +14,8 @@ describe("copilotFixedReportMessage", () => {
 		} as AiAgentChatMessage);
 
 		expect(shortcut).toEqual({
-			label: "查看表格报表",
-			href: "/fixed-reports/PRS-FLOWERBIZ-OVERVIEW/run",
+			label: "用 AI 报表打开",
+			href: "/agent-bi?fixedReport=PRS-FLOWERBIZ-OVERVIEW",
 		});
 	});
 
@@ -29,12 +29,12 @@ describe("copilotFixedReportMessage", () => {
 			{
 				label: "PRS 租赁经营总览",
 				templateCode: "PRS-FLOWERBIZ-OVERVIEW",
-				href: "/fixed-reports/PRS-FLOWERBIZ-OVERVIEW/run",
+				href: "/agent-bi?fixedReport=PRS-FLOWERBIZ-OVERVIEW",
 			},
 			{
 				label: "PRS 销售坏账与费用看板",
 				templateCode: "PRS-FLOWERBIZ-FINANCE-COST",
-				href: "/fixed-reports/PRS-FLOWERBIZ-FINANCE-COST/run",
+				href: "/agent-bi?fixedReport=PRS-FLOWERBIZ-FINANCE-COST",
 			},
 		]);
 	});

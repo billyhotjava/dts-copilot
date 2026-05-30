@@ -1,39 +1,12 @@
-import { Link } from "react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { PageContainer, PageHeader } from "../components/PageContainer/PageContainer";
-import {
-	requestCopilotPrompt,
-} from "../components/copilot/copilotPromptRequest";
+import { CopilotChat } from "../components/copilot/CopilotChat";
+import type { CopilotPromptRequest } from "../components/copilot/copilotPromptRequest";
 import { Button } from "../ui/Button/Button";
-import { Card, CardBody } from "../ui/Card/Card";
 import { getEffectiveLocale, t } from "../i18n";
-import {
-	AGENT_REPORT_BUSINESS_OBJECTS,
-	AGENT_REPORT_QUICK_STARTS,
-	AGENT_REPORT_SUPPORTING_ASSETS,
-} from "./agent-reports/agentReportQuickStarts";
-import {
-	buildAgentReportHandoffRequest,
-	buildBusinessObjectHandoffRequest,
-	type AgentReportHandoffMode,
-} from "./agent-reports/agentReportPromptHandoff";
+import { AGENT_REPORT_BUSINESS_GUIDE } from "./agent-reports/agentReportQuickStarts";
 import "./AgentReportsPage.css";
-
-const SparkIcon = () => (
-	<svg
-		width="16"
-		height="16"
-		viewBox="0 0 24 24"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="2"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-		role="img"
-		aria-label="AI"
-	>
-		<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3z" />
-	</svg>
-);
 
 const ArrowIcon = () => (
 	<svg
@@ -53,23 +26,45 @@ const ArrowIcon = () => (
 	</svg>
 );
 
+type PromptRequestWithNonce = CopilotPromptRequest & { nonce: number };
+
 export default function AgentReportsPage() {
 	const locale = getEffectiveLocale();
+	const [searchParams] = useSearchParams();
+	const fixedReportCode = searchParams.get("fixedReport")?.trim() ?? "";
+	const [promptRequest, setPromptRequest] =
+		useState<PromptRequestWithNonce | null>(null);
+	const guideGroups = useMemo(() => {
+		return ["经营总览", "业务闭环", "支撑域"].map((group) => ({
+			group,
+			items: AGENT_REPORT_BUSINESS_GUIDE.filter((item) => item.group === group),
+		})).filter((group) => group.items.length > 0);
+	}, []);
 
-	const handlePrompt = (item: (typeof AGENT_REPORT_QUICK_STARTS)[number], mode: AgentReportHandoffMode) => {
-		const request = buildAgentReportHandoffRequest(item, mode);
-		if (!request) return;
-		requestCopilotPrompt(request);
-	};
+	useEffect(() => {
+		if (!fixedReportCode) return;
+		setPromptRequest({
+			prompt: `打开固定报表 ${fixedReportCode}，优先执行已认证口径并用表格展示结果；如果该固定报表不可直接执行，请说明可用的 dbt 主题表和业务对象替代路径。`,
+			notice: "已从旧固定报表链接切回 AI 报表统一入口。",
+			submit: true,
+			source: "fixed-report-redirect",
+			reportIntentId: fixedReportCode,
+			nonce: Date.now(),
+		});
+	}, [fixedReportCode]);
 
-	const handleBusinessObjectPrompt = (
-		item: (typeof AGENT_REPORT_BUSINESS_OBJECTS)[number],
-		mode: AgentReportHandoffMode,
-	) => {
-		const request = buildBusinessObjectHandoffRequest(item, mode);
-		if (!request) return;
-		requestCopilotPrompt(request);
-	};
+	function handleGuideQuestion(
+		question: (typeof AGENT_REPORT_BUSINESS_GUIDE)[number]["questions"][number],
+	) {
+		setPromptRequest({
+			prompt: question.prompt,
+			notice: "已按业务对象向导提交给 AI 报表助手。",
+			submit: true,
+			source: "agent-bi-guide",
+			reportIntentId: question.id,
+			nonce: Date.now(),
+		});
+	}
 
 	return (
 		<PageContainer maxWidth="xl">
@@ -77,180 +72,90 @@ export default function AgentReportsPage() {
 				title={t(locale, "agentReports.title")}
 				subtitle={t(locale, "agentReports.subtitle")}
 				actions={
-					<Link to="/fixed-reports">
+					<Link to="/dashboards">
 						<Button variant="secondary" size="sm" icon={<ArrowIcon />}>
-							{t(locale, "agentReports.openFixedReports")}
+							{t(locale, "agentReports.openDashboards")}
 						</Button>
 					</Link>
 				}
 			/>
 
-			<section className="agent-reports-lanes" aria-label="Agent BI 工作流">
-				<div>
-					<strong>L2</strong>
-					<span>固定报表</span>
-					<small>认证口径优先</small>
-				</div>
-				<div>
-					<strong>L1</strong>
-					<span>dbt 主题表</span>
-					<small>生成报表草稿</small>
-				</div>
-				<div>
-					<strong>L0</strong>
-					<span>业务对象</span>
-					<small>字段画像与只读明细</small>
-				</div>
-				<div>
-					<strong>ACT</strong>
-					<span>动作提案</span>
-					<small>不直接写业务系统</small>
-				</div>
-			</section>
-
-			<section className="agent-reports-entry" aria-labelledby="agent-report-entry">
+			<section className="agent-reports-workbench" aria-labelledby="agent-report-entry">
 				<div className="agent-reports-section-head">
-					<h2 id="agent-report-entry">{t(locale, "agentReports.reportProducer")}</h2>
+					<h2 id="agent-report-entry">{t(locale, "agentReports.guide")}</h2>
 					<p>{t(locale, "agentReports.quickStartsDesc")}</p>
 				</div>
-				<div className="agent-reports-entry__body">
-					<div className="agent-reports-entry__strategy" aria-label={t(locale, "agentReports.scope")}>
-						<strong>{t(locale, "agentReports.scope")}</strong>
-						<span>{t(locale, "agentReports.scopeDesc")}</span>
-					</div>
-					<nav className="agent-reports-asset-strip" aria-labelledby="agent-report-assets">
-						<div className="agent-reports-asset-strip__intro">
-							<strong id="agent-report-assets">{t(locale, "agentReports.assets")}</strong>
-							<span>{t(locale, "agentReports.assetsDesc")}</span>
-						</div>
-						<div className="agent-reports-asset-list">
-							{AGENT_REPORT_SUPPORTING_ASSETS.map((asset) => (
-								<Link
-									key={asset.id}
-									to={asset.to}
-									className="agent-reports-asset-link"
-								>
-									<span>
-										<strong>{asset.title}</strong>
-										<small>{asset.description}</small>
-									</span>
-									<ArrowIcon />
-								</Link>
-							))}
-						</div>
-					</nav>
+
+				<div className="agent-reports-guide" aria-label={t(locale, "agentReports.scope")}>
+					{guideGroups.map((group) => (
+						<section key={group.group} className="agent-reports-guide__group">
+							<div className="agent-reports-guide__group-title">{group.group}</div>
+							<div className="agent-reports-guide__domain-grid">
+								{group.items.map((domain) => (
+									<article key={domain.id} className="agent-reports-guide__domain">
+										<div className="agent-reports-guide__domain-head">
+											<span className="agent-reports-guide__domain-icon">
+												{domain.icon}
+											</span>
+											<div>
+												<h3>{domain.title}</h3>
+												<p>{domain.subtitle}</p>
+											</div>
+										</div>
+										<div className="agent-reports-guide__decision">
+											{domain.decisionHint}
+										</div>
+										<div className="agent-reports-guide__paths">
+											<div>
+												<strong>L2 固定报表</strong>
+												<span>{domain.fixedReports.join(" / ")}</span>
+											</div>
+											<div>
+												<strong>L1 dbt</strong>
+												<span>{domain.dbtModels.join(" / ")}</span>
+											</div>
+											<div>
+												<strong>L0 业务对象</strong>
+												<span>{domain.businessObjects.join(" / ")}</span>
+											</div>
+										</div>
+										<div className="agent-reports-guide__questions">
+											{domain.questions.map((question) => (
+												<button
+													key={question.id}
+													type="button"
+													className="agent-reports-guide__question"
+													onClick={() => handleGuideQuestion(question)}
+												>
+													<span>{question.label}</span>
+													<small>{question.routeLevel}</small>
+												</button>
+											))}
+										</div>
+									</article>
+								))}
+							</div>
+						</section>
+					))}
 				</div>
 			</section>
 
-			<div className="agent-reports-entry-stack">
-				<section className="agent-reports-main" aria-labelledby="agent-report-prompts">
-					<div className="agent-reports-section-head">
-						<h2 id="agent-report-prompts">{t(locale, "agentReports.quickStarts")}</h2>
-						<p>{t(locale, "agentReports.reportTemplatesDesc")}</p>
+			<section className="agent-reports-chat-workbench" aria-labelledby="agent-report-chat">
+				<div className="agent-reports-chat-workbench__head">
+					<div>
+						<h2 id="agent-report-chat">{t(locale, "agentReports.chatTitle")}</h2>
+						<p>{t(locale, "agentReports.chatDesc")}</p>
 					</div>
-					<div className="agent-reports-prompt-grid">
-						{AGENT_REPORT_QUICK_STARTS.map((item) => (
-							<Card key={item.id} variant="hoverable" className="agent-report-card">
-								<CardBody>
-									<div className="agent-report-card__domain">{item.domain}</div>
-									<h3>{item.title}</h3>
-									<p>{item.description}</p>
-									<div className="agent-report-card__route" aria-label="Agent 路由">
-										<span>{item.routeLevel}</span>
-										<span>{item.responseKind}</span>
-										<span>{item.qualityLevel}</span>
-									</div>
-									<div className="agent-report-card__route-hint">{item.routeHint}</div>
-									<div className="agent-report-card__prompt">{item.prompt}</div>
-									<div className="agent-report-card__actions">
-										<Button
-											variant="primary"
-											size="sm"
-											icon={<SparkIcon />}
-											onClick={() => handlePrompt(item, "run")}
-										>
-											{t(locale, "agentReports.runWithAgent")}
-										</Button>
-										<Button
-											variant="secondary"
-											size="sm"
-											onClick={() => handlePrompt(item, "edit")}
-										>
-											{t(locale, "agentReports.fillCopilot")}
-										</Button>
-									</div>
-								</CardBody>
-							</Card>
-						))}
-					</div>
-				</section>
-
-				<section className="agent-reports-object-section" aria-labelledby="agent-report-business-objects">
-					<div className="agent-reports-section-head">
-						<h2 id="agent-report-business-objects">{t(locale, "agentReports.businessObjects")}</h2>
-						<p>{t(locale, "agentReports.businessObjectsDesc")}</p>
-					</div>
-					<div className="agent-reports-object-table-wrap">
-						<table className="agent-reports-object-table">
-							<thead>
-								<tr>
-									<th>业务对象</th>
-									<th>页面路径</th>
-									<th>关键字段</th>
-									<th>数据面</th>
-									<th>操作</th>
-								</tr>
-							</thead>
-							<tbody>
-								{AGENT_REPORT_BUSINESS_OBJECTS.map((item) => (
-									<tr key={item.id}>
-										<td>
-											<div className="agent-reports-object-name">
-												<span>{item.domain}</span>
-												<strong>{item.title}</strong>
-												<small>{item.objectCode}</small>
-											</div>
-										</td>
-										<td>{item.pagePath}</td>
-										<td>
-											<div className="agent-reports-field-tags">
-												{item.keyFields.slice(0, 4).map((field) => (
-													<span key={field}>{field}</span>
-												))}
-											</div>
-										</td>
-										<td>
-											<div className="agent-reports-surface">
-												<strong>{item.dataSurface}</strong>
-												<span>{item.qualityLevel}</span>
-											</div>
-										</td>
-										<td>
-											<div className="agent-reports-object-actions">
-												<Button
-													variant="primary"
-													size="sm"
-													icon={<SparkIcon />}
-													onClick={() => handleBusinessObjectPrompt(item, "run")}
-												>
-													{t(locale, "agentReports.askBusinessObject")}
-												</Button>
-												<Button
-													variant="secondary"
-													size="sm"
-													onClick={() => handleBusinessObjectPrompt(item, "edit")}
-												>
-													{t(locale, "agentReports.fillCopilot")}
-												</Button>
-											</div>
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
-				</section>
-			</div>
+					<span>{t(locale, "agentReports.scopeDesc")}</span>
+				</div>
+				<div className="agent-reports-chat-workbench__body">
+					<CopilotChat
+						presentation="workbench"
+						compactReasoning
+						promptRequest={promptRequest}
+					/>
+				</div>
+			</section>
 		</PageContainer>
 	);
 }

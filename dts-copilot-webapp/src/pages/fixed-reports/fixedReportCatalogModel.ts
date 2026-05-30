@@ -16,6 +16,13 @@ export type FixedReportCatalogItem = {
 	updatedAt?: string | null
 	parameterSchemaJson?: string | null
 	placeholderReviewRequired?: boolean
+	assetKind?: string | null
+	assetGroupCode?: string | null
+	assetGroupName?: string | null
+	parentTemplateCode?: string | null
+	primaryDbtModel?: string | null
+	outputColumnCount?: number | null
+	sourceRefs?: string[]
 	legacyPageTitle?: string | null
 	legacyPagePath?: string | null
 }
@@ -50,6 +57,18 @@ export type FixedReportTemplateAvailability = {
 	badgeLabel: string
 	badgeVariant: "success" | "warning"
 	canRun: boolean
+}
+
+export type FixedReportAssetGroup = {
+	id: string
+	name: string
+	description: string | null
+	domain: string | null
+	primaryDbtModel: string | null
+	sourceTypes: string[]
+	primary: FixedReportCatalogItem
+	children: FixedReportCatalogItem[]
+	items: FixedReportCatalogItem[]
 }
 
 type FixedReportFieldType = FixedReportParameterField["type"]
@@ -116,6 +135,10 @@ function sortTemplates(rows: FixedReportCatalogItem[]): FixedReportCatalogItem[]
 	})
 }
 
+function sortAssetGroups(groups: FixedReportAssetGroup[]): FixedReportAssetGroup[] {
+	return [...groups].sort((left, right) => compareBusinessPriority(left.primary, right.primary))
+}
+
 function compareBusinessPriority(left: FixedReportCatalogItem, right: FixedReportCatalogItem): number {
 	const templatePriority = compareTemplatePriority(left, right)
 	if (templatePriority !== 0) {
@@ -152,6 +175,26 @@ function matchesDomain(row: FixedReportCatalogItem, domain: string): boolean {
 	return normalizeText(row.domain) === normalizeText(domain)
 }
 
+function resolveAssetGroupCode(row: FixedReportCatalogItem): string {
+	return normalizeText(row.assetGroupCode) || normalizeText(row.parentTemplateCode) || normalizeText(row.templateCode)
+}
+
+function isPrimaryAsset(row: FixedReportCatalogItem): boolean {
+	if (normalizeText(row.parentTemplateCode)) {
+		return false
+	}
+	const assetKind = normalizeKey(row.assetKind)
+	return assetKind !== "dbt_split"
+}
+
+function uniq(values: Array<string | null | undefined>): string[] {
+	return Array.from(new Set(values.map(normalizeText).filter(Boolean)))
+}
+
+function choosePrimary(rows: FixedReportCatalogItem[]): FixedReportCatalogItem {
+	return sortTemplates(rows).find(isPrimaryAsset) ?? sortTemplates(rows)[0]
+}
+
 export function isPlaceholderFixedReport(item?: FixedReportCatalogItem | null): boolean {
 	return Boolean(item?.placeholderReviewRequired)
 }
@@ -167,7 +210,7 @@ export function buildFixedReportLegacyPageHref(path?: string | null): string | n
 
 export function buildFixedReportOpenPath(item?: FixedReportCatalogItem | null): string {
 	const templateCode = normalizeText(item?.templateCode)
-	return `/fixed-reports/${encodeURIComponent(templateCode)}/run`
+	return `/agent-bi?fixedReport=${encodeURIComponent(templateCode)}`
 }
 
 export function isScreenBackedFixedReport(item?: FixedReportCatalogItem | null): boolean {
@@ -383,7 +426,7 @@ export function buildFixedReportDomainTabs(
 	rows: FixedReportCatalogItem[],
 	labels: FixedReportDomainLabels = {},
 ): FixedReportDomainTab[] {
-	const certifiedRows = rows.filter(isCertifiedTemplate)
+	const certifiedRows = buildFixedReportAssetGroups(rows, "all").map((group) => group.primary)
 	const counts = new Map<string, number>()
 	const uncategorizedLabel = normalizeText(labels.uncategorizedLabel) || "未分类"
 	for (const row of certifiedRows) {
@@ -414,6 +457,38 @@ export function filterFixedReportTemplates(rows: FixedReportCatalogItem[], domai
 	return sortTemplates(
 		rows.filter(isCertifiedTemplate).filter((row) => matchesDomain(row, domain)),
 	)
+}
+
+export function buildFixedReportAssetGroups(rows: FixedReportCatalogItem[], domain: string): FixedReportAssetGroup[] {
+	const grouped = new Map<string, FixedReportCatalogItem[]>()
+	for (const row of rows.filter(isCertifiedTemplate).filter((item) => matchesDomain(item, domain))) {
+		const groupCode = resolveAssetGroupCode(row)
+		if (!groupCode) {
+			continue
+		}
+		const existing = grouped.get(groupCode) ?? []
+		existing.push(row)
+		grouped.set(groupCode, existing)
+	}
+
+	const assetGroups = Array.from(grouped.entries()).map<FixedReportAssetGroup>(([id, items]) => {
+		const sortedItems = sortTemplates(items)
+		const primary = choosePrimary(sortedItems)
+		const children = sortedItems.filter((item) => item !== primary)
+		return {
+			id,
+			name: normalizeText(primary.assetGroupName) || normalizeText(primary.name) || id,
+			description: primary.description ?? null,
+			domain: primary.domain ?? null,
+			primaryDbtModel: normalizeText(primary.primaryDbtModel) || null,
+			sourceTypes: uniq(sortedItems.map((item) => item.dataSourceType)),
+			primary,
+			children,
+			items: sortedItems,
+		}
+	})
+
+	return sortAssetGroups(assetGroups)
 }
 
 export function buildFixedReportQuickStartItems(

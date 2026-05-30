@@ -42,6 +42,13 @@ const VISUALIZATION_TYPES: { value: VisualizationType; label: string }[] = [
 	{ value: "scalar", label: "数值" },
 ];
 
+function resolveVisualizationType(value: string | null): VisualizationType | null {
+	const normalized = String(value ?? "").trim();
+	if (!normalized) return null;
+	const match = VISUALIZATION_TYPES.find((item) => item.value === normalized);
+	return match?.value ?? null;
+}
+
 type LoadState<T> =
 	| { state: "loading" }
 	| { state: "loaded"; value: T }
@@ -208,7 +215,10 @@ export default function CardEditorPage() {
 				setCollectionId(null);
 				setMode("sql");
 				setSql(value.sql_text ?? "");
-				setDisplayType((value.suggested_display as VisualizationType) || "table");
+				setDisplayType(
+					resolveVisualizationType(new URLSearchParams(location.search).get("display"))
+						?? ((value.suggested_display as VisualizationType) || "table"),
+				);
 				setBuilderInitialDatasetQuery(null);
 				setBuilderDatasetQuery(null);
 			})
@@ -219,7 +229,7 @@ export default function CardEditorPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [analysisDraftLookupId, cardId]);
+	}, [analysisDraftLookupId, cardId, location.search]);
 
 	useEffect(() => {
 		if (databaseId) return;

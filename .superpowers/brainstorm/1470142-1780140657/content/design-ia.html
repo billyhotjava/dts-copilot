@@ -1,0 +1,64 @@
+<h2>目标态 · 第 2 节:信息架构收口</h2>
+<p class="subtitle">旧的 6+ 入口不是删掉,而是各归其位 —— 分别落进三个去处:对话能力 / 资产类型 / 治理后台。前台用户只见一个 agent。</p>
+
+<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:14px;align-items:start">
+
+  <div class="mockup">
+    <div class="mockup-header">现有入口(乱在这)</div>
+    <div class="mockup-body" style="font-size:12px;line-height:2.1">
+      🔹 /agent-bi　AI报表向导+模板<br>
+      🔹 /analyze　看板卡片列表<br>
+      🔹 /explore-sessions　探索会话<br>
+      🔹 /report-factory　报表工厂<br>
+      🔹 /fixed-reports　内置固定报表<br>
+      🔹 /metric-lens　指标透镜<br>
+      🔹 collections / dashboards<br>
+      🔹 questions / screens<br>
+      🔹 data / models / metrics
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px">
+
+    <div style="background:#10182a;border-left:3px solid #4f7cff;border-radius:8px;padding:10px;font-size:12px">
+      <strong style="color:#7aa2ff">A · 折叠为「对话能力」(agent 工具,前台无独立页)</strong>
+      <div style="opacity:.85;margin-top:5px;line-height:1.8">
+        • <b>/metric-lens</b> → 口径/指标解释,对话里随问随调<br>
+        • <b>/fixed-reports 运行</b> → 「打开报花月报」起手芯片 / 对话指令<br>
+        • <b>/analyze、/agent-bi 向导</b> → 化进冷启动首屏 + 推荐追问
+      </div>
+    </div>
+
+    <div style="background:#0f1f17;border-left:3px solid #22c55e;border-radius:8px;padding:10px;font-size:12px">
+      <strong style="color:#4ade80">B · 沉淀为「资产类型」(📁资产库 二级入口)</strong>
+      <div style="opacity:.85;margin-top:5px;line-height:1.8">
+        • <b>cards / dashboards / screens</b> → 资产库浏览+管理<br>
+        • <b>/report-factory</b> → 退化成对话里的「存为报表/看板」动作 + 资产库模板区<br>
+        • <b>固定报表(定义)</b> → 资产库「官方报表」分组,可被对话引用
+      </div>
+    </div>
+
+    <div style="background:#1f1a0f;border-left:3px solid #f59e0b;border-radius:8px;padding:10px;font-size:12px">
+      <strong style="color:#fbbf24">C · 保留为「治理后台」(管理员,非前台主线)</strong>
+      <div style="opacity:.85;margin-top:5px;line-height:1.8">
+        • <b>data / models / metrics 建模</b> → 本体/语义层维护<br>
+        • <b>admin/settings/copilot、users</b> → 设置<br>
+        <span style="opacity:.6">这层喂养 agent 的"聪明",但普通用户不需要直接进</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section" style="margin-top:14px">
+  <div class="label">收口后的导航(左侧 4 个图标 = 全部一级入口)</div>
+  <div style="display:flex;gap:8px;font-size:12px">
+    <span style="background:#161b27;border:1px solid #4f7cff;border-radius:8px;padding:6px 12px">＋ 新对话</span>
+    <span style="background:#161b27;border:1px solid #30363d;border-radius:8px;padding:6px 12px">💬 历史会话</span>
+    <span style="background:#161b27;border:1px solid #30363d;border-radius:8px;padding:6px 12px">📁 资产库</span>
+    <span style="background:#161b27;border:1px solid #30363d;border-radius:8px;padding:6px 12px">🔔 信号/通知</span>
+    <span style="opacity:.4;align-self:center">+ 右上角 ⚙ 治理后台(限管理员)</span>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:12px">关键判断:旧路由<strong>不立即删</strong> —— 保留 URL 做 301 重定向/兼容期,避免书签和外链全断。确认这套归位吗?有没有哪个旧入口你觉得必须保留成独立页?</p>

@@ -77,12 +77,16 @@ interface Props {
 	hasSessionAccess?: boolean;
 	focusRequest?: CopilotSessionFocusRequest | null;
 	promptRequest?: CopilotPromptRequest | null;
+	presentation?: "sidebar" | "workbench";
+	compactReasoning?: boolean;
 }
 
 export function CopilotChat({
 	hasSessionAccess = false,
 	focusRequest = null,
 	promptRequest = null,
+	presentation = "sidebar",
+	compactReasoning = false,
 }: Props) {
 	const initialStoredSessionId = useRef(getStoredSessionId());
 	const copilotEnabled = canUseCopilot(
@@ -116,6 +120,23 @@ export function CopilotChat({
 	const queuedInputRef = useRef<string | null>(null);
 	const promptRequestGateRef = useRef(createCopilotPromptRequestGate());
 	const sortedMessages = useMemo(() => sortMessages(messages), [messages]);
+	const chatMessages = useMemo(
+		() => sortedMessages.filter((m) => m.role === "user" || m.role === "assistant"),
+		[sortedMessages],
+	);
+	const latestSqlMessageId = useMemo(() => {
+		for (let index = chatMessages.length - 1; index >= 0; index -= 1) {
+			const message = chatMessages[index];
+			if (message.role !== "assistant") {
+				continue;
+			}
+			const sql = message.generatedSql ?? extractSqlFromMarkdown(message.content ?? "");
+			if (sql?.trim()) {
+				return message.id;
+			}
+		}
+		return null;
+	}, [chatMessages]);
 	const approvalSchema = useMemo(
 		() => normalizeMicroForm(pendingAction),
 		[pendingAction],
@@ -874,7 +895,15 @@ export function CopilotChat({
 	}
 
 	return (
-		<div className="copilot-chat">
+		<div
+			className={[
+				"copilot-chat",
+				presentation === "workbench" ? "copilot-chat--workbench" : "",
+				compactReasoning ? "copilot-chat--compact-reasoning" : "",
+			]
+				.filter(Boolean)
+				.join(" ")}
+		>
 			<div className="copilot-chat__session-bar">
 				<select
 					className="copilot-chat__session-select"
@@ -954,8 +983,7 @@ export function CopilotChat({
 						{focusNotice}
 					</div>
 				) : null}
-				{sortedMessages
-					.filter((m) => m.role === "user" || m.role === "assistant")
+				{chatMessages
 					.map((msg) => {
 						// For assistant messages, collect preceding tool calls
 						const toolMsgs =
@@ -992,6 +1020,28 @@ export function CopilotChat({
 									sourceRefs: msg.sourceRefs,
 								})
 							: selectedDbId;
+						const showStreamingPlaceholder =
+							msg.role === "assistant" &&
+							msg.id.startsWith("stream-") &&
+							!msg.content &&
+							msg.reasoningContent === STREAM_PENDING_REASONING;
+						const hasReasoningContent =
+							msg.role === "assistant" &&
+							!showStreamingPlaceholder &&
+							Boolean(
+								msg.reasoningContent &&
+									msg.reasoningContent !== STREAM_PENDING_REASONING,
+							);
+						const reasoningBlock = hasReasoningContent ? (
+							<div className="copilot-chat__reasoning">
+								<div className="copilot-chat__reasoning-label">
+									思考过程
+								</div>
+								<div className="copilot-chat__reasoning-content">
+									{msg.reasoningContent}
+								</div>
+							</div>
+						) : null;
 						return (
 							<div
 								key={msg.id}
@@ -999,25 +1049,20 @@ export function CopilotChat({
 								data-copilot-message-id={msg.id}
 							>
 								<div className="copilot-chat__msg-content">
-									{msg.role === "assistant" &&
-									msg.id.startsWith("stream-") &&
-									!msg.content &&
-									msg.reasoningContent === STREAM_PENDING_REASONING ? (
+									{showStreamingPlaceholder ? (
 										<div className="copilot-chat__streaming-placeholder">
 											正在思考…
 										</div>
 									) : null}
-									{msg.reasoningContent &&
-										msg.reasoningContent !== STREAM_PENDING_REASONING && (
-											<div className="copilot-chat__reasoning">
-												<div className="copilot-chat__reasoning-label">
-													思考过程
-												</div>
-												<div className="copilot-chat__reasoning-content">
-													{msg.reasoningContent}
-												</div>
-											</div>
-										)}
+									{compactReasoning && reasoningBlock ? (
+										<details className="copilot-chat__reasoning-details">
+											<summary>
+												<span>思考过程</span>
+												<small>工具调用与推理步骤</small>
+											</summary>
+											{reasoningBlock}
+										</details>
+									) : reasoningBlock}
 									<CopilotMessageContent content={msg.content} />
 								</div>
 								{fixedReportShortcut && (
@@ -1043,7 +1088,7 @@ export function CopilotChat({
 														className="copilot-chat__fixed-report-link"
 														to={
 															candidate.href ??
-															`/fixed-reports/${encodeURIComponent(candidate.templateCode)}/run`
+															`/agent-bi?fixedReport=${encodeURIComponent(candidate.templateCode)}`
 														}
 													>
 														{candidate.label}
@@ -1095,6 +1140,7 @@ export function CopilotChat({
 											isGeneratedReportDraftMessage(msg) ? "report" : "sql"
 										}
 										initialDraftId={msg.analysisDraftId}
+										autoRun={msg.id === latestSqlMessageId}
 									/>
 								)}
 								{hasTrace && (

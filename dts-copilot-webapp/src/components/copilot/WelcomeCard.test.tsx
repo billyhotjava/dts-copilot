@@ -1,43 +1,34 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { WelcomeCard } from "./WelcomeCard";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+import { AGENT_REPORT_BUSINESS_GUIDE } from "../../pages/agent-reports/agentReportQuickStarts";
 
-vi.mock("../../api/analyticsApi", () => ({
-	analyticsApi: {
-		listSuggestedQuestions: vi.fn().mockResolvedValue([]),
-	},
-}));
+const WELCOME_SOURCE = readFileSync(resolve(__dirname, "WelcomeCard.tsx"), "utf8");
 
 describe("WelcomeCard", () => {
-	const onQuestionClick = vi.fn();
-
-	beforeEach(() => {
-		vi.clearAllMocks();
+	it("uses the unified green-business assistant copy", () => {
+		expect(WELCOME_SOURCE).toContain("你好，我是绿植业务助手");
+		expect(WELCOME_SOURCE).toContain("固定报表、dbt 主题表和业务对象问答合在一个入口");
+		expect(WELCOME_SOURCE).toContain("welcome-card__domain-guide");
 	});
 
-	it("渲染欢迎标题", () => {
-		render(<WelcomeCard onQuestionClick={onQuestionClick} />);
-		expect(screen.getByText("你好，我是绿植业务助手")).toBeInTheDocument();
+	it("renders business-domain guide chips from the shared guide model", () => {
+		expect(WELCOME_SOURCE).toContain("AGENT_REPORT_BUSINESS_GUIDE.map");
+		expect(WELCOME_SOURCE).toContain("domain.questions.map");
+		expect(WELCOME_SOURCE).toContain("onQuestionClick(question.prompt)");
+		expect(AGENT_REPORT_BUSINESS_GUIDE.map((item) => item.title)).toEqual([
+			"经营总览",
+			"报花业务",
+			"采购与配送",
+			"项目点与履约",
+			"仓库与库存",
+			"财务结算",
+			"任务执行与养护",
+		]);
 	});
 
-	it("渲染 4 个默认建议分组", () => {
-		render(<WelcomeCard onQuestionClick={onQuestionClick} />);
-		expect(screen.getByText("PRS租赁报表")).toBeInTheDocument();
-		expect(screen.getByText("PRS钻取明细")).toBeInTheDocument();
-		expect(screen.getByText("Agent报表")).toBeInTheDocument();
-		expect(screen.getByText("项目履约")).toBeInTheDocument();
-	});
-
-	it("点击建议按钮触发 onQuestionClick 回调", () => {
-		render(<WelcomeCard onQuestionClick={onQuestionClick} />);
-		const chip = screen.getByText("PRS 租赁经营总览");
-		fireEvent.click(chip);
-		expect(onQuestionClick).toHaveBeenCalledWith("PRS 租赁经营总览");
-	});
-
-	it("渲染默认分组的所有建议文本", () => {
-		render(<WelcomeCard onQuestionClick={onQuestionClick} />);
-		expect(screen.getByText("PRS 租赁报花执行看板")).toBeInTheDocument();
-		expect(screen.getByText("PRS 回收明细钻取")).toBeInTheDocument();
-		expect(screen.getByText("当前在服项目一共多少个？")).toBeInTheDocument();
+	it("keeps API suggestions collapsed below the business-domain guide", () => {
+		expect(WELCOME_SOURCE).toContain("<details className=\"welcome-card__suggestions\">");
+		expect(WELCOME_SOURCE).toContain("更多推荐问题");
 	});
 });

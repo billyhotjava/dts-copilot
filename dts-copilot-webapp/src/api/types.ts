@@ -397,6 +397,13 @@ export type FixedReportCatalogItem = {
 	parameterSchemaJson?: string | null;
 	certificationStatus?: string | null;
 	placeholderReviewRequired?: boolean;
+	assetKind?: string | null;
+	assetGroupCode?: string | null;
+	assetGroupName?: string | null;
+	parentTemplateCode?: string | null;
+	primaryDbtModel?: string | null;
+	outputColumnCount?: number | null;
+	sourceRefs?: string[];
 	legacyPageTitle?: string | null;
 	legacyPagePath?: string | null;
 	published?: boolean;

@@ -177,14 +177,14 @@ test('builds creation flow paths and reads selected fixed report template from q
 	assert.equal(readSelectedFixedReportTemplate(''), null)
 })
 
-test('PRS fixed report run path opens the table-backed fixed report page', () => {
+test('PRS fixed report run path opens the unified AI report entry', () => {
 	assert.equal(
 		buildFixedReportRunPath('PRS-FLOWERBIZ-OVERVIEW', 'screen.prs-flowerbiz-overview-v1'),
-		'/fixed-reports/PRS-FLOWERBIZ-OVERVIEW/run',
+		'/agent-bi?fixedReport=PRS-FLOWERBIZ-OVERVIEW',
 	)
 	assert.equal(
 		buildFixedReportRunPath('FIN-AR-OVERVIEW'),
-		'/fixed-reports/FIN-AR-OVERVIEW/run',
+		'/agent-bi?fixedReport=FIN-AR-OVERVIEW',
 	)
 })
 
@@ -194,7 +194,7 @@ test('report factory page exposes fixed report quick start entry', () => {
 	assert.match(reportFactorySource, /固定报表快捷入口/)
 	assert.match(reportFactorySource, /buildFixedReportCreationFlowPath\("reportFactory", item\.templateCode \|\| ""\)/)
 	assert.match(reportFactorySource, /基于固定报表/)
-	assert.match(reportFactorySource, /查看固定报表/)
+	assert.match(reportFactorySource, /用 AI 报表打开/)
 })
 
 test('dashboards page exposes fixed report quick start entry', () => {
@@ -204,35 +204,15 @@ test('dashboards page exposes fixed report quick start entry', () => {
 	assert.match(dashboardsPageSource, /固定报表快捷入口/)
 	assert.match(dashboardsPageSource, /buildFixedReportCreationFlowPath\('dashboard', item\.templateCode \|\| ''\)/)
 	assert.match(dashboardEditorSource, /基于固定报表/)
-	assert.match(dashboardEditorSource, /查看固定报表/)
+	assert.match(dashboardEditorSource, /用 AI 报表打开/)
 })
 
-test('screens center route redirects to fixed reports', () => {
+test('screens center route redirects to the unified AI report entry', () => {
 	const routesSource = readFileSync(resolve(WEBAPP_ROOT, 'src/routes.tsx'), 'utf8')
 
 	assert.match(routesSource, /function ScreensCenterRedirect/)
-	assert.match(routesSource, /<Navigate to="\/fixed-reports" replace \/>/)
+	assert.match(routesSource, /<Navigate to="\/agent-bi" replace \/>/)
 	assert.match(routesSource, /path: "\/screens", Component: ScreensCenterRedirect/)
-})
-
-test('fixed report run page renders result preview table when execution returns rows', () => {
-	const runPageSource = readFileSync(resolve(WEBAPP_ROOT, 'src/pages/fixed-reports/FixedReportRunPage.tsx'), 'utf8')
-
-	assert.match(runPageSource, /resultPreview\?\.databaseName/)
-	assert.match(runPageSource, /previewColumns\.length === 0 \|\| previewRows\.length === 0/)
-	assert.match(runPageSource, /<table/)
-	assert.doesNotMatch(runPageSource, /<div className="grid2" style=\{\{ alignItems: "start" \}\}>/)
-	assert.match(runPageSource, /display: "flex"/)
-	assert.match(runPageSource, /flexDirection: "column"/)
-})
-
-test('fixed report run page memoizes parameter fields to avoid render loop after opening a template', () => {
-	const runPageSource = readFileSync(resolve(WEBAPP_ROOT, 'src/pages/fixed-reports/FixedReportRunPage.tsx'), 'utf8')
-
-	assert.match(runPageSource, /const fields = useMemo\(/)
-	assert.match(runPageSource, /const initialFormValues = useMemo\(/)
-	assert.match(runPageSource, /setFormValues\(initialFormValues\)/)
-	assert.match(runPageSource, /\}, \[initialFormValues\]\)/)
 })
 
 test('analytics API exposes fixed report catalog and execute methods', async () => {
@@ -291,11 +271,13 @@ test('analytics API exposes fixed report catalog and execute methods', async () 
 	}
 })
 
-test('routes and navigation expose fixed report center pages', async () => {
+test('routes keep fixed report urls only as compatibility redirects', async () => {
 	const routesSource = readFileSync(resolve(WEBAPP_ROOT, 'src/routes.tsx'), 'utf8')
 	const navigationSource = readFileSync(resolve(WEBAPP_ROOT, 'src/layouts/appNavigation.ts'), 'utf8')
 
+	assert.match(routesSource, /function FixedReportsRedirect/)
 	assert.match(routesSource, /path:\s*"\/fixed-reports"/)
 	assert.match(routesSource, /path:\s*"\/fixed-reports\/:templateCode\/run"/)
-	assert.match(navigationSource, /"fixedReports"/)
+	assert.doesNotMatch(navigationSource, /id:\s*"fixedReports"/)
+	assert.match(navigationSource, /id:\s*"agentReports"/)
 })

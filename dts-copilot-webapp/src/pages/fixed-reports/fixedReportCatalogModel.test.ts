@@ -3,6 +3,8 @@ import {
 	isPlaceholderFixedReport,
 	getFixedReportTemplateAvailability,
 	buildFixedReportParameterFields,
+	buildFixedReportAssetGroups,
+	buildFixedReportDomainTabs,
 	filterFixedReportTemplates,
 	type FixedReportCatalogItem,
 } from "./fixedReportCatalogModel";
@@ -120,13 +122,86 @@ describe("PRS fixed report screen entries", () => {
 		]);
 	});
 
-	it("PRS 固定报表入口回到表格固定报表运行页，非 PRS 继续走运行页", () => {
+	it("固定报表入口统一回到 AI 报表入口", () => {
 		expect(buildFixedReportOpenPath({
 			templateCode: "PRS-FLOWERBIZ-OVERVIEW",
 			targetObject: "screen.prs-flowerbiz-overview-v1",
-		})).toBe("/fixed-reports/PRS-FLOWERBIZ-OVERVIEW/run");
+		})).toBe("/agent-bi?fixedReport=PRS-FLOWERBIZ-OVERVIEW");
 
 		expect(buildFixedReportOpenPath({ templateCode: "FIN-AR-OVERVIEW" }))
-			.toBe("/fixed-reports/FIN-AR-OVERVIEW/run");
+			.toBe("/agent-bi?fixedReport=FIN-AR-OVERVIEW");
+	});
+
+	it("将同一个 dbt 报表资产的主报表和细分报表合并成一个资产组", () => {
+		const templates: FixedReportCatalogItem[] = [
+			{
+				templateCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER-TOP",
+				name: "PRS 项目经营 TOP",
+				domain: "PRS租赁",
+				certificationStatus: "CERTIFIED",
+				published: true,
+				assetKind: "DBT_SPLIT",
+				assetGroupCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+				assetGroupName: "PRS 项目客户经营",
+				parentTemplateCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+				primaryDbtModel: "public.xycyl_ads_flowerbiz_project_customer",
+				outputColumnCount: 11,
+				dataSourceType: "DBT_ADS",
+			},
+			{
+				templateCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+				name: "PRS 项目客户经营看板",
+				domain: "PRS租赁",
+				certificationStatus: "CERTIFIED",
+				published: true,
+				assetKind: "DBT_SCREEN_TABLE",
+				assetGroupCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+				assetGroupName: "PRS 项目客户经营",
+				primaryDbtModel: "public.xycyl_ads_flowerbiz_project_customer",
+				dataSourceType: "DBT_SCREEN",
+			},
+		];
+
+		const groups = buildFixedReportAssetGroups(templates, "all");
+
+		expect(groups).toHaveLength(1);
+		expect(groups[0].name).toBe("PRS 项目客户经营");
+		expect(groups[0].primary.templateCode).toBe("PRS-FLOWERBIZ-PROJECT-CUSTOMER");
+		expect(groups[0].children.map((item) => item.templateCode)).toEqual([
+			"PRS-FLOWERBIZ-PROJECT-CUSTOMER-TOP",
+		]);
+		expect(groups[0].sourceTypes).toEqual(["DBT_SCREEN", "DBT_ADS"]);
+	});
+
+	it("领域 Tab 统计按合并后的报表资产计数", () => {
+		const templates: FixedReportCatalogItem[] = [
+			{
+				templateCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+				domain: "PRS租赁",
+				certificationStatus: "CERTIFIED",
+				published: true,
+				assetGroupCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+			},
+			{
+				templateCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER-TOP",
+				domain: "PRS租赁",
+				certificationStatus: "CERTIFIED",
+				published: true,
+				assetGroupCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+				parentTemplateCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+			},
+			{
+				templateCode: "PRS-FLOWERBIZ-FINANCE-COST",
+				domain: "PRS租赁",
+				certificationStatus: "CERTIFIED",
+				published: true,
+				assetGroupCode: "PRS-FLOWERBIZ-FINANCE-COST",
+			},
+		];
+
+		const tabs = buildFixedReportDomainTabs(templates, { allLabel: "全部" });
+
+		expect(tabs.find((tab) => tab.id === "all")?.count).toBe(2);
+		expect(tabs.find((tab) => tab.id === "PRS租赁")?.count).toBe(2);
 	});
 });
