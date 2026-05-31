@@ -214,8 +214,17 @@ export function buildFixedReportOpenPath(item?: FixedReportCatalogItem | null): 
 }
 
 export function isScreenBackedFixedReport(item?: FixedReportCatalogItem | null): boolean {
-	void item
-	return false
+	const targetObject = normalizeKey(item?.targetObject)
+	const assetKind = normalizeKey(item?.assetKind)
+	const dataSourceType = normalizeKey(item?.dataSourceType)
+	const sourceRefs = item?.sourceRefs ?? []
+	return (
+		targetObject.startsWith("screen.") ||
+		assetKind === "dbt_screen_table" ||
+		assetKind === "fixed-screen" ||
+		dataSourceType === "dbt_screen" ||
+		sourceRefs.some((ref) => normalizeKey(ref).startsWith("screen."))
+	)
 }
 
 export function getFixedReportTemplateAvailability(
@@ -495,9 +504,8 @@ export function buildFixedReportQuickStartItems(
 	rows: FixedReportCatalogItem[],
 	limit = 6,
 ): FixedReportCatalogItem[] {
-	return [...rows]
-		.filter(isCertifiedTemplate)
-		.sort(compareBusinessPriority)
+	return buildFixedReportAssetGroups(rows, "all")
+		.map((group) => group.primary)
 		.slice(0, Math.max(0, limit))
 }
 

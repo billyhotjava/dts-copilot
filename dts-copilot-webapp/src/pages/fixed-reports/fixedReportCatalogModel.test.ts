@@ -1,6 +1,8 @@
 import {
 	buildFixedReportOpenPath,
+	buildFixedReportQuickStartItems,
 	isPlaceholderFixedReport,
+	isScreenBackedFixedReport,
 	getFixedReportTemplateAvailability,
 	buildFixedReportParameterFields,
 	buildFixedReportAssetGroups,
@@ -132,6 +134,23 @@ describe("PRS fixed report screen entries", () => {
 			.toBe("/agent-bi?fixedReport=FIN-AR-OVERVIEW");
 	});
 
+	it("识别 screen-backed 的 PRS 大屏固定报表", () => {
+		expect(isScreenBackedFixedReport({
+			templateCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+			targetObject: "screen.prs-flowerbiz-project-customer-v1",
+		})).toBe(true);
+
+		expect(isScreenBackedFixedReport({
+			templateCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+			assetKind: "DBT_SCREEN_TABLE",
+		})).toBe(true);
+
+		expect(isScreenBackedFixedReport({
+			templateCode: "FIN-AR-OVERVIEW",
+			targetObject: "authority.finance.ar_overview",
+		})).toBe(false);
+	});
+
 	it("将同一个 dbt 报表资产的主报表和细分报表合并成一个资产组", () => {
 		const templates: FixedReportCatalogItem[] = [
 			{
@@ -171,6 +190,46 @@ describe("PRS fixed report screen entries", () => {
 			"PRS-FLOWERBIZ-PROJECT-CUSTOMER-TOP",
 		]);
 		expect(groups[0].sourceTypes).toEqual(["DBT_SCREEN", "DBT_ADS"]);
+	});
+
+	it("快捷入口按资产组展示主报表，不把 DBT_SPLIT 子报表挤占大屏入口", () => {
+		const templates: FixedReportCatalogItem[] = [
+			{
+				templateCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER-TOP",
+				name: "PRS 项目经营 TOP",
+				domain: "PRS租赁",
+				certificationStatus: "CERTIFIED",
+				published: true,
+				assetKind: "DBT_SPLIT",
+				assetGroupCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+				parentTemplateCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+			},
+			{
+				templateCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+				name: "PRS 项目客户经营看板",
+				domain: "PRS租赁",
+				certificationStatus: "CERTIFIED",
+				published: true,
+				assetKind: "DBT_SCREEN_TABLE",
+				assetGroupCode: "PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+			},
+			{
+				templateCode: "PRS-FLOWERBIZ-OVERVIEW",
+				name: "PRS 租赁经营总览",
+				domain: "PRS租赁",
+				certificationStatus: "CERTIFIED",
+				published: true,
+				assetKind: "DBT_SCREEN_TABLE",
+				assetGroupCode: "PRS-FLOWERBIZ-OVERVIEW",
+			},
+		];
+
+		const quickStarts = buildFixedReportQuickStartItems(templates, 6);
+
+		expect(quickStarts.map((item) => item.templateCode)).toEqual([
+			"PRS-FLOWERBIZ-OVERVIEW",
+			"PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+		]);
 	});
 
 	it("领域 Tab 统计按合并后的报表资产计数", () => {

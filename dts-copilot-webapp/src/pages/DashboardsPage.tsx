@@ -11,8 +11,11 @@ import { CardSkeleton } from "../ui/Loading/Skeleton";
 import { CardGrid } from "../components/DashboardGrid/DashboardGrid";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
-import { buildFixedReportQuickStartItems } from "./fixed-reports/fixedReportCatalogModel";
-import { buildFixedReportCreationFlowPath } from "./fixed-reports/fixedReportSurfaceEntry";
+import {
+	buildFixedReportOpenPath,
+	buildFixedReportQuickStartItems,
+	isScreenBackedFixedReport,
+} from "./fixed-reports/fixedReportCatalogModel";
 import "./page.css";
 
 type LoadState<T> =
@@ -72,7 +75,7 @@ export default function DashboardsPage({ embedded = false }: DashboardsPageProps
 		let cancelled = false;
 		void Promise.all([
 			analyticsApi.listDashboards(),
-			analyticsApi.listFixedReportCatalog({ limit: 12 }),
+			analyticsApi.listFixedReportCatalog({ limit: 100 }),
 		])
 			.then(([dashboardRows, fixedReportRows]) => {
 				if (cancelled) return;
@@ -124,8 +127,8 @@ export default function DashboardsPage({ embedded = false }: DashboardsPageProps
 				<CardBody>
 					<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--spacing-md)", marginBottom: "var(--spacing-sm)" }}>
 						<div>
-							<div style={{ fontWeight: 600 }}>固定报表快捷入口</div>
-							<div className="muted small">复用已认证的 PRS dbt 固定报表表格模板。</div>
+							<div style={{ fontWeight: 600 }}>固定报表与 PRS 大屏资产</div>
+							<div className="muted small">打开已认证的 PRS dbt 固定报表和 dts-stack 大屏口径，不再创建空白看板。</div>
 						</div>
 						{fixedReports.state === "loaded" ? <Badge>{fixedReportQuickStarts.length}</Badge> : null}
 					</div>
@@ -143,20 +146,28 @@ export default function DashboardsPage({ embedded = false }: DashboardsPageProps
 							{fixedReportQuickStarts.map((item) => (
 								<Link
 									key={item.templateCode || item.name}
-									to={buildFixedReportCreationFlowPath('dashboard', item.templateCode || '')}
+									to={buildFixedReportOpenPath(item)}
 									className="link"
 									style={{
-										display: "inline-flex",
-										alignItems: "center",
+										display: "flex",
+										flexDirection: "column",
+										alignItems: "flex-start",
 										gap: "var(--spacing-xs)",
-										padding: "var(--spacing-xs) var(--spacing-sm)",
-										borderRadius: "var(--radius-pill)",
+										minWidth: 220,
+										padding: "var(--spacing-sm)",
+										borderRadius: "var(--radius-md)",
 										background: "var(--color-bg-secondary)",
 										border: "1px solid var(--color-border)",
 									}}
 								>
-									<span>{item.name || item.templateCode || "固定报表"}</span>
-									<span className="small muted">{item.domain || "未分类"}</span>
+									<span style={{ fontWeight: 600 }}>{item.name || item.templateCode || "固定报表"}</span>
+									<span className="small muted">
+										{isScreenBackedFixedReport(item) ? "PRS 大屏" : "固定报表"}
+										{item.domain ? ` · ${item.domain}` : ""}
+									</span>
+									{item.primaryDbtModel ? (
+										<span className="small muted">{item.primaryDbtModel}</span>
+									) : null}
 								</Link>
 							))}
 						</div>
