@@ -264,3 +264,9 @@
 .mb-sidebar__nav::-webkit-scrollbar-thumb:hover {
   background: var(--color-sidebar-text);
 }
+
+@media (max-width: 767px) {
+  .mb-sidebar {
+    display: none;
+  }
+}

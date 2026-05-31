@@ -13,7 +13,7 @@ export function buildFixedReportCreationFlowPath(surface: FixedReportSurface, te
 		case 'dashboard':
 			return `/dashboards/new?${params.toString()}`
 		case 'reportFactory':
-			return `/report-factory?${params.toString()}`
+			return `/agent-bi?${params.toString()}`
 		default:
 			return buildFixedReportRunPath(templateCode)
 	}

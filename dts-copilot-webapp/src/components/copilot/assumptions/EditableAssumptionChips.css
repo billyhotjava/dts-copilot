@@ -1,0 +1,70 @@
+.assumption-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--spacing-xs);
+	margin: var(--spacing-sm) 0;
+}
+
+.assumption-chips__chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--spacing-xs);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-bg-secondary);
+	color: var(--color-text-primary);
+	cursor: pointer;
+	padding: var(--spacing-xs) var(--spacing-sm);
+	font: inherit;
+	font-size: var(--font-size-sm);
+}
+
+.assumption-chips__chip:hover,
+.assumption-chips__chip:focus {
+	border-color: var(--color-primary);
+	outline: none;
+}
+
+.assumption-chips__chip[aria-disabled="true"] {
+	cursor: default;
+	color: var(--color-text-secondary);
+}
+
+.assumption-chips__edit-mark {
+	color: var(--color-text-secondary);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+}
+
+.assumption-chips__editor {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--spacing-xs);
+	border: 1px solid var(--color-primary);
+	border-radius: var(--radius-sm);
+	background: var(--color-bg-primary);
+	padding: var(--spacing-xs);
+}
+
+.assumption-chips__editor input,
+.assumption-chips__editor select {
+	min-width: 120px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-bg-primary);
+	color: var(--color-text-primary);
+	font: inherit;
+	font-size: var(--font-size-sm);
+	padding: var(--spacing-xs);
+}
+
+.assumption-chips__editor button {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-bg-secondary);
+	color: var(--color-text-primary);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-sm);
+	padding: var(--spacing-xs) var(--spacing-sm);
+}

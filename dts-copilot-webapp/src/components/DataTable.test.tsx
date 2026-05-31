@@ -14,9 +14,9 @@ describe("DataTable", () => {
 		[3, "项目C", 3000],
 	];
 
-	it("渲染表头和数据行", () => {
+	it("渲染表头和数据行", async () => {
 		render(<DataTable cols={sampleCols} rows={sampleRows} />);
-		expect(screen.getByText("ID")).toBeInTheDocument();
+		expect(await screen.findByText("ID")).toBeInTheDocument();
 		expect(screen.getByText("名称")).toBeInTheDocument();
 		expect(screen.getByText("金额")).toBeInTheDocument();
 		expect(screen.getByText("项目A")).toBeInTheDocument();
@@ -24,33 +24,34 @@ describe("DataTable", () => {
 		expect(screen.getByText("项目C")).toBeInTheDocument();
 	});
 
-	it("空数据显示无数据提示", () => {
+	it("空数据显示无数据提示", async () => {
 		render(<DataTable cols={sampleCols} rows={[]} />);
-		expect(screen.getByText("No rows to display")).toBeInTheDocument();
+		expect(await screen.findByText("No rows to display")).toBeInTheDocument();
 	});
 
-	it("数据量超过 pageSize 时显示分页", () => {
+	it("数据量超过 pageSize 时显示分页", async () => {
 		// Create 5 rows with pageSize=2, should show pagination
 		const manyRows = Array.from({ length: 5 }, (_, i) => [i + 1, `项目${i + 1}`, (i + 1) * 100]);
 		render(<DataTable cols={sampleCols} rows={manyRows} pageSize={2} />);
-		expect(screen.getByText("5 行")).toBeInTheDocument();
+		expect(await screen.findByText("5 行")).toBeInTheDocument();
 		expect(screen.getByText("1 / 3")).toBeInTheDocument();
 		expect(screen.getByText("Next")).toBeInTheDocument();
 		expect(screen.getByText("Prev")).toBeInTheDocument();
 	});
 
-	it("数据量不超过 pageSize 时不显示分页", () => {
+	it("数据量不超过 pageSize 时不显示分页", async () => {
 		render(<DataTable cols={sampleCols} rows={sampleRows} pageSize={50} />);
+		expect(await screen.findByText("ID")).toBeInTheDocument();
 		expect(screen.queryByText("Next")).not.toBeInTheDocument();
 	});
 
-	it("使用 display_name 作为列标题，没有时使用 name", () => {
+	it("使用 display_name 作为列标题，没有时使用 name", async () => {
 		const cols = [
 			{ name: "col_a" },
 			{ name: "col_b", display_name: "自定义名称" },
 		];
 		render(<DataTable cols={cols} rows={[["a", "b"]]} />);
-		expect(screen.getByText("col_a")).toBeInTheDocument();
+		expect(await screen.findByText("col_a")).toBeInTheDocument();
 		expect(screen.getByText("自定义名称")).toBeInTheDocument();
 	});
 });

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { analyticsApi } from '../src/api/analyticsApi.js'
+import { analyticsApi } from '../src/api/analyticsApi.ts'
 
 const emptyStorage = {
 	getItem() {

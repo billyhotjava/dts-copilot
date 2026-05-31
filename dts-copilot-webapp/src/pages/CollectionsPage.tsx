@@ -15,6 +15,10 @@ type LoadState<T> =
 	| { state: "loaded"; value: T }
 	| { state: "error"; error: unknown };
 
+type CollectionsPageProps = {
+	embedded?: boolean;
+};
+
 // Icons
 const FolderIcon = () => (
 	<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -22,7 +26,7 @@ const FolderIcon = () => (
 	</svg>
 );
 
-export default function CollectionsPage() {
+export default function CollectionsPage({ embedded = false }: CollectionsPageProps) {
 	const locale: Locale = useMemo(() => getEffectiveLocale(), []);
 	usePageContext({ module: "analytics/collection", resourceType: "collection" });
 	const [state, setState] = useState<LoadState<CollectionListItem[]>>({ state: "loading" });
@@ -44,12 +48,14 @@ export default function CollectionsPage() {
 		};
 	}, []);
 
-	return (
-		<PageContainer>
-			<PageHeader
-				title={t(locale, "collections.title")}
-				subtitle={t(locale, "collections.subtitle")}
-			/>
+	const content = (
+		<>
+			{!embedded ? (
+				<PageHeader
+					title={t(locale, "collections.title")}
+					subtitle={t(locale, "collections.subtitle")}
+				/>
+			) : null}
 
 			{state.state === "loading" && (
 				<Card>
@@ -97,6 +103,8 @@ export default function CollectionsPage() {
 					))}
 				</div>
 			)}
-		</PageContainer>
+		</>
 	);
+
+	return embedded ? content : <PageContainer>{content}</PageContainer>;
 }

@@ -1,4 +1,5 @@
-import { renderHook, act } from "@testing-library/react";
+import { act, createElement } from "react";
+import { render, screen } from "@testing-library/react";
 import { useVoiceInput } from "./useVoiceInput";
 
 describe("useVoiceInput", () => {
@@ -11,44 +12,62 @@ describe("useVoiceInput", () => {
 		vi.clearAllMocks();
 	});
 
-	it("jsdom 环境下 isSupported 返回 false", () => {
-		const { result } = renderHook(() => useVoiceInput(defaultOptions));
-		expect(result.current.isSupported).toBe(false);
+	type VoiceInputValue = ReturnType<typeof useVoiceInput>;
+	let currentVoiceInput: VoiceInputValue | null = null;
+
+	function VoiceInputProbe() {
+		currentVoiceInput = useVoiceInput(defaultOptions);
+		return createElement("span", { "data-testid": "voice-input-state" }, currentVoiceInput.state);
+	}
+
+	async function renderVoiceInput() {
+		currentVoiceInput = null;
+		render(createElement(VoiceInputProbe));
+		await screen.findByTestId("voice-input-state");
+		if (!currentVoiceInput) {
+			throw new Error("useVoiceInput probe did not render");
+		}
+		return () => currentVoiceInput as VoiceInputValue;
+	}
+
+	it("jsdom 环境下 isSupported 返回 false", async () => {
+		const voiceInput = await renderVoiceInput();
+		expect(voiceInput().isSupported).toBe(false);
 	});
 
-	it("初始状态为 idle", () => {
-		const { result } = renderHook(() => useVoiceInput(defaultOptions));
-		expect(result.current.state).toBe("idle");
+	it("初始状态为 idle", async () => {
+		const voiceInput = await renderVoiceInput();
+		expect(voiceInput().state).toBe("idle");
 	});
 
-	it("初始 errorMessage 为 null", () => {
-		const { result } = renderHook(() => useVoiceInput(defaultOptions));
-		expect(result.current.errorMessage).toBeNull();
+	it("初始 errorMessage 为 null", async () => {
+		const voiceInput = await renderVoiceInput();
+		expect(voiceInput().errorMessage).toBeNull();
 	});
 
-	it("不支持时调用 start() 不会改变状态", () => {
-		const { result } = renderHook(() => useVoiceInput(defaultOptions));
+	it("不支持时调用 start() 不会改变状态", async () => {
+		const voiceInput = await renderVoiceInput();
 		act(() => {
-			result.current.start();
+			voiceInput().start();
 		});
-		expect(result.current.state).toBe("idle");
+		expect(voiceInput().state).toBe("idle");
 	});
 
-	it("不在监听时调用 stop() 不会抛错", () => {
-		const { result } = renderHook(() => useVoiceInput(defaultOptions));
+	it("不在监听时调用 stop() 不会抛错", async () => {
+		const voiceInput = await renderVoiceInput();
 		expect(() => {
 			act(() => {
-				result.current.stop();
+				voiceInput().stop();
 			});
 		}).not.toThrow();
 	});
 
-	it("返回值包含所有必要字段", () => {
-		const { result } = renderHook(() => useVoiceInput(defaultOptions));
-		expect(result.current).toHaveProperty("start");
-		expect(result.current).toHaveProperty("stop");
-		expect(result.current).toHaveProperty("state");
-		expect(result.current).toHaveProperty("isSupported");
-		expect(result.current).toHaveProperty("errorMessage");
+	it("返回值包含所有必要字段", async () => {
+		const voiceInput = await renderVoiceInput();
+		expect(voiceInput()).toHaveProperty("start");
+		expect(voiceInput()).toHaveProperty("stop");
+		expect(voiceInput()).toHaveProperty("state");
+		expect(voiceInput()).toHaveProperty("isSupported");
+		expect(voiceInput()).toHaveProperty("errorMessage");
 	});
 });

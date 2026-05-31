@@ -20,6 +20,10 @@ type LoadState<T> =
 	| { state: "loaded"; value: T }
 	| { state: "error"; error: unknown };
 
+type DashboardsPageProps = {
+	embedded?: boolean;
+};
+
 // Icons
 const PlusIcon = () => (
 	<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -57,7 +61,7 @@ const ListIcon = () => (
 	</svg>
 );
 
-export default function DashboardsPage() {
+export default function DashboardsPage({ embedded = false }: DashboardsPageProps) {
 	const locale: Locale = useMemo(() => getEffectiveLocale(), []);
 	const [state, setState] = useState<LoadState<DashboardListItem[]>>({ state: "loading" });
 	const [fixedReports, setFixedReports] = useState<LoadState<FixedReportCatalogItem[]>>({ state: "loading" });
@@ -100,19 +104,21 @@ export default function DashboardsPage() {
 		);
 	}, [state, searchQuery]);
 
-	return (
-		<PageContainer>
+	const content = (
+		<>
 			<div data-testid="analytics-dashboards-page">
-			<PageHeader
-				title={t(locale, "dashboards.title")}
-				actions={
-					<Link to="/dashboards/new">
-						<Button variant="primary" icon={<PlusIcon />}>
-							{t(locale, "dashboards.new")}
-						</Button>
-					</Link>
-				}
-			/>
+			{!embedded ? (
+				<PageHeader
+					title={t(locale, "dashboards.title")}
+					actions={
+						<Link to="/dashboards/new">
+							<Button variant="primary" icon={<PlusIcon />}>
+								{t(locale, "dashboards.new")}
+							</Button>
+						</Link>
+					}
+				/>
+			) : null}
 
 			<Card style={{ marginBottom: "var(--spacing-lg)" }}>
 				<CardBody>
@@ -325,6 +331,8 @@ export default function DashboardsPage() {
 					white-space: nowrap;
 				}
 			`}</style>
-		</PageContainer>
+		</>
 	);
+
+	return embedded ? content : <PageContainer>{content}</PageContainer>;
 }

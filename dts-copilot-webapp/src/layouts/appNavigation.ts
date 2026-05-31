@@ -1,10 +1,15 @@
-export type NavigationSectionId = "core" | "data" | "admin";
+export type NavigationSectionId = "core";
 export type NavigationIconKey =
-	| "agentReports"
-	| "dashboards"
+	| "newChat"
+	| "chatHistory"
+	| "assets"
+	| "signals"
 	| "dataSources"
+	| "models"
+	| "metrics"
 	| "users"
-	| "settings";
+	| "settings"
+	| "governance";
 export type NavigationVisibility = "all" | "privileged" | "superuser";
 
 export type NavigationItem = {
@@ -28,17 +33,10 @@ export type NavigationAccess = {
 };
 
 export const HIDDEN_LEGACY_NAV_IDS = [
-	"models",
-	"metrics",
 	"trash",
-	"analyze",
 	"questions",
 	"collections",
-	"exploreSessions",
-	"reportFactory",
-	"fixedReports",
 	"screens",
-	"metricLens",
 	"search",
 ] as const;
 
@@ -48,64 +46,89 @@ export const PRIMARY_NAV_SECTIONS: NavigationSection[] = [
 		titleKey: "nav.section.core",
 		items: [
 			{
-				id: "agentReports",
+				id: "newChat",
 				to: "/agent-bi",
-				labelKey: "nav.agentReports",
-				icon: "agentReports",
+				labelKey: "nav.newChat",
+				icon: "newChat",
 				end: true,
 			},
 			{
-				id: "dashboards",
-				to: "/dashboards",
-				labelKey: "nav.dashboards",
-				icon: "dashboards",
-				end: true,
+				id: "chatHistory",
+				to: "/agent-bi?view=sessions",
+				labelKey: "nav.chatHistory",
+				icon: "chatHistory",
 			},
-		],
-	},
-	{
-		id: "data",
-		titleKey: "nav.section.data",
-		items: [
 			{
-				id: "dataSources",
-				to: "/data",
-				labelKey: "nav.dataSources",
-				icon: "dataSources",
-				end: true,
-				visibility: "superuser",
+				id: "assets",
+				to: "/assets",
+				labelKey: "nav.assets",
+				icon: "assets",
+				end: false,
+			},
+			{
+				id: "signals",
+				to: "/agent-bi?view=signals",
+				labelKey: "nav.signals",
+				icon: "signals",
 			},
 		],
 	},
 ];
 
-export const ADMIN_NAV_ITEMS: NavigationItem[] = [
+export const GOVERNANCE_NAV_ITEMS: NavigationItem[] = [
+	{
+		id: "dataSources",
+		to: "/data",
+		labelKey: "nav.dataSources",
+		icon: "dataSources",
+		end: true,
+		visibility: "privileged",
+	},
+	{
+		id: "models",
+		to: "/models",
+		labelKey: "nav.models",
+		icon: "models",
+		end: true,
+		visibility: "privileged",
+	},
+	{
+		id: "metrics",
+		to: "/metrics",
+		labelKey: "nav.metrics",
+		icon: "metrics",
+		end: true,
+		visibility: "privileged",
+	},
 	{
 		id: "users",
 		to: "/admin/users",
 		labelKey: "nav.users",
 		icon: "users",
-		visibility: "superuser",
+		visibility: "privileged",
 	},
 	{
 		id: "systemSettings",
 		to: "/admin/settings/copilot",
 		labelKey: "nav.systemSettings",
 		icon: "settings",
-		visibility: "superuser",
+		visibility: "privileged",
 	},
 ];
 
+export const ADMIN_NAV_ITEMS = GOVERNANCE_NAV_ITEMS;
+
 export const MOBILE_NAV_ITEMS: NavigationItem[] = [
 	PRIMARY_NAV_SECTIONS[0].items[0],
-	PRIMARY_NAV_SECTIONS[1].items[0],
 	PRIMARY_NAV_SECTIONS[0].items[1],
+	PRIMARY_NAV_SECTIONS[0].items[2],
+	PRIMARY_NAV_SECTIONS[0].items[3],
 ];
 
 function canSeeItem(item: NavigationItem, access: NavigationAccess): boolean {
 	switch (item.visibility ?? "all") {
 		case "privileged":
-			return access.privileged;
+			return access.privileged || access.superuser;
 		case "superuser":
 			return access.superuser;
 		case "all":
@@ -114,20 +137,12 @@ function canSeeItem(item: NavigationItem, access: NavigationAccess): boolean {
 }
 
 export function getVisibleNavigation(access: NavigationAccess): NavigationSection[] {
-	const primary = PRIMARY_NAV_SECTIONS.map((section) => ({
+	return PRIMARY_NAV_SECTIONS.map((section) => ({
 		...section,
 		items: section.items.filter((item) => canSeeItem(item, access)),
 	})).filter((section) => section.items.length > 0);
+}
 
-	const adminItems = ADMIN_NAV_ITEMS.filter((item) => canSeeItem(item, access));
-	if (adminItems.length === 0) return primary;
-
-	return [
-		...primary,
-		{
-			id: "admin",
-			titleKey: "nav.section.admin",
-			items: adminItems,
-		},
-	];
+export function getVisibleGovernanceItems(access: NavigationAccess): NavigationItem[] {
+	return GOVERNANCE_NAV_ITEMS.filter((item) => canSeeItem(item, access));
 }

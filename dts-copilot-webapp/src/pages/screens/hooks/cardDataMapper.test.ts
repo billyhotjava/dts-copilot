@@ -1,8 +1,8 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, expect, it } from 'vitest';
 import { mapCardDataToConfig } from './cardDataMapper';
 
-test('gantt-chart: maps rows to tasks array', () => {
+describe('mapCardDataToConfig', () => {
+it('gantt-chart: maps rows to tasks array', () => {
     const cols = [
         { name: 'node_task', display_name: '任务', base_type: 'type/Text' },
         { name: 'node_type', display_name: '类型', base_type: 'type/Text' },
@@ -22,28 +22,29 @@ test('gantt-chart: maps rows to tasks array', () => {
 
     const result = mapCardDataToConfig('gantt-chart', { rows, cols });
 
-    assert.ok(Array.isArray(result.tasks));
+    expect(Array.isArray(result.tasks)).toBe(true);
     const tasks = result.tasks as Array<Record<string, unknown>>;
-    assert.equal(tasks.length, 2);
+    expect(tasks.length).toBe(2);
 
-    assert.equal(tasks[0].name, '关键算法验证');
-    assert.equal(tasks[0].type, '重大节点');
-    assert.equal(tasks[0].planDate, '2026-02-01');
-    assert.equal(tasks[0].actualDate, '2026-02-10');
-    assert.equal(tasks[0].isCompleted, true);
-    assert.equal(tasks[0].isOverdue, true);
-    assert.equal(tasks[0].isIncomplete, false);
-    assert.equal(tasks[0].delayDays, 9);
-    assert.equal(tasks[0].riskLevel, '高');
-    assert.equal(tasks[0].owner, '张三');
+    expect(tasks[0].name).toBe('关键算法验证');
+    expect(tasks[0].type).toBe('重大节点');
+    expect(tasks[0].planDate).toBe('2026-02-01');
+    expect(tasks[0].actualDate).toBe('2026-02-10');
+    expect(tasks[0].isCompleted).toBe(true);
+    expect(tasks[0].isOverdue).toBe(true);
+    expect(tasks[0].isIncomplete).toBe(false);
+    expect(tasks[0].delayDays).toBe(9);
+    expect(tasks[0].riskLevel).toBe('高');
+    expect(tasks[0].owner).toBe('张三');
 
-    assert.equal(tasks[1].name, '需求评审');
-    assert.equal(tasks[1].actualDate, '');
-    assert.equal(tasks[1].isIncomplete, true);
-    assert.equal(tasks[1].delayDays, 0);
+    expect(tasks[1].name).toBe('需求评审');
+    expect(tasks[1].actualDate).toBe('');
+    expect(tasks[1].isIncomplete).toBe(true);
+    expect(tasks[1].delayDays).toBe(0);
 });
 
-test('gantt-chart: returns empty on no rows', () => {
+it('gantt-chart: returns empty on no rows', () => {
     const result = mapCardDataToConfig('gantt-chart', { rows: [], cols: [] });
-    assert.deepEqual(result, {});
+    expect(result).toEqual({});
+});
 });

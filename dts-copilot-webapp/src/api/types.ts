@@ -8,6 +8,16 @@ export type CurrentUser = {
 	is_active?: boolean;
 };
 
+export type CopilotSignalSummary = {
+	id: string;
+	title: string;
+	severity: "info" | "medium" | "high" | "critical" | string;
+	description?: string | null;
+	source: string;
+	objectName?: string | null;
+	linkedActions?: string[];
+};
+
 export type CollectionListItem = {
 	id: number | "root";
 	name?: string;
@@ -223,6 +233,51 @@ export type AiAgentPendingAction = {
 	microForm?: MicroFormSchema;
 };
 
+export type CopilotAssumptionOption = {
+	value: string;
+	label: string;
+};
+
+export type CopilotAssumption = {
+	key: string;
+	label: string;
+	value: string;
+	editable?: boolean;
+	options?: CopilotAssumptionOption[];
+	sourceHint?: string;
+};
+
+export type CopilotClarificationOption = {
+	value: string;
+	label: string;
+};
+
+export type CopilotClarification = {
+	key: string;
+	question: string;
+	options: CopilotClarificationOption[];
+};
+
+export type CopilotTraceMetricCaliber = {
+	name?: string;
+	formula?: string;
+	domain?: string;
+	version?: string;
+	ontologyRef?: string;
+};
+
+export type CopilotTraceSource = {
+	table: string;
+	fields?: string[];
+	role?: string;
+};
+
+export type CopilotTrace = {
+	metricCaliber?: CopilotTraceMetricCaliber;
+	sources?: CopilotTraceSource[];
+	sql?: string;
+};
+
 export type AiAgentChatResponse = {
 	sessionId: string;
 	agentMessage: string;
@@ -230,6 +285,10 @@ export type AiAgentChatResponse = {
 	reasoning?: string;
 	requiresApproval: boolean;
 	pendingAction?: AiAgentPendingAction | null;
+	assumptions?: CopilotAssumption[];
+	confidence?: number;
+	clarifications?: CopilotClarification[];
+	trace?: CopilotTrace;
 };
 
 export type AiAgentChatSession = {
@@ -263,6 +322,12 @@ export type AiAgentChatMessage = {
 	qualityNotes?: string[] | string;
 	reportCode?: string;
 	sourceRefs?: string[] | string;
+	assumptions?: CopilotAssumption[];
+	confidence?: number;
+	clarifications?: CopilotClarification[];
+	trace?: CopilotTrace;
+	clarificationAnswered?: boolean;
+	assumptionRecomputing?: boolean;
 	analysisDraftId?: number | string;
 	analysisDraftStatus?: "saving" | "saved" | "error";
 	analysisDraftError?: string;
@@ -1404,5 +1469,9 @@ export type CopilotStreamEvent =
 		qualityNotes?: string[] | string;
 		reportCode?: string;
 		sourceRefs?: string[] | string;
+		assumptions?: CopilotAssumption[];
+		confidence?: number;
+		clarifications?: CopilotClarification[];
+		trace?: CopilotTrace;
 	}
 	| { type: "error"; error: string };

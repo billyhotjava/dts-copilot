@@ -8,7 +8,7 @@ export function buildAnalysisDraftCreationFlowPath(surface: AnalysisDraftSurface
 		case 'dashboard':
 			return `/dashboards/new?${params.toString()}`
 		case 'reportFactory':
-			return `/report-factory?${params.toString()}`
+			return `/agent-bi?${params.toString()}`
 		default:
 			return `/questions/new?draft=${encodeURIComponent(String(draftId))}`
 	}

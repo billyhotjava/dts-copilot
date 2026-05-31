@@ -48,7 +48,7 @@ describe("copilotGeneratedReportMessage", () => {
 		expect(notice).toEqual({
 			title: "Agent 已生成报表草稿",
 			description:
-				"可先执行预览，确认口径后保存为查询草稿，再进入固定报表或 BI 侧做可视化。",
+				"正在自动执行表格预览，确认口径后可直接切换为 BI 侧可视化组件。",
 			meta: [
 				"报表编码：prs.flowerbiz.lease_execution_monthly",
 				"业务域：flowerbiz",

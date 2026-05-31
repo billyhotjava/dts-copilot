@@ -6,9 +6,13 @@ interface Props {
 	messageId: string;
 	sessionId: string;
 	generatedSql?: string;
+	correctionKind?: string;
+	metricCaliberRef?: string;
 	routedDomain?: string;
+	suggestedCaliber?: string;
 	targetView?: string;
 	templateCode?: string;
+	variant?: "default" | "correction";
 }
 
 const NEGATIVE_REASONS = [
@@ -27,14 +31,21 @@ type FeedbackState =
 	| { step: "submitted" };
 
 export function FeedbackButtons({
+	correctionKind,
 	messageId,
 	sessionId,
 	generatedSql,
+	metricCaliberRef,
 	routedDomain,
+	suggestedCaliber,
 	targetView,
 	templateCode,
+	variant = "default",
 }: Props) {
-	const [state, setState] = useState<FeedbackState>({ step: "idle" });
+	const isCorrection = variant === "correction";
+	const [state, setState] = useState<FeedbackState>(
+		isCorrection ? { step: "negative-form" } : { step: "idle" },
+	);
 	const [selectedReason, setSelectedReason] = useState<string | null>(null);
 	const [detail, setDetail] = useState("");
 	const [submitting, setSubmitting] = useState(false);
@@ -72,7 +83,7 @@ export function FeedbackButtons({
 	}
 
 	function handleCancel() {
-		setState({ step: "idle" });
+		setState(isCorrection ? { step: "negative-form" } : { step: "idle" });
 		setSelectedReason(null);
 		setDetail("");
 		setError(null);
@@ -82,17 +93,29 @@ export function FeedbackButtons({
 		setSubmitting(true);
 		setError(null);
 		try {
-			await analyticsApi.submitChatFeedback({
+			const payload = {
 				sessionId,
 				messageId,
-				rating: "negative",
 				...(selectedReason ? { reason: selectedReason } : {}),
 				...(detail.trim() ? { detail: detail.trim() } : {}),
 				...(generatedSql ? { generatedSql } : {}),
 				...(routedDomain ? { routedDomain } : {}),
 				...(targetView ? { targetView } : {}),
 				...(templateCode ? { templateCode } : {}),
-			});
+			};
+			if (isCorrection) {
+				await analyticsApi.submitCaliberCorrection({
+					...payload,
+					correctionKind: correctionKind ?? "metric_caliber",
+					...(metricCaliberRef ? { metricCaliberRef } : {}),
+					...(suggestedCaliber ? { suggestedCaliber } : {}),
+				});
+			} else {
+				await analyticsApi.submitChatFeedback({
+					...payload,
+					rating: "negative",
+				});
+			}
 			setState({ step: "submitted" });
 		} catch (err) {
 			setError(resolveSubmitError(err));
@@ -120,24 +143,26 @@ export function FeedbackButtons({
 
 	return (
 		<div className="feedback-buttons__wrapper">
-			<div className="feedback-buttons">
-				<button
-					type="button"
-					className="feedback-buttons__btn"
-					onClick={() => void handlePositive()}
-					disabled={submitting}
-				>
-					{"\uD83D\uDC4D"}
-				</button>
-				<button
-					type="button"
-					className={`feedback-buttons__btn${state.step === "negative-form" ? " feedback-buttons__btn--active" : ""}`}
-					onClick={handleNegative}
-					disabled={submitting}
-				>
-					{"\uD83D\uDC4E"}
-				</button>
-			</div>
+			{isCorrection ? null : (
+				<div className="feedback-buttons">
+					<button
+						type="button"
+						className="feedback-buttons__btn"
+						onClick={() => void handlePositive()}
+						disabled={submitting}
+					>
+						{"\uD83D\uDC4D"}
+					</button>
+					<button
+						type="button"
+						className={`feedback-buttons__btn${state.step === "negative-form" ? " feedback-buttons__btn--active" : ""}`}
+						onClick={handleNegative}
+						disabled={submitting}
+					>
+						{"\uD83D\uDC4E"}
+					</button>
+				</div>
+			)}
 
 			{error && <div className="feedback-buttons__error">{error}</div>}
 

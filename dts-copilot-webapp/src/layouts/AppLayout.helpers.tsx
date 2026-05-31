@@ -102,27 +102,15 @@ export function getUserRoles(): string[] {
 // ── Breadcrumb ─────────────────────────────────────────────────────────
 
 const ROUTE_NAV_MAP: { path: string; section: string; nav?: string }[] = [
-	{ path: "/agent-bi", section: "nav.section.core", nav: "nav.agentReports" },
+	{ path: "/agent-bi", section: "nav.section.core", nav: "nav.agentWorkspace" },
 	{ path: "/dashboards", section: "nav.section.core", nav: "nav.dashboards" },
 	{ path: "/screens", section: "nav.section.core", nav: "nav.screens" },
 	{ path: "/data", section: "nav.section.data", nav: "nav.dataSources" },
 	{ path: "/models", section: "nav.section.data", nav: "nav.models" },
 	{ path: "/metrics", section: "nav.section.data", nav: "nav.metrics" },
 	{ path: "/trash", section: "nav.section.data", nav: "nav.trash" },
-	{ path: "/analyze", section: "nav.section.tools", nav: "nav.analyze" },
 	{ path: "/questions", section: "nav.section.tools", nav: "nav.questions" },
 	{ path: "/collections", section: "nav.section.tools", nav: "nav.collections" },
-	{
-		path: "/explore-sessions",
-		section: "nav.section.tools",
-		nav: "nav.exploreSessions",
-	},
-	{
-		path: "/report-factory",
-		section: "nav.section.tools",
-		nav: "nav.reportFactory",
-	},
-	{ path: "/metric-lens", section: "nav.section.tools", nav: "nav.metricLens" },
 	{ path: "/search", section: "nav.section.tools", nav: "nav.search" },
 	{ path: "/admin/users", section: "nav.section.admin", nav: "nav.users" },
 	{ path: "/admin/settings", section: "nav.section.admin", nav: "nav.systemSettings" },

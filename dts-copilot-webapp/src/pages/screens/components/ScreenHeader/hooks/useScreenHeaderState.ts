@@ -594,7 +594,7 @@ export function useScreenHeaderState() {
         const tags = tagsInput.split(',').map((item) => item.trim()).filter((item) => item.length > 0).slice(0, 20);
         const created = await analyticsApi.createExploreSession({ title: titleInput.trim() || defaultTitle, question: questionInput.trim() || null, conclusion: conclusionInput.trim() || null, tags, steps: buildExploreSessionSteps(config) });
         const createdId = created?.id != null ? `#${created.id}` : '';
-        if (createdId && window.confirm(`已创建分析会话 ${createdId}，是否打开会话中心？`)) { navigate('/explore-sessions'); return; }
+        if (createdId && window.confirm(`已创建分析会话 ${createdId}，是否打开 Agent 工作台？`)) { navigate('/agent-bi'); return; }
         alert(`已创建分析会话 ${createdId}`.trim());
     }, [config, navigate, permissions.canRead]);
 

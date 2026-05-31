@@ -29,6 +29,10 @@ type LoadState<T> =
 	| { state: "loaded"; value: T }
 	| { state: "error"; error: unknown };
 
+type CardsPageProps = {
+	embedded?: boolean;
+};
+
 // Icons
 const PlusIcon = () => (
 	<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -106,7 +110,7 @@ function getDisplayTypeIcon(display?: string) {
 	return <IconComponent />;
 }
 
-export default function CardsPage() {
+export default function CardsPage({ embedded = false }: CardsPageProps) {
 	const locale: Locale = useMemo(() => getEffectiveLocale(), []);
 	usePageContext({ module: "analytics/question", resourceType: "question" });
 	const [cardsState, setCardsState] = useState<LoadState<CardListItem[]>>({ state: "loading" });
@@ -205,19 +209,21 @@ export default function CardsPage() {
 	const isDraftActionRunning = (draftId: number, kind: "archive" | "delete") =>
 		draftActionState?.draftId === draftId && draftActionState.kind === kind;
 
-	return (
-		<PageContainer>
-			<PageHeader
-				title={t(locale, "questions.title")}
-				subtitle={t(locale, "questions.subtitle")}
-				actions={
-					<Link to="/questions/new">
-						<Button variant="primary" icon={<PlusIcon />}>
-							{t(locale, "questions.new")}
-						</Button>
-					</Link>
-				}
-			/>
+	const content = (
+		<>
+			{!embedded ? (
+				<PageHeader
+					title={t(locale, "questions.title")}
+					subtitle={t(locale, "questions.subtitle")}
+					actions={
+						<Link to="/questions/new">
+							<Button variant="primary" icon={<PlusIcon />}>
+								{t(locale, "questions.new")}
+							</Button>
+						</Link>
+					}
+				/>
+			) : null}
 
 			{/* Filter Bar */}
 			<div className="filterBar">
@@ -555,6 +561,8 @@ export default function CardsPage() {
 					overflow: hidden;
 				}
 			`}</style>
-		</PageContainer>
+		</>
 	);
+
+	return embedded ? content : <PageContainer>{content}</PageContainer>;
 }

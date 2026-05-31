@@ -21,8 +21,15 @@ import type {
 	AiAgentChatResponse,
 	AiAgentChatSession,
 	AiAgentChatSessionDetail,
+	CopilotAssumption,
+	CopilotAssumptionOption,
+	CopilotClarification,
+	CopilotClarificationOption,
 	CopilotSuggestedQuestion,
+	CopilotSignalSummary,
 	CopilotStreamEvent,
+	CopilotTrace,
+	CopilotTraceSource,
 } from "../types.ts";
 
 function resolveLegacyAiUserId(): string {
@@ -57,15 +64,263 @@ function shouldUseSessionCopilotProxy(): boolean {
 	return !getCopilotApiKey() && hasCopilotSessionAccess();
 }
 
+function asObject(value: unknown): Record<string, unknown> | null {
+	return value && typeof value === "object"
+		? (value as Record<string, unknown>)
+		: null;
+}
+
+function pickNonEmptyString(
+	obj: Record<string, unknown>,
+	key: string,
+): string | undefined {
+	const value = obj[key];
+	return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function normalizeAssumptionOptions(
+	value: unknown,
+): CopilotAssumptionOption[] | undefined {
+	if (!Array.isArray(value)) {
+		return undefined;
+	}
+	const options = value.flatMap((item) => {
+		const row = asObject(item);
+		if (!row) {
+			return [];
+		}
+		const optionValue = pickNonEmptyString(row, "value");
+		const label = pickNonEmptyString(row, "label");
+		if (!optionValue || !label) {
+			return [];
+		}
+		return [{ value: optionValue, label }];
+	});
+	return options.length > 0 ? options : undefined;
+}
+
+function normalizeCopilotAssumptions(
+	value: unknown,
+): CopilotAssumption[] | undefined {
+	if (!Array.isArray(value)) {
+		return undefined;
+	}
+	const assumptions = value.flatMap((item) => {
+		const row = asObject(item);
+		if (!row) {
+			return [];
+		}
+		const key = pickNonEmptyString(row, "key");
+		const label = pickNonEmptyString(row, "label");
+		const assumptionValue = pickNonEmptyString(row, "value");
+		if (!key || !label || !assumptionValue) {
+			return [];
+		}
+		return [
+			{
+				key,
+				label,
+				value: assumptionValue,
+				...(typeof row.editable === "boolean" ? { editable: row.editable } : {}),
+				...(pickNonEmptyString(row, "sourceHint")
+					? { sourceHint: pickNonEmptyString(row, "sourceHint") }
+					: {}),
+				...(normalizeAssumptionOptions(row.options)
+					? { options: normalizeAssumptionOptions(row.options) }
+					: {}),
+			},
+		];
+	});
+	return assumptions.length > 0 ? assumptions : undefined;
+}
+
+function normalizeClarificationOptions(
+	value: unknown,
+): CopilotClarificationOption[] | undefined {
+	if (!Array.isArray(value)) {
+		return undefined;
+	}
+	const options = value.flatMap((item) => {
+		const row = asObject(item);
+		if (!row) {
+			return [];
+		}
+		const optionValue = pickNonEmptyString(row, "value");
+		const label = pickNonEmptyString(row, "label");
+		if (!optionValue || !label) {
+			return [];
+		}
+		return [{ value: optionValue, label }];
+	});
+	return options.length > 0 ? options : undefined;
+}
+
+function normalizeCopilotClarifications(
+	value: unknown,
+): CopilotClarification[] | undefined {
+	if (!Array.isArray(value)) {
+		return undefined;
+	}
+	const clarifications = value.flatMap((item) => {
+		const row = asObject(item);
+		if (!row) {
+			return [];
+		}
+		const key = pickNonEmptyString(row, "key");
+		const question = pickNonEmptyString(row, "question");
+		const options = normalizeClarificationOptions(row.options);
+		if (!key || !question || !options) {
+			return [];
+		}
+		return [{ key, question, options }];
+	});
+	return clarifications.length > 0 ? clarifications : undefined;
+}
+
+function normalizeTraceSources(value: unknown): CopilotTraceSource[] | undefined {
+	if (!Array.isArray(value)) {
+		return undefined;
+	}
+	const sources = value.flatMap((item) => {
+		const row = asObject(item);
+		if (!row) {
+			return [];
+		}
+		const table = pickNonEmptyString(row, "table");
+		if (!table) {
+			return [];
+		}
+		const rawFields = Array.isArray(row.fields) ? row.fields : [];
+		const fields = rawFields
+			.map((field) => (typeof field === "string" ? field.trim() : ""))
+			.filter(Boolean);
+		return [
+			{
+				table,
+				...(fields.length > 0 ? { fields } : {}),
+				...(pickNonEmptyString(row, "role")
+					? { role: pickNonEmptyString(row, "role") }
+					: {}),
+			},
+		];
+	});
+	return sources.length > 0 ? sources : undefined;
+}
+
+function normalizeCopilotTrace(value: unknown): CopilotTrace | undefined {
+	const row = asObject(value);
+	if (!row) {
+		return undefined;
+	}
+	const metricCaliberRow = asObject(row.metricCaliber);
+	const metricCaliber = metricCaliberRow
+		? {
+				...(pickNonEmptyString(metricCaliberRow, "name")
+					? { name: pickNonEmptyString(metricCaliberRow, "name") }
+					: {}),
+				...(pickNonEmptyString(metricCaliberRow, "formula")
+					? { formula: pickNonEmptyString(metricCaliberRow, "formula") }
+					: {}),
+				...(pickNonEmptyString(metricCaliberRow, "domain")
+					? { domain: pickNonEmptyString(metricCaliberRow, "domain") }
+					: {}),
+				...(pickNonEmptyString(metricCaliberRow, "version")
+					? { version: pickNonEmptyString(metricCaliberRow, "version") }
+					: {}),
+				...(pickNonEmptyString(metricCaliberRow, "ontologyRef")
+					? { ontologyRef: pickNonEmptyString(metricCaliberRow, "ontologyRef") }
+					: {}),
+			}
+		: undefined;
+	const sources = normalizeTraceSources(row.sources);
+	const sql = pickNonEmptyString(row, "sql");
+	const trace: CopilotTrace = {
+		...(metricCaliber && Object.keys(metricCaliber).length > 0
+			? { metricCaliber }
+			: {}),
+		...(sources ? { sources } : {}),
+		...(sql ? { sql } : {}),
+	};
+	return Object.keys(trace).length > 0 ? trace : undefined;
+}
+
+function pickFiniteNumber(value: unknown): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function copyStringField<
+	TKey extends keyof Extract<CopilotStreamEvent, { type: "done" }>,
+>(
+	event: Extract<CopilotStreamEvent, { type: "done" }>,
+	parsed: Record<string, unknown>,
+	key: TKey,
+): void {
+	const value = parsed[key];
+	if (typeof value === "string" && value.trim()) {
+		(event as Record<string, unknown>)[key] = value;
+	}
+}
+
+export function normalizeCopilotDoneStreamEvent(
+	payload: unknown,
+): Extract<CopilotStreamEvent, { type: "done" }> {
+	const parsed = asObject(payload) ?? {};
+	const event: Extract<CopilotStreamEvent, { type: "done" }> = { type: "done" };
+	[
+		"generatedSql",
+		"templateCode",
+		"routedDomain",
+		"targetView",
+		"responseKind",
+		"suggestedDisplay",
+		"dataSurface",
+		"qualityLevel",
+		"reportCode",
+	].forEach((key) =>
+		copyStringField(
+			event,
+			parsed,
+			key as keyof Extract<CopilotStreamEvent, { type: "done" }>,
+		),
+	);
+	if (typeof parsed.qualityNotes === "string" || Array.isArray(parsed.qualityNotes)) {
+		event.qualityNotes = parsed.qualityNotes as string[] | string;
+	}
+	if (typeof parsed.sourceRefs === "string" || Array.isArray(parsed.sourceRefs)) {
+		event.sourceRefs = parsed.sourceRefs as string[] | string;
+	}
+	const assumptions = normalizeCopilotAssumptions(parsed.assumptions);
+	if (assumptions) {
+		event.assumptions = assumptions;
+	}
+	const confidence = pickFiniteNumber(parsed.confidence);
+	if (confidence !== undefined) {
+		event.confidence = confidence;
+	}
+	const clarifications = normalizeCopilotClarifications(parsed.clarifications);
+	if (clarifications) {
+		event.clarifications = clarifications;
+	}
+	const trace = normalizeCopilotTrace(parsed.trace);
+	if (trace) {
+		event.trace = trace;
+	}
+	return event;
+}
+
 async function sendAiAgentChatViaSessionProxy(body: {
 	sessionId?: string;
 	userMessage: string;
 	datasourceId?: string;
+	clarificationAnswers?: Record<string, string>;
+	assumptionOverrides?: Record<string, string>;
 }): Promise<AiAgentChatResponse> {
 	const legacy = await sendJson<Record<string, unknown>>("/api/copilot/chat/send", {
 		sessionId: body.sessionId,
 		userMessage: body.userMessage,
 		datasourceId: body.datasourceId,
+		clarificationAnswers: body.clarificationAnswers,
+		assumptionOverrides: body.assumptionOverrides,
 	});
 	return normalizeLegacyAiChatResponse(legacy) as AiAgentChatResponse;
 }
@@ -91,6 +346,9 @@ async function deleteAiAgentSessionViaSessionProxy(id: string): Promise<void> {
 async function sendAiAgentChatCompat(body: {
 	sessionId?: string;
 	userMessage: string;
+	datasourceId?: string;
+	clarificationAnswers?: Record<string, string>;
+	assumptionOverrides?: Record<string, string>;
 }): Promise<AiAgentChatResponse> {
 	if (shouldUseSessionCopilotProxy()) {
 		return sendAiAgentChatViaSessionProxy(body);
@@ -106,6 +364,8 @@ async function sendAiAgentChatCompat(body: {
 			sessionId: body.sessionId,
 			userId: resolveLegacyAiUserId(),
 			message: body.userMessage,
+			clarificationAnswers: body.clarificationAnswers,
+			assumptionOverrides: body.assumptionOverrides,
 		};
 		const legacy = await sendJson<Record<string, unknown>>("/api/ai/agent/chat/send", legacyBody);
 		return normalizeLegacyAiChatResponse(legacy) as AiAgentChatResponse;
@@ -186,6 +446,8 @@ export const copilotApi = {
 			resourceName?: string;
 			extras?: Record<string, string>;
 		};
+		clarificationAnswers?: Record<string, string>;
+		assumptionOverrides?: Record<string, string>;
 	}) =>
 		sendAiAgentChatCompat(body),
 	aiAgentChatApprove: (
@@ -209,6 +471,10 @@ export const copilotApi = {
 		fetchJson<CopilotSuggestedQuestion[] | AiApiEnvelope<CopilotSuggestedQuestion[]>>(
 			"/api/ai/nl2sql/suggestions?limit=" + encodeURIComponent(String(limit)),
 		).then(unwrapAiApiEnvelope),
+	listCopilotSignals: (domain = "flowerbiz") =>
+		fetchJson<CopilotSignalSummary[] | AiApiEnvelope<CopilotSignalSummary[]>>(
+			"/api/ai/copilot/signals?domain=" + encodeURIComponent(domain),
+		).then(unwrapAiApiEnvelope),
 	submitChatFeedback: (body: {
 		sessionId: string;
 		messageId: string;
@@ -217,6 +483,9 @@ export const copilotApi = {
 		detail?: string;
 		generatedSql?: string;
 		correctedSql?: string;
+		correctionKind?: string;
+		metricCaliberRef?: string;
+		suggestedCaliber?: string;
 		routedDomain?: string;
 		targetView?: string;
 		templateCode?: string;
@@ -227,12 +496,43 @@ export const copilotApi = {
 		userId: body.userId ?? resolveLegacyAiUserId(),
 		userName: body.userName ?? resolveLegacyAiUserName(),
 	}),
+	submitCaliberCorrection: (body: {
+		sessionId: string;
+		messageId: string;
+		correctionKind: string;
+		reason?: string;
+		detail?: string;
+		generatedSql?: string;
+		correctedSql?: string;
+		metricCaliberRef?: string;
+		suggestedCaliber?: string;
+		routedDomain?: string;
+		targetView?: string;
+		templateCode?: string;
+		userId?: string;
+		userName?: string;
+	}) =>
+		// TODO(P2/sprint-26 adminapi): replace this feedback-first stub with
+		// ontology caliber draft / NL2SQL eval-case writeback.
+		sendJson<void>("/api/ai/nl2sql/feedback", {
+			...body,
+			rating: "negative",
+			correctedSql: body.correctedSql ?? body.suggestedCaliber,
+			userId: body.userId ?? resolveLegacyAiUserId(),
+			userName: body.userName ?? resolveLegacyAiUserName(),
+		}).then(() => ({ accepted: true, queued: false as const })),
 };
 
 // ── CS-09: SSE streaming for copilot chat ────────────────────────────
 
 export async function aiAgentChatSendStream(
-	body: { sessionId?: string; userMessage: string; datasourceId?: string },
+	body: {
+		sessionId?: string;
+		userMessage: string;
+		datasourceId?: string;
+		clarificationAnswers?: Record<string, string>;
+		assumptionOverrides?: Record<string, string>;
+	},
 	onEvent: (event: CopilotStreamEvent) => void,
 	options?: { signal?: AbortSignal },
 ): Promise<void> {
@@ -273,20 +573,7 @@ export async function aiAgentChatSendStream(
 					onEvent({ type: "tool", tool: parsed.tool, status: parsed.status });
 					break;
 				case "done":
-					onEvent({
-						type: "done",
-						...(parsed.generatedSql ? { generatedSql: parsed.generatedSql } : {}),
-						...(parsed.templateCode ? { templateCode: parsed.templateCode } : {}),
-						...(parsed.routedDomain ? { routedDomain: parsed.routedDomain } : {}),
-						...(parsed.targetView ? { targetView: parsed.targetView } : {}),
-						...(parsed.responseKind ? { responseKind: parsed.responseKind } : {}),
-						...(parsed.suggestedDisplay ? { suggestedDisplay: parsed.suggestedDisplay } : {}),
-						...(parsed.dataSurface ? { dataSurface: parsed.dataSurface } : {}),
-						...(parsed.qualityLevel ? { qualityLevel: parsed.qualityLevel } : {}),
-						...(parsed.qualityNotes ? { qualityNotes: parsed.qualityNotes } : {}),
-						...(parsed.reportCode ? { reportCode: parsed.reportCode } : {}),
-						...(parsed.sourceRefs ? { sourceRefs: parsed.sourceRefs } : {}),
-					});
+					onEvent(normalizeCopilotDoneStreamEvent(parsed));
 					break;
 				case "error":
 					onEvent({ type: "error", error: parsed.error });

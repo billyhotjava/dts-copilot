@@ -34,11 +34,15 @@ test('builds readable return label for copilot session handoff', () => {
 test('copilot sidebar and chat wire session focus requests into the global sidebar', () => {
 	const sidebarSource = readFileSync(resolve(WEBAPP_ROOT, 'src/components/copilot/CopilotSidebar.tsx'), 'utf8')
 	const chatSource = readFileSync(resolve(WEBAPP_ROOT, 'src/components/copilot/CopilotChat.tsx'), 'utf8')
+	const threadSource = readFileSync(resolve(WEBAPP_ROOT, 'src/components/copilot/ConversationThread.tsx'), 'utf8')
+	const sessionStateSource = readFileSync(resolve(WEBAPP_ROOT, 'src/components/copilot/useCopilotSessionState.ts'), 'utf8')
+	const messageListSource = readFileSync(resolve(WEBAPP_ROOT, 'src/components/copilot/MessageList.tsx'), 'utf8')
 
 	assert.match(sidebarSource, /COPILOT_SESSION_FOCUS_EVENT/)
 	assert.match(sidebarSource, /setExpanded\(true\)/)
 	assert.match(sidebarSource, /focusRequest/)
-	assert.match(chatSource, /focusRequest/)
-	assert.match(chatSource, /setFocusNotice/)
-	assert.match(chatSource, /copilot-chat__msg--focused/)
+	assert.match(chatSource, /ConversationThread/)
+	assert.match(threadSource, /focusRequest/)
+	assert.match(sessionStateSource, /setFocusNotice/)
+	assert.match(messageListSource, /copilot-chat__msg--focused/)
 })

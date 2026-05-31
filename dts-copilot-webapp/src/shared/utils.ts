@@ -1,7 +1,6 @@
 /**
  * Shared utilities for analytics pages.
- * Centralises types and helpers that were previously copy-pasted across
- * ExploreSessionsPage, ReportFactoryPage, MetricLensPage and Nl2SqlEvalPage.
+ * Centralises types and helpers that are shared across retained analytics pages.
  */
 
 // ---------------------------------------------------------------------------

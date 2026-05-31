@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { Link, Navigate, Outlet, useLocation } from "react-router";
+import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { analyticsApi, type CurrentUser } from "../api/analyticsApi";
 import { setCopilotSessionAccess } from "../api/copilotAuth";
 import { APP_HOME_PATH } from "../appShellConfig";
@@ -23,10 +23,14 @@ import {
 import { ThemeToggle } from "../ui/ThemeToggle/ThemeToggle";
 import { resolvePrivilegedAccess } from "./privilegedAccessPolicy";
 import {
-	AgentReportIcon,
-	DashboardIcon,
+	ChatHistoryIcon,
+	CollectionIcon,
 	DatabaseIcon,
+	MetricIcon,
+	ModelIcon,
+	NewChatIcon,
 	SettingsIcon,
+	SignalIcon,
 	UserIcon,
 	LogoutIcon,
 } from "./AppLayout.icons";
@@ -37,6 +41,7 @@ import {
 	HeaderBreadcrumb,
 } from "./AppLayout.helpers";
 import {
+	getVisibleGovernanceItems,
 	getVisibleNavigation,
 	type NavigationIconKey,
 } from "./appNavigation";
@@ -44,23 +49,33 @@ import "./layout.css";
 
 function getNavigationIcon(icon: NavigationIconKey) {
 	switch (icon) {
-		case "agentReports":
-			return <AgentReportIcon />;
-		case "dashboards":
-			return <DashboardIcon />;
+		case "newChat":
+			return <NewChatIcon />;
+		case "chatHistory":
+			return <ChatHistoryIcon />;
+		case "assets":
+			return <CollectionIcon />;
+		case "signals":
+			return <SignalIcon />;
 		case "dataSources":
 			return <DatabaseIcon />;
+		case "models":
+			return <ModelIcon />;
+		case "metrics":
+			return <MetricIcon />;
 		case "users":
 			return <UserIcon />;
 		case "settings":
+		case "governance":
 			return <SettingsIcon />;
 	}
 }
 
 export function AppLayout() {
 	const location = useLocation();
+	const navigate = useNavigate();
 	const basePath = import.meta.env.VITE_BASE_PATH?.replace(/\/$/, "") || "";
-	const copilotEmbeddedInPage = location.pathname === "/agent-bi";
+	const isWorkspaceRoute = location.pathname === APP_HOME_PATH;
 
 	// Auth guard: platform token OR session cookie.
 	const isPublicRoute = location.pathname.startsWith("/public/");
@@ -135,6 +150,15 @@ export function AppLayout() {
 	}
 	if (sessionStatus === "setup") return <Navigate to="/auth/setup" replace />;
 	if (sessionStatus === "login") return <Navigate to="/auth/login" replace />;
+	if (isPublicRoute) {
+		return (
+			<div className="public-route-shell">
+				<ErrorBoundary>
+					<Outlet />
+				</ErrorBoundary>
+			</div>
+		);
+	}
 
 	const locale = getEffectiveLocale();
 	const userInfo = getUserInfo();
@@ -155,6 +179,10 @@ export function AppLayout() {
 		"";
 	const displayName = userInfo.fullName || userInfo.username || sessionUserName || "用户";
 	const navigationSections = getVisibleNavigation({
+		privileged,
+		superuser: Boolean(sessionUser?.is_superuser),
+	});
+	const governanceItems = getVisibleGovernanceItems({
 		privileged,
 		superuser: Boolean(sessionUser?.is_superuser),
 	});
@@ -494,6 +522,28 @@ export function AppLayout() {
 		</Dropdown>
 	);
 
+	const GovernanceMenu = governanceItems.length > 0 ? (
+		<Dropdown
+			trigger={
+				<button className="governance-menu-trigger" type="button">
+					<SettingsIcon />
+					<span>{t(locale, "nav.section.governance")}</span>
+				</button>
+			}
+			placement="bottom-end"
+		>
+			{governanceItems.map((item) => (
+				<DropdownItem
+					key={item.id}
+					icon={getNavigationIcon(item.icon)}
+					onClick={() => navigate(item.to)}
+				>
+					{t(locale, item.labelKey)}
+				</DropdownItem>
+			))}
+		</Dropdown>
+	) : null;
+
 	return (
 		<SidebarProvider>
 				<div className="layout">
@@ -519,21 +569,28 @@ export function AppLayout() {
 					<main className="main">
 						<header className="main-header">
 							<div className="main-header__left">
-									<HeaderBreadcrumb />
+								<HeaderBreadcrumb />
 							</div>
 							<div className="main-header__right">
+								{GovernanceMenu}
 								<ThemeToggle showLabel={false} />
 								{UserMenu}
 							</div>
 						</header>
-						<div className="main-content">
+						<div className={isWorkspaceRoute ? "main-content main-content--workspace" : "main-content"}>
 							<ErrorBoundary>
-								<Outlet />
+								{isWorkspaceRoute ? (
+									<div className="workspace-shell">
+										<Outlet />
+									</div>
+								) : (
+									<Outlet />
+								)}
 							</ErrorBoundary>
 						</div>
 					</main>
 
-					{!copilotEmbeddedInPage && (
+					{!isWorkspaceRoute && (
 						<CopilotSidebar hasSessionAccess={sessionStatus === "ok"} />
 					)}
 				</div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 import { analyticsApi, type CardQueryResponse, type PublicCardDetail } from "../api/analyticsApi";
 import { ChartRenderer, type VisualizationType, type VisualizationSettings } from "../components/charts";
 import { PageContainer, PageHeader, Breadcrumb } from "../components/PageContainer/PageContainer";
@@ -64,7 +64,6 @@ export default function PublicCardPage() {
 				title={card.state === "loaded" ? card.value.name ?? "-" : t(locale, "loading")}
 				breadcrumbs={
 					<Breadcrumb items={[
-						{ label: t(locale, "nav.analyze"), href: "/analyze" },
 						{ label: "分享" }
 					]} />
 				}
@@ -111,4 +110,3 @@ export default function PublicCardPage() {
 		</PageContainer>
 	);
 }
-

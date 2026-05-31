@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 import { analyticsApi, type DashboardQueryResponse, type PublicDashboardDetail } from "../api/analyticsApi";
 import { ChartRenderer, type VisualizationType, type VisualizationSettings } from "../components/charts";
 import { PageContainer, PageHeader, Breadcrumb } from "../components/PageContainer/PageContainer";
@@ -88,7 +88,6 @@ export default function PublicDashboardPage() {
 				title={dashboard.state === "loaded" ? dashboard.value.name ?? "-" : t(locale, "loading")}
 				breadcrumbs={
 					<Breadcrumb items={[
-						{ label: t(locale, "nav.analyze"), href: "/analyze" },
 						{ label: "分享" }
 					]} />
 				}
@@ -124,7 +123,7 @@ export default function PublicDashboardPage() {
 						return (
 							<Card key={String(dc.id)} style={{ gridColumn, gridRow, overflow: "hidden" }}>
 								<CardHeader
-									title={cardId ? <Link to={`/questions/${cardId}`}>{String(name)}</Link> : String(name)}
+									title={String(name)}
 									action={<Badge variant="default" size="sm">card</Badge>}
 								/>
 								<CardBody>
@@ -155,4 +154,3 @@ export default function PublicDashboardPage() {
 		</PageContainer>
 	);
 }
-

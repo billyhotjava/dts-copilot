@@ -56,6 +56,32 @@ test('normalizes legacy AI chat detail and response payloads', () => {
 				role: 'assistant',
 				content: 'world',
 				responseKind: 'BUSINESS_DIRECT_RESPONSE',
+				assumptions: [
+					{ key: 'period', label: '期间', value: '本月', editable: true },
+				],
+				confidence: 0.72,
+				clarifications: [
+					{
+						key: 'scope',
+						question: '项目范围是什么?',
+						options: [
+							{ value: 'leased', label: '在租项目' },
+							{ value: 'all', label: '全部项目' },
+						],
+					},
+				],
+				trace: {
+					metricCaliber: {
+						name: '利润',
+						formula: '收入-成本',
+						domain: '报花域',
+						version: 'v3',
+					},
+					sources: [
+						{ table: 'xycyl_dws_profit', fields: ['revenue', 'cost'] },
+					],
+					sql: 'select revenue - cost from mart',
+				},
 				createdAt: '2026-03-14T10:00:02Z',
 			},
 		],
@@ -78,6 +104,32 @@ test('normalizes legacy AI chat detail and response payloads', () => {
 				role: 'assistant',
 				content: 'world',
 				responseKind: 'BUSINESS_DIRECT_RESPONSE',
+				assumptions: [
+					{ key: 'period', label: '期间', value: '本月', editable: true },
+				],
+				confidence: 0.72,
+				clarifications: [
+					{
+						key: 'scope',
+						question: '项目范围是什么?',
+						options: [
+							{ value: 'leased', label: '在租项目' },
+							{ value: 'all', label: '全部项目' },
+						],
+					},
+				],
+				trace: {
+					metricCaliber: {
+						name: '利润',
+						formula: '收入-成本',
+						domain: '报花域',
+						version: 'v3',
+					},
+					sources: [
+						{ table: 'xycyl_dws_profit', fields: ['revenue', 'cost'] },
+					],
+					sql: 'select revenue - cost from mart',
+				},
 				createdAt: '2026-03-14T10:00:02Z',
 			},
 		],
@@ -87,6 +139,32 @@ test('normalizes legacy AI chat detail and response payloads', () => {
 	const response = normalizeLegacyAiChatResponse({
 		sessionId: 'sess-2',
 		response: 'done',
+		assumptions: [
+			{ key: 'period', label: '期间', value: '本月', editable: true },
+		],
+		confidence: 0.72,
+		clarifications: [
+			{
+				key: 'scope',
+				question: '项目范围是什么?',
+				options: [
+					{ value: 'leased', label: '在租项目' },
+					{ value: 'all', label: '全部项目' },
+				],
+			},
+		],
+		trace: {
+			metricCaliber: {
+				name: '利润',
+				formula: '收入-成本',
+				domain: '报花域',
+				version: 'v3',
+			},
+			sources: [
+				{ table: 'xycyl_dws_profit', fields: ['revenue', 'cost'] },
+			],
+			sql: 'select revenue - cost from mart',
+		},
 	})
 	assert.deepEqual(response, {
 		sessionId: 'sess-2',
@@ -94,5 +172,31 @@ test('normalizes legacy AI chat detail and response payloads', () => {
 		toolCalls: [],
 		requiresApproval: false,
 		pendingAction: null,
+		assumptions: [
+			{ key: 'period', label: '期间', value: '本月', editable: true },
+		],
+		confidence: 0.72,
+		clarifications: [
+			{
+				key: 'scope',
+				question: '项目范围是什么?',
+				options: [
+					{ value: 'leased', label: '在租项目' },
+					{ value: 'all', label: '全部项目' },
+				],
+			},
+		],
+		trace: {
+			metricCaliber: {
+				name: '利润',
+				formula: '收入-成本',
+				domain: '报花域',
+				version: 'v3',
+			},
+			sources: [
+				{ table: 'xycyl_dws_profit', fields: ['revenue', 'cost'] },
+			],
+			sql: 'select revenue - cost from mart',
+		},
 	})
 })

@@ -36,6 +36,82 @@ export const QuestionIcon = () => (
 	</svg>
 );
 
+export const NewChatIcon = () => (
+	<svg
+		width="20"
+		height="20"
+		role="img"
+		aria-label="new chat"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
+		<path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h5" />
+		<path d="M16 3v8" />
+		<path d="M12 7h8" />
+	</svg>
+);
+
+export const ChatHistoryIcon = () => (
+	<svg
+		width="20"
+		height="20"
+		role="img"
+		aria-label="chat history"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
+		<path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+		<path d="M8 8h8" />
+		<path d="M8 12h5" />
+	</svg>
+);
+
+export const SignalIcon = () => (
+	<svg
+		width="20"
+		height="20"
+		role="img"
+		aria-label="signals"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
+		<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+		<path d="M13.73 21a2 2 0 0 1-3.46 0" />
+		<path d="M2 8h2" />
+		<path d="M20 8h2" />
+	</svg>
+);
+
+export const SendIcon = () => (
+	<svg
+		width="18"
+		height="18"
+		role="img"
+		aria-label="send"
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="2"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+	>
+		<path d="M22 2 11 13" />
+		<path d="m22 2-7 20-4-9-9-4Z" />
+	</svg>
+);
+
 export const AgentReportIcon = () => (
 	<svg
 		width="20"
