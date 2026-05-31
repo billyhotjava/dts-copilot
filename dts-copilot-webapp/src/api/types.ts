@@ -264,6 +264,8 @@ export type CopilotTraceMetricCaliber = {
 	domain?: string;
 	version?: string;
 	ontologyRef?: string;
+	dimensionFields?: string[];
+	timeGrain?: string;
 };
 
 export type CopilotTraceSource = {
@@ -716,6 +718,48 @@ export type PlatformMetric = {
 	description?: string | null;
 	dept?: string;
 	classification?: string;
+};
+
+export type PlatformIndicatorListItem = {
+	id: string | number;
+	code?: string | null;
+	name: string;
+	category?: string | null;
+	definition?: string | null;
+	description?: string | null;
+	expressionSql?: string | null;
+	status?: string | null;
+	version?: string | null;
+	tags?: string[];
+	dimensionFields?: string[];
+	dateColumn?: string | null;
+	timeGrain?: string | null;
+	owner?: string | null;
+	dataLevel?: string | null;
+};
+
+export type PlatformIndicatorCatalogResponse = {
+	items: PlatformIndicatorListItem[];
+	syncedAt?: string | null;
+	degraded?: boolean;
+	degradedReason?: string | null;
+};
+
+export type PlatformIndicatorValueMode = "dashboard" | "detail" | "drilldown";
+
+export type PlatformIndicatorValueResponse = {
+	indicatorId: string | number;
+	mode: PlatformIndicatorValueMode;
+	cols: Array<{
+		name: string;
+		display_name?: string;
+		base_type?: string;
+	}>;
+	rows: unknown[][];
+	timeGrain?: string | null;
+	dimensionFields?: string[];
+	degraded?: boolean;
+	degradedReason?: string | null;
 };
 
 export type VisibleTable = {

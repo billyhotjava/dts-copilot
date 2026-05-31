@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Artifact, CanvasActionType } from "../../types/artifact";
 import { CanvasActions } from "./CanvasActions";
@@ -17,8 +17,25 @@ function artifact(): Artifact {
 	};
 }
 
+function indicatorArtifact(): Artifact {
+	return {
+		...artifact(),
+		spec: {
+			dataset: {
+				cols: [{ name: "dimension" }, { name: "value" }],
+				rows: [["项目A", 100]],
+			},
+			indicator: {
+				indicatorId: "cash-in",
+				name: "回款金额",
+			},
+		},
+		type: "indicator",
+	};
+}
+
 describe("CanvasActions", () => {
-	it("renders the four canvas actions in the expected order", async () => {
+	it("renders the canvas actions in the expected order", async () => {
 		render(<CanvasActions artifact={artifact()} onAction={vi.fn()} />);
 
 		const buttons = await screen.findAllByRole("button");
@@ -26,6 +43,7 @@ describe("CanvasActions", () => {
 			"存为卡片",
 			"钉到看板",
 			"SQL·溯源",
+			"下钻",
 			"导出",
 		]);
 	});
@@ -47,6 +65,18 @@ describe("CanvasActions", () => {
 			expect(onAction).toHaveBeenLastCalledWith({ action, artifact: current });
 		}
 		expect(onAction).toHaveBeenCalledTimes(4);
+	});
+
+	it("enables drilldown only for indicator artifacts", async () => {
+		const { rerender } = render(<CanvasActions artifact={artifact()} onAction={vi.fn()} />);
+
+		expect(await screen.findByRole("button", { name: "下钻" })).toBeDisabled();
+
+		rerender(<CanvasActions artifact={indicatorArtifact()} onAction={vi.fn()} />);
+
+		await waitFor(() => {
+			expect(screen.getByRole("button", { name: "下钻" })).not.toBeDisabled();
+		});
 	});
 
 	it("disables every action when no artifact is selected", async () => {

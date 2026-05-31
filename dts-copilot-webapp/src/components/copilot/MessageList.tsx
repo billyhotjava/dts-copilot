@@ -7,6 +7,7 @@ import type {
 import { extractSqlFromMarkdown } from "../../utils/sqlExtractor";
 import { CopilotMessageContent } from "./CopilotMessageContent";
 import { FeedbackButtons } from "./FeedbackButtons";
+import { InlineIndicatorPreview } from "./InlineIndicatorPreview";
 import { InlineSqlPreview } from "./InlineSqlPreview";
 import { WelcomeCard } from "./WelcomeCard";
 import { ClarificationChips } from "./assumptions/ClarificationChips";
@@ -98,6 +99,7 @@ export function MessageList({
 				const fixedReportShortcut = getFixedReportShortcut(msg);
 				const fixedReportCandidates = getFixedReportCandidates(msg);
 				const generatedReportNotice = getGeneratedReportDraftNotice(msg);
+				const platformIndicatorBadge = getPlatformIndicatorBadge(msg);
 				const suggestedDisplay = extractedSql
 					? inferGeneratedReportSuggestedDisplay({
 							message: msg,
@@ -165,6 +167,17 @@ export function MessageList({
 									{reasoningBlock}
 								</details>
 							) : reasoningBlock}
+							{platformIndicatorBadge ? (
+								<div className="copilot-chat__platform-indicator">
+									<span className="copilot-chat__platform-indicator-label">
+										来自平台指标
+									</span>
+									<span>{platformIndicatorBadge.name}</span>
+									{platformIndicatorBadge.version ? (
+										<span>口径 {platformIndicatorBadge.version}</span>
+									) : null}
+								</div>
+							) : null}
 							<CopilotMessageContent content={msg.content} />
 						</div>
 						{showClarifications ? (
@@ -249,6 +262,11 @@ export function MessageList({
 								)}
 							</div>
 						)}
+						{!showClarifications &&
+							msg.role === "assistant" &&
+							msg.responseKind === "PUBLISHED_INDICATOR" && (
+								<InlineIndicatorPreview message={msg} />
+							)}
 						{!showClarifications && extractedSql && (
 							<InlineSqlPreview
 								sql={extractedSql}
@@ -284,4 +302,22 @@ export function MessageList({
 			{children}
 		</div>
 	);
+}
+
+function getPlatformIndicatorBadge(
+	message: AiAgentChatMessage,
+): { name: string; version?: string } | null {
+	if (message.role !== "assistant") {
+		return null;
+	}
+	const caliber = message.trace?.metricCaliber;
+	const name = caliber?.name?.trim();
+	if (!name) {
+		return null;
+	}
+	const version = caliber?.version?.trim();
+	return {
+		name,
+		...(version ? { version } : {}),
+	};
 }

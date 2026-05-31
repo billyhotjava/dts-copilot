@@ -4,15 +4,9 @@ import {
 	analyticsApi,
 	type AiAgentChatMessage,
 	type AiAgentChatSession,
-	type CardDetail,
 	type CopilotSignalSummary,
 	type FixedReportCatalogItem,
 } from "../api/analyticsApi";
-import {
-	AssetActionModals,
-	type AssetActionKind,
-} from "../components/asset/AssetActionModals";
-import { CanvasPanel } from "../components/canvas/CanvasPanel";
 import { ConversationThread } from "../components/copilot/ConversationThread";
 import { TracePanel } from "../components/copilot/TracePanel";
 import ColdStartHome from "../components/copilot/cold-start/ColdStartHome";
@@ -27,8 +21,6 @@ import {
 	type CopilotPromptRequest,
 } from "../components/copilot/copilotPromptRequest";
 import type { CopilotSessionFocusRequest } from "../components/copilot/copilotSessionFocus";
-import { useArtifactStore } from "../hooks/useArtifactStore";
-import type { CanvasActionEvent } from "../types/artifact";
 import { getEffectiveLocale, t } from "../i18n";
 import { FIXED_REPORT_TEMPLATE_QUERY_KEY } from "./fixed-reports/fixedReportSurfaceEntry";
 import { getPrsScreenShortcutByTemplateCode } from "../shared/prsScreenShortcuts";
@@ -56,6 +48,29 @@ type FixedReportRouteState =
 
 export function normalizeAgentWorkspaceView(value: string | null): AgentWorkspaceView {
 	return value === "sessions" || value === "signals" ? value : "home";
+}
+
+export function resolveAgentWorkspacePromptRequest(
+	searchParams: URLSearchParams,
+): CopilotPromptRequest | null {
+	const prompt = searchParams.get("prompt")?.trim() ?? "";
+	if (!prompt) return null;
+	const source = searchParams.get("source")?.trim() || "agent-workspace-url-prompt";
+	const reportIntentId =
+		searchParams.get("metric")?.trim() ||
+		searchParams.get("reportIntentId")?.trim() ||
+		undefined;
+	const request = buildCopilotPromptRequest(prompt, {
+		notice:
+			source === "asset-library-metric"
+				? "已从资产库带入指标问题，正在交给 Agent BI 执行。"
+				: "已从链接带入问题，正在交给 Agent BI 执行。",
+		reportIntentId,
+		source,
+		submit: shouldAutoSubmitPrompt(searchParams.get("submit")),
+	});
+	if (!request) return null;
+	return request;
 }
 
 export function resolveFixedReportRoute(searchParams: URLSearchParams): FixedReportRoute {
@@ -87,6 +102,10 @@ function buildFixedReportRoute(
 		source,
 		templateCode,
 	};
+}
+
+function shouldAutoSubmitPrompt(value: string | null): boolean {
+	return value === "1" || value === "true" || value === "yes";
 }
 
 function buildFixedReportPromptRequest(
@@ -174,7 +193,7 @@ export default function AgentWorkspacePage() {
 	const [searchParams] = useSearchParams();
 	const workspaceView = normalizeAgentWorkspaceView(searchParams.get("view"));
 	const fixedReportRoute = resolveFixedReportRoute(searchParams);
-	const artifactStore = useArtifactStore();
+	const routePromptRequest = resolveAgentWorkspacePromptRequest(searchParams);
 	const [conversationMessages, setConversationMessages] = useState<AiAgentChatMessage[]>([]);
 	const [fixedReportState, setFixedReportState] = useState<FixedReportRouteState>({
 		state: "idle",
@@ -184,16 +203,20 @@ export default function AgentWorkspacePage() {
 	const [sessionFocusRequest, setSessionFocusRequest] =
 		useState<CopilotSessionFocusRequest | null>(null);
 	const [traceOpen, setTraceOpen] = useState(false);
-	const [assetAction, setAssetAction] = useState<AssetActionKind>(null);
 	const sortedMessages = useMemo(
 		() => sortMessages(conversationMessages),
 		[conversationMessages],
 	);
 	const currentTraceMessage = useMemo(() => {
-		const sourceMessageId = artifactStore.current?.sourceMessageId;
-		if (!sourceMessageId) return null;
-		return sortedMessages.find((message) => message.id === sourceMessageId) ?? null;
-	}, [artifactStore.current?.sourceMessageId, sortedMessages]);
+		if (!traceOpen) return null;
+		return [...sortedMessages]
+			.reverse()
+			.find(
+				(message) =>
+					message.role === "assistant" &&
+					Boolean(message.generatedSql || message.trace),
+			) ?? null;
+	}, [sortedMessages, traceOpen]);
 	const traceToolMessages = useMemo(
 		() =>
 			currentTraceMessage
@@ -206,9 +229,12 @@ export default function AgentWorkspacePage() {
 		hasFixedReportRoute && fixedReportState.state === "ready"
 			? fixedReportState.promptRequest
 			: null;
-	const activePromptRequest = fixedReportPromptRequest ?? promptRequest;
+	const routePromptEnabled = !hasFixedReportRoute && Boolean(routePromptRequest);
+	const activePromptRequest =
+		fixedReportPromptRequest ?? (routePromptEnabled ? routePromptRequest : null) ?? promptRequest;
 	const hasActiveConversation =
 		Boolean(fixedReportPromptRequest) ||
+		routePromptEnabled ||
 		(workspaceView === "sessions" ? Boolean(sessionFocusRequest) : Boolean(submittedPrompt));
 	const showColdStart =
 		!hasFixedReportRoute && workspaceView === "home" && !hasActiveConversation;
@@ -322,25 +348,6 @@ export default function AgentWorkspacePage() {
 		navigate("/agent-bi");
 	};
 
-	const handleArtifactAction = (event: CanvasActionEvent) => {
-		if (event.action === "trace-sql") {
-			setTraceOpen(true);
-			return;
-		}
-		setAssetAction(event.action);
-	};
-
-	const rememberCard = (card: CardDetail, artifact = artifactStore.current) => {
-		if (!artifact) return;
-		artifactStore.upsert({
-			...artifact,
-			spec: {
-				...artifact.spec,
-				cardId: card.id,
-			},
-		});
-	};
-
 	return (
 		<main className="agent-workspace" aria-label={t(locale, "agentWorkspace.title")}>
 			{showSessionsView ? (
@@ -371,21 +378,11 @@ export default function AgentWorkspacePage() {
 						aria-label={t(locale, "agentWorkspace.spineTitle")}
 					>
 						<ConversationThread
-							artifactStore={artifactStore}
 							compactReasoning
 							focusRequest={sessionFocusRequest}
 							onMessagesChange={setConversationMessages}
 							presentation="workbench"
 							promptRequest={activePromptRequest}
-						/>
-					</section>
-					<section
-						className="agent-workspace__canvas"
-						aria-label={t(locale, "agentWorkspace.canvasTitle")}
-					>
-						<CanvasPanel
-							store={artifactStore}
-							onArtifactAction={handleArtifactAction}
 						/>
 					</section>
 				</div>
@@ -396,13 +393,6 @@ export default function AgentWorkspacePage() {
 				open={traceOpen}
 				sessionId={currentTraceMessage?.sessionId ?? null}
 				toolMessages={traceToolMessages}
-			/>
-			<AssetActionModals
-				action={assetAction}
-				artifact={artifactStore.current}
-				onCardSaved={rememberCard}
-				onClose={() => setAssetAction(null)}
-				onPinned={({ card }) => rememberCard(card)}
 			/>
 		</main>
 	);

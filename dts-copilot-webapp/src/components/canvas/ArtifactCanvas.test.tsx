@@ -1,6 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { analyticsApi } from "../../api/analyticsApi";
 import type { Artifact } from "../../types/artifact";
 import { ArtifactCanvas } from "./ArtifactCanvas";
+
+vi.mock("../../api/analyticsApi", () => ({
+	analyticsApi: {
+		getPlatformIndicatorDrilldown: vi.fn(),
+		runDatasetQuery: vi.fn(),
+	},
+}));
 
 vi.mock("../charts/ChartRenderer", () => ({
 	ChartRenderer: vi.fn(
@@ -85,6 +93,98 @@ describe("ArtifactCanvas", () => {
 		expect(await screen.findByTestId("data-table")).toHaveTextContent("table:1x2");
 	});
 
+	it("renders indicator artifacts with platform caliber identity", async () => {
+		render(
+			<ArtifactCanvas
+				artifact={artifact({
+					spec: {
+						dataset,
+						display: "line",
+						indicator: {
+							indicatorId: "cash-in",
+							name: "回款金额",
+							version: "v2",
+							definition: "按月统计已确认回款。",
+						},
+					},
+					title: "回款金额",
+					type: "indicator",
+				})}
+			/>,
+		);
+
+		expect(await screen.findByText("平台指标产物")).toBeInTheDocument();
+		expect(await screen.findByText("平台指标")).toBeInTheDocument();
+		expect(await screen.findByText("口径 v2")).toBeInTheDocument();
+		expect(await screen.findByTestId("chart-renderer")).toHaveTextContent("chart:line:1");
+	});
+
+	it("drills down indicator artifacts in the same canvas surface", async () => {
+		vi.mocked(analyticsApi.getPlatformIndicatorDrilldown).mockResolvedValue({
+			indicatorId: "cash-in",
+			mode: "drilldown",
+			cols: [
+				{ name: "dimension", display_name: "项目" },
+				{ name: "metric_value", display_name: "金额" },
+			],
+			rows: [
+				["项目A", 1200],
+				["项目B", 900],
+			],
+		});
+		const onArtifactUpdate = vi.fn();
+
+		render(
+			<ArtifactCanvas
+				artifact={artifact({
+					id: "indicator-artifact",
+					spec: {
+						dataset,
+						display: "line",
+						indicator: {
+							indicatorId: "cash-in",
+							name: "回款金额",
+							version: "v2",
+							dimensionFields: ["project_id", "customer_id"],
+						},
+					},
+					title: "回款金额",
+					type: "indicator",
+				})}
+				onArtifactUpdate={onArtifactUpdate}
+			/>,
+		);
+
+		fireEvent.change(await screen.findByLabelText("下钻维度"), {
+			target: { value: "customer_id" },
+		});
+		fireEvent.change(screen.getByLabelText("下钻周期"), {
+			target: { value: "2026-05" },
+		});
+		fireEvent.click(screen.getByRole("button", { name: "下钻" }));
+
+		await waitFor(() => {
+			expect(screen.getByTestId("chart-renderer")).toHaveTextContent("chart:bar:2");
+		});
+		expect(analyticsApi.getPlatformIndicatorDrilldown).toHaveBeenCalledWith(
+			"cash-in",
+			"customer_id",
+			"2026-05",
+		);
+		expect(onArtifactUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				id: "indicator-artifact",
+				spec: expect.objectContaining({
+					indicator: expect.objectContaining({
+						activeDrilldownDimension: "customer_id",
+						activeDrilldownPeriod: "2026-05",
+						valueMode: "drilldown",
+					}),
+				}),
+			}),
+		);
+	});
+
 	it("renders report artifacts as an AI report entry link", async () => {
 		render(
 			<ArtifactCanvas
@@ -102,6 +202,63 @@ describe("ArtifactCanvas", () => {
 		expect(await screen.findByRole("link", { name: "用 AI 报表打开" })).toHaveAttribute(
 			"href",
 			"/agent-bi?fixedReport=PRS-FLOWERBIZ-OVERVIEW",
+		);
+	});
+
+	it("auto-runs SQL-backed artifacts when the dataset has not been materialized yet", async () => {
+		let resolveQuery!: (value: Awaited<ReturnType<typeof analyticsApi.runDatasetQuery>>) => void;
+		vi.mocked(analyticsApi.runDatasetQuery).mockReturnValue(
+			new Promise((resolve) => {
+				resolveQuery = resolve;
+			}),
+		);
+		const onDatasetReady = vi.fn();
+
+		render(
+			<ArtifactCanvas
+				artifact={artifact({
+					spec: {
+						databaseId: 7,
+						display: "table",
+						generatedSql: "select * from mart",
+						reportCode: "prs.project.customer_value",
+					},
+					type: "table",
+				})}
+				onDatasetReady={onDatasetReady}
+			/>,
+		);
+
+		expect(await screen.findByText("正在执行画布查询…")).toBeInTheDocument();
+		await act(async () => {
+			resolveQuery({
+				data: {
+					cols: [
+						{ name: "month", display_name: "月份" },
+						{ name: "amount", display_name: "金额" },
+					],
+					rows: [["2026-05", 1234]],
+				},
+				row_count: 1,
+				status: "completed",
+			});
+		});
+		expect(await screen.findByTestId("data-table")).toHaveTextContent("table:1x2");
+		expect(analyticsApi.runDatasetQuery).toHaveBeenCalledWith({
+			context: "agent-canvas",
+			database: 7,
+			native: { query: "select * from mart" },
+			type: "native",
+		});
+		expect(onDatasetReady).toHaveBeenCalledWith(
+			expect.objectContaining({ id: "artifact-1" }),
+			{
+				cols: [
+					{ name: "month", display_name: "月份" },
+					{ name: "amount", display_name: "金额" },
+				],
+				rows: [["2026-05", 1234]],
+			},
 		);
 	});
 });

@@ -12,12 +12,6 @@ const listAiAgentSessions = vi.fn();
 const listCopilotSignals = vi.fn();
 const navigate = vi.fn();
 let currentSearch = "";
-const artifactStore = {
-	artifacts: [],
-	current: null,
-	setCurrent: vi.fn(),
-	upsert: vi.fn(),
-};
 
 vi.mock("../api/analyticsApi", () => ({
 	analyticsApi: {
@@ -38,15 +32,20 @@ vi.mock("../components/copilot/cold-start/ColdStartHome", () => ({
 
 vi.mock("../components/copilot/ConversationThread", () => ({
 	ConversationThread: ({
+		artifactStore,
 		focusRequest,
 		promptRequest,
 	}: {
+		artifactStore?: unknown;
 		focusRequest?: { sessionId?: string } | null;
 		promptRequest?: Record<string, unknown> | null;
 	}) =>
 			createElement(
 				"div",
-				{ "data-testid": "conversation-thread" },
+				{
+					"data-has-artifact-store": String(Boolean(artifactStore)),
+					"data-testid": "conversation-thread",
+				},
 			focusRequest?.sessionId ??
 				(promptRequest?.prompt != null ? String(promptRequest.prompt) : "new-session"),
 			promptRequest
@@ -59,20 +58,8 @@ vi.mock("../components/copilot/ConversationThread", () => ({
 		),
 }));
 
-vi.mock("../components/canvas/CanvasPanel", () => ({
-	CanvasPanel: () => createElement("div", { "data-testid": "canvas-panel" }),
-}));
-
 vi.mock("../components/copilot/TracePanel", () => ({
 	TracePanel: () => createElement("div", { "data-testid": "trace-panel" }),
-}));
-
-vi.mock("../components/asset/AssetActionModals", () => ({
-	AssetActionModals: () => createElement("div", { "data-testid": "asset-action-modals" }),
-}));
-
-vi.mock("../hooks/useArtifactStore", () => ({
-	useArtifactStore: () => artifactStore,
 }));
 
 function renderWorkspace(path: string) {
@@ -92,19 +79,17 @@ describe("AgentWorkspacePage", () => {
 		listCopilotSignals.mockResolvedValue([]);
 	});
 
-	it("declares shell slots for cold start, conversation spine, and artifact canvas", () => {
+	it("declares a single-window workspace without the artifact canvas shell", () => {
 		expect(PAGE_SOURCE).toContain("agent-workspace");
 		expect(PAGE_SOURCE).toContain("agent-workspace__cold-start");
 		expect(PAGE_SOURCE).toContain("agent-workspace__spine");
-		expect(PAGE_SOURCE).toContain("agent-workspace__canvas");
+		expect(PAGE_SOURCE).not.toContain("agent-workspace__canvas");
 		expect(PAGE_SOURCE).toContain("ConversationThread");
-		expect(PAGE_SOURCE).toContain("CanvasPanel");
-		expect(PAGE_SOURCE).toContain("useArtifactStore");
-		expect(PAGE_SOURCE).toContain("onArtifactAction");
-		expect(PAGE_SOURCE).toContain("trace-sql");
+		expect(PAGE_SOURCE).not.toContain("CanvasPanel");
+		expect(PAGE_SOURCE).not.toContain("useArtifactStore");
+		expect(PAGE_SOURCE).not.toContain("onArtifactAction");
 		expect(PAGE_SOURCE).toContain("<TracePanel");
-		expect(PAGE_SOURCE).toContain("<AssetActionModals");
-		expect(PAGE_SOURCE).toContain("setAssetAction(event.action)");
+		expect(PAGE_SOURCE).not.toContain("<AssetActionModals");
 		expect(PAGE_SOURCE).toContain('navigate("/assets")');
 	});
 
@@ -141,7 +126,11 @@ describe("AgentWorkspacePage", () => {
 		await waitFor(() => {
 			expect(screen.getByTestId("conversation-thread")).toHaveTextContent("session-2");
 		});
-		expect(screen.getByTestId("canvas-panel")).toBeInTheDocument();
+		expect(screen.queryByTestId("canvas-panel")).not.toBeInTheDocument();
+		expect(screen.getByTestId("conversation-thread")).toHaveAttribute(
+			"data-has-artifact-store",
+			"false",
+		);
 	});
 
 	it("normalizes the signals query view as a first-class workspace view", () => {
@@ -177,7 +166,29 @@ describe("AgentWorkspacePage", () => {
 		});
 		expect(promptRequest.prompt).toContain("PRS 租赁经营总览");
 		expect(screen.getByTestId("conversation-thread")).toHaveTextContent("PRS 租赁经营总览");
-		expect(screen.getByTestId("canvas-panel")).toBeInTheDocument();
+		expect(screen.queryByTestId("canvas-panel")).not.toBeInTheDocument();
+		expect(screen.getByTestId("conversation-thread")).toHaveAttribute(
+			"data-has-artifact-store",
+			"false",
+		);
+		expect(screen.queryByTestId("cold-start-home")).not.toBeInTheDocument();
+	});
+
+	it("starts an asset-library metric prompt when prompt query is present", async () => {
+		renderWorkspace(
+			"/agent-bi?prompt=%E7%94%A8%E5%B9%B3%E5%8F%B0%E6%8C%87%E6%A0%87%E5%88%86%E6%9E%90%E5%9B%9E%E6%AC%BE%E9%87%91%E9%A2%9D&source=asset-library-metric&metric=platform%3Acash-in&submit=1",
+		);
+
+		const promptRequest = JSON.parse(
+			(await screen.findByTestId("prompt-request")).textContent ?? "{}",
+		);
+		expect(promptRequest).toMatchObject({
+			reportIntentId: "platform:cash-in",
+			source: "asset-library-metric",
+			submit: true,
+		});
+		expect(promptRequest.prompt).toContain("回款金额");
+		expect(screen.getByTestId("conversation-thread")).toHaveTextContent("回款金额");
 		expect(screen.queryByTestId("cold-start-home")).not.toBeInTheDocument();
 	});
 
@@ -236,6 +247,10 @@ describe("AgentWorkspacePage", () => {
 			submit: true,
 		});
 		expect(promptRequest.prompt).toContain("项目坏账风险");
-		expect(screen.getByTestId("canvas-panel")).toBeInTheDocument();
+		expect(screen.queryByTestId("canvas-panel")).not.toBeInTheDocument();
+		expect(screen.getByTestId("conversation-thread")).toHaveAttribute(
+			"data-has-artifact-store",
+			"false",
+		);
 	});
 });

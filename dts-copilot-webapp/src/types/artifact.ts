@@ -10,12 +10,46 @@ export interface ArtifactDataset {
 	rows: unknown[][];
 }
 
-export type ArtifactType = "chart" | "table" | "report";
+export type IndicatorValueMode = "dashboard" | "detail" | "drilldown";
+
+export interface IndicatorArtifactMeta {
+	indicatorId: string | number;
+	code?: string;
+	name: string;
+	definition?: string;
+	expressionSql?: string;
+	version?: string;
+	category?: string;
+	timeGrain?: string;
+	dateColumn?: string;
+	dimensionFields?: string[];
+	activeDrilldownDimension?: string;
+	activeDrilldownPeriod?: string;
+	dataLevel?: string;
+	owner?: string;
+	valueMode?: IndicatorValueMode;
+	drilldownEnabled?: boolean;
+	caliberChanged?: boolean;
+	stale?: boolean;
+}
+
+export interface IndicatorArtifactInput {
+	meta: IndicatorArtifactMeta;
+	dataset: ArtifactDataset;
+	display?: VisualizationType;
+	sourceMessageId?: string;
+	id?: string;
+	createdAt?: number;
+	settings?: VisualizationSettings;
+}
+
+export type ArtifactType = "chart" | "table" | "report" | "indicator";
 
 export interface ArtifactSpec {
 	display?: VisualizationType;
 	settings?: VisualizationSettings;
 	dataset?: ArtifactDataset;
+	indicator?: IndicatorArtifactMeta;
 	reportCode?: string;
 	reportHref?: string;
 	generatedSql?: string;
@@ -46,7 +80,8 @@ export type CanvasActionType =
 	| "save-card"
 	| "pin-dashboard"
 	| "trace-sql"
-	| "export";
+	| "export"
+	| "drilldown";
 
 export interface CanvasActionEvent {
 	action: CanvasActionType;
@@ -108,6 +143,58 @@ export function makeArtifactId(sourceMessageId: string): string {
 	return `artifact:${source}:${unique}`;
 }
 
+export function makeIndicatorArtifactId(indicatorId: string | number): string {
+	return `artifact:indicator:${normalizeIdSegment(String(indicatorId))}`;
+}
+
+export function indicatorArtifact(input: IndicatorArtifactInput): Artifact {
+	const display = input.display ?? resolveIndicatorDisplay(input.meta, input.dataset);
+	const id = input.id ?? makeIndicatorArtifactId(input.meta.indicatorId);
+	const sourceMessageId = input.sourceMessageId ?? `indicator:${input.meta.indicatorId}`;
+	return {
+		createdAt: input.createdAt ?? Date.now(),
+		id,
+		sourceMessageId,
+		spec: {
+			display,
+			dataset: input.dataset,
+			indicator: input.meta,
+			...(input.settings ? { settings: input.settings } : {}),
+			...(input.meta.definition || input.meta.expressionSql || input.meta.version
+				? {
+						trace: {
+							metricCaliber: {
+								name: input.meta.name,
+								formula: input.meta.expressionSql ?? input.meta.definition,
+								domain: input.meta.category,
+								version: input.meta.version,
+								ontologyRef: input.meta.code,
+							},
+						},
+					}
+				: {}),
+		},
+		title: input.meta.name,
+		type: "indicator",
+	};
+}
+
+export function resolveIndicatorDisplay(
+	meta: Partial<IndicatorArtifactMeta>,
+	dataset: ArtifactDataset,
+): VisualizationType {
+	if (meta.valueMode === "drilldown" && dataset.rows.length > 1 && dataset.cols.length >= 2) {
+		return "bar";
+	}
+	if ((meta.timeGrain || meta.dateColumn) && dataset.cols.length >= 2) {
+		return "line";
+	}
+	if (dataset.rows.length === 1 && dataset.cols.length <= 2) {
+		return "scalar";
+	}
+	return "table";
+}
+
 export function artifactFromMessage(
 	message: ArtifactMessageInput,
 	dataset?: ArtifactDataset | null,
@@ -148,6 +235,9 @@ function resolveArtifactType(
 	message: ArtifactMessageInput,
 	display: VisualizationType,
 ): ArtifactType {
+	if (message.generatedSql?.trim()) {
+		return display === "table" ? "table" : "chart";
+	}
 	if (message.responseKind === "FIXED_REPORT") {
 		return "report";
 	}

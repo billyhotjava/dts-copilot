@@ -85,6 +85,107 @@
 	text-decoration: underline;
 }
 
+.artifact-canvas__indicator {
+	display: flex;
+	min-height: 0;
+	flex-direction: column;
+	gap: var(--spacing-sm);
+}
+
+.artifact-canvas__caliber {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--spacing-xs);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-bg-secondary);
+	color: var(--color-text-secondary);
+	padding: var(--spacing-xs) var(--spacing-sm);
+	font-size: var(--font-size-sm);
+}
+
+.artifact-canvas__caliber-badge,
+.artifact-canvas__caliber-ver,
+.artifact-canvas__caliber-stale,
+.artifact-canvas__caliber-changed {
+	display: inline-flex;
+	align-items: center;
+	min-height: 22px;
+	border-radius: var(--radius-sm);
+	padding: 0 var(--spacing-xs);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+}
+
+.artifact-canvas__caliber-badge {
+	background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-primary));
+	color: var(--color-primary);
+}
+
+.artifact-canvas__caliber-ver {
+	background: var(--color-bg-primary);
+	color: var(--color-text-secondary);
+}
+
+.artifact-canvas__caliber-stale {
+	background: color-mix(in srgb, var(--color-warning, #d97706) 10%, var(--color-bg-primary));
+	color: var(--color-warning, #d97706);
+}
+
+.artifact-canvas__caliber-changed {
+	background: color-mix(in srgb, var(--color-warning, #d97706) 14%, var(--color-bg-primary));
+	color: var(--color-warning, #d97706);
+}
+
+.artifact-canvas__drilldown {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--spacing-xs);
+}
+
+.artifact-canvas__drilldown select,
+.artifact-canvas__drilldown input {
+	min-height: 32px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-bg-primary);
+	color: var(--color-text-primary);
+	font-size: var(--font-size-sm);
+	padding: 0 var(--spacing-sm);
+}
+
+.artifact-canvas__drilldown input {
+	width: 104px;
+}
+
+.artifact-canvas__drilldown button {
+	min-height: 32px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-bg-secondary);
+	color: var(--color-text-primary);
+	cursor: pointer;
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-medium);
+	padding: 0 var(--spacing-md);
+}
+
+.artifact-canvas__drilldown button:disabled {
+	cursor: not-allowed;
+	opacity: 0.6;
+}
+
+.artifact-canvas__drilldown-error {
+	border: 1px solid color-mix(in srgb, var(--color-danger, #dc2626) 32%, var(--color-border));
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--color-danger, #dc2626) 8%, var(--color-bg-primary));
+	color: var(--color-danger, #dc2626);
+	font-size: var(--font-size-sm);
+	padding: var(--spacing-xs) var(--spacing-sm);
+}
+
 .canvas-panel {
 	display: flex;
 	min-height: 0;

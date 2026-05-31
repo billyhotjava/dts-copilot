@@ -14,6 +14,7 @@ describe("AssetLibraryPage", () => {
 		expect(normalizeAssetLibraryTab("dashboards")).toBe("dashboards");
 		expect(normalizeAssetLibraryTab("cards")).toBe("cards");
 		expect(normalizeAssetLibraryTab("collections")).toBe("collections");
+		expect(normalizeAssetLibraryTab("metrics")).toBe("metrics");
 		expect(normalizeAssetLibraryTab("legacy")).toBe("dashboards");
 	});
 
@@ -21,9 +22,11 @@ describe("AssetLibraryPage", () => {
 		expect(PAGE_SOURCE).toContain("useSearchParams");
 		expect(PAGE_SOURCE).toContain("资产库");
 		expect(PAGE_SOURCE).toContain('<Tab value="dashboards">看板</Tab>');
+		expect(PAGE_SOURCE).toContain('<Tab value="metrics">平台指标</Tab>');
 		expect(PAGE_SOURCE).toContain("<DashboardsPage embedded />");
 		expect(PAGE_SOURCE).toContain("<CardsPage embedded />");
 		expect(PAGE_SOURCE).toContain("<CollectionsPage embedded />");
+		expect(PAGE_SOURCE).toContain("<MetricAssetsPanel />");
 		expect(PAGE_SOURCE).not.toContain("<DashboardsPage />");
 		expect(PAGE_SOURCE).not.toContain("<CardsPage />");
 		expect(PAGE_SOURCE).not.toContain("<CollectionsPage />");

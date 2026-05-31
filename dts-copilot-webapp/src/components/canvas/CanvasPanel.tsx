@@ -1,6 +1,8 @@
-import type { ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
 import type { ArtifactStore } from "../../hooks/useArtifactStore";
 import type {
+	Artifact,
+	ArtifactDataset,
 	CanvasActionEvent,
 	CanvasActionType,
 } from "../../types/artifact";
@@ -40,6 +42,18 @@ export function CanvasPanel({
 				onAction={onArtifactAction}
 			/>
 		) : null);
+	const handleDatasetReady = useCallback(
+		(artifact: Artifact, dataset: ArtifactDataset) => {
+			store.upsert({
+				...artifact,
+				spec: {
+					...artifact.spec,
+					dataset,
+				},
+			});
+		},
+		[store.upsert],
+	);
 
 	return (
 		<section className={["canvas-panel", className].filter(Boolean).join(" ")}>
@@ -51,6 +65,8 @@ export function CanvasPanel({
 					artifact={store.current}
 					loading={loading}
 					error={error}
+					onArtifactUpdate={store.upsert}
+					onDatasetReady={handleDatasetReady}
 				/>
 			</div>
 			<ArtifactTray

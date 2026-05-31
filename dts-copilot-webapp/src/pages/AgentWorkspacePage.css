@@ -12,27 +12,22 @@
 }
 
 .agent-workspace__body {
-	display: grid;
-	grid-template-columns: minmax(320px, 40%) minmax(0, 1fr);
-	gap: var(--spacing-md);
+	display: flex;
 	flex: 1;
 	min-height: 560px;
 	padding: var(--spacing-lg);
 }
 
-.agent-workspace__spine,
-.agent-workspace__canvas {
+.agent-workspace__spine {
 	display: flex;
 	flex-direction: column;
+	width: min(1120px, 100%);
+	margin: 0 auto;
 	min-width: 0;
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-sm);
 	background: var(--color-bg-primary);
 	padding: var(--spacing-md);
-}
-
-.agent-workspace__canvas {
-	background: color-mix(in srgb, var(--color-bg-primary) 88%, var(--color-bg-secondary));
 }
 
 .agent-workspace__slot-header h2 {
@@ -354,7 +349,6 @@
 
 @media (max-width: 960px) {
 	.agent-workspace__body {
-		grid-template-columns: 1fr;
 		min-height: 0;
 		padding: var(--spacing-md);
 	}

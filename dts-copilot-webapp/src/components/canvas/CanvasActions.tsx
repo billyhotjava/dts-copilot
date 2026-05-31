@@ -22,6 +22,7 @@ const ACTIONS: Array<{
 	{ action: "save-card", icon: <ActionIcon label="S" />, label: "存为卡片" },
 	{ action: "pin-dashboard", icon: <ActionIcon label="P" />, label: "钉到看板" },
 	{ action: "trace-sql", icon: <ActionIcon label="</>" />, label: "SQL·溯源" },
+	{ action: "drilldown", icon: <ActionIcon label="↧" />, label: "下钻" },
 	{ action: "export", icon: <ActionIcon label="↓" />, label: "导出" },
 ];
 
@@ -36,6 +37,7 @@ export function CanvasActions({
 			{ACTIONS.map((item) => {
 				const disabled =
 					!artifact ||
+					(item.action === "drilldown" && artifact.type !== "indicator") ||
 					disabledActions.includes(item.action) ||
 					busyAction === item.action;
 				return (

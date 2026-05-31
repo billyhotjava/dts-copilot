@@ -69,6 +69,10 @@ export type {
 	FieldValuesResponse,
 	Metric,
 	PlatformMetric,
+	PlatformIndicatorCatalogResponse,
+	PlatformIndicatorListItem,
+	PlatformIndicatorValueMode,
+	PlatformIndicatorValueResponse,
 	VisibleTable,
 	PublicScreenDetail,
 	CopilotSiteSettings,
@@ -144,6 +148,7 @@ import { dashboardApi } from "./modules/dashboard.ts";
 import { screenApi } from "./modules/screen.ts";
 import { copilotApi } from "./modules/copilot.ts";
 import { adminApi } from "./modules/admin.ts";
+import { indicatorApi } from "./modules/indicator.ts";
 
 export const analyticsApi = {
 	...authApi,
@@ -153,4 +158,5 @@ export const analyticsApi = {
 	...screenApi,
 	...copilotApi,
 	...adminApi,
+	...indicatorApi,
 };

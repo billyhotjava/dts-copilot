@@ -499,6 +499,60 @@
 	overflow-wrap: anywhere;
 }
 
+.copilot-chat__platform-indicator {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 8px;
+}
+
+.copilot-chat__platform-indicator span {
+	display: inline-flex;
+	max-width: 100%;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: rgba(16, 185, 129, 0.1);
+	color: #047857;
+	font-size: 11px;
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.copilot-chat__platform-indicator-label {
+	background: rgba(80, 158, 227, 0.12) !important;
+	color: var(--color-brand, #509ee3) !important;
+}
+
+.copilot-chat__indicator-preview {
+	margin: 10px 0 0;
+	border: 1px solid var(--color-border, #e5e7eb);
+	border-radius: 8px;
+	background: var(--color-bg-primary, #fff);
+	overflow: hidden;
+}
+
+.copilot-chat__indicator-preview--loading,
+.copilot-chat__indicator-preview--error {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 14px;
+	color: #6b7280;
+	font-size: 13px;
+}
+
+.copilot-chat__indicator-preview--error {
+	color: #b42318;
+	background: #fff5f5;
+	border-color: #fecaca;
+}
+
+.copilot-chat__indicator-preview-artifact {
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+}
+
 /* Input area */
 .copilot-chat__input-area {
 	display: flex;

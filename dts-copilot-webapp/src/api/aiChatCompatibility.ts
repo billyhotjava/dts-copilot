@@ -281,6 +281,17 @@ export function normalizeLegacyAiChatSessionDetail(payload: unknown) {
 
 export function normalizeLegacyAiChatResponse(payload: unknown) {
 	const row = asObject(payload) ?? {}
+	const generatedSql = pickString(row, ['generatedSql'])
+	const responseKind = pickString(row, ['responseKind'])
+	const routedDomain = pickString(row, ['routedDomain'])
+	const targetView = pickString(row, ['targetView'])
+	const templateCode = pickString(row, ['templateCode'])
+	const dataSurface = pickString(row, ['dataSurface'])
+	const qualityLevel = pickString(row, ['qualityLevel'])
+	const qualityNotes = pickString(row, ['qualityNotes'])
+	const suggestedDisplay = pickString(row, ['suggestedDisplay'])
+	const reportCode = pickString(row, ['reportCode'])
+	const sourceRefs = pickString(row, ['sourceRefs'])
 	const assumptions = normalizeAssumptions(row.assumptions)
 	const confidence = pickFiniteNumber(row, ['confidence'])
 	const clarifications = normalizeClarifications(row.clarifications)
@@ -291,6 +302,17 @@ export function normalizeLegacyAiChatResponse(payload: unknown) {
 		toolCalls: [],
 		requiresApproval: false,
 		pendingAction: null,
+		...(generatedSql ? { generatedSql } : {}),
+		...(responseKind ? { responseKind } : {}),
+		...(routedDomain ? { routedDomain } : {}),
+		...(targetView ? { targetView } : {}),
+		...(templateCode ? { templateCode } : {}),
+		...(dataSurface ? { dataSurface } : {}),
+		...(qualityLevel ? { qualityLevel } : {}),
+		...(qualityNotes ? { qualityNotes } : {}),
+		...(suggestedDisplay ? { suggestedDisplay } : {}),
+		...(reportCode ? { reportCode } : {}),
+		...(sourceRefs ? { sourceRefs } : {}),
 		...(assumptions ? { assumptions } : {}),
 		...(confidence !== undefined ? { confidence } : {}),
 		...(clarifications ? { clarifications } : {}),

@@ -1,7 +1,10 @@
 import type { AiAgentChatMessage } from "../api/analyticsApi";
 import {
 	artifactFromMessage,
+	indicatorArtifact,
+	makeIndicatorArtifactId,
 	makeArtifactId,
+	resolveIndicatorDisplay,
 	type ArtifactDataset,
 } from "./artifact";
 
@@ -96,7 +99,92 @@ describe("artifact model", () => {
 		expect(artifact.spec.dataset).toBeUndefined();
 	});
 
+	it("keeps generated SQL from fixed-report classified messages visible as a query artifact", () => {
+		const artifact = artifactFromMessage(
+			message({
+				generatedSql: "select * from public.xycyl_ads_flowerbiz_project_customer",
+				reportCode: "prs.project.customer_value",
+				responseKind: "FIXED_REPORT",
+				suggestedDisplay: "table",
+			}),
+			null,
+			{ createdAt: 1000, id: "artifact-fixed-report-sql" },
+		);
+
+		expect(artifact).toMatchObject({
+			id: "artifact-fixed-report-sql",
+			type: "table",
+			spec: {
+				display: "table",
+				generatedSql:
+					"select * from public.xycyl_ads_flowerbiz_project_customer",
+				reportCode: "prs.project.customer_value",
+			},
+		});
+	});
+
 	it("generates traceable artifact ids from the source message id", () => {
 		expect(makeArtifactId("msg 12")).toMatch(/^artifact:msg-12:/);
+	});
+
+	it("builds stable indicator artifacts with platform caliber trace", () => {
+		const artifact = indicatorArtifact({
+			createdAt: 1000,
+			dataset,
+			meta: {
+				indicatorId: "cash-in",
+				name: "回款金额",
+				definition: "按月统计已确认回款。",
+				expressionSql: "sum(received_amount)",
+				version: "v2",
+				timeGrain: "month",
+				dimensionFields: ["project", "customer"],
+				drilldownEnabled: true,
+			},
+		});
+
+		expect(artifact).toMatchObject({
+			createdAt: 1000,
+			id: "artifact:indicator:cash-in",
+			sourceMessageId: "indicator:cash-in",
+			title: "回款金额",
+			type: "indicator",
+			spec: {
+				display: "line",
+				dataset,
+				indicator: {
+					indicatorId: "cash-in",
+					name: "回款金额",
+					version: "v2",
+					drilldownEnabled: true,
+				},
+				trace: {
+					metricCaliber: {
+						name: "回款金额",
+						formula: "sum(received_amount)",
+						version: "v2",
+					},
+				},
+			},
+		});
+		expect(makeIndicatorArtifactId("cash-in")).toBe("artifact:indicator:cash-in");
+	});
+
+	it("infers indicator display from time grain and value shape", () => {
+		expect(
+			resolveIndicatorDisplay({ indicatorId: "cash-in", name: "回款金额", timeGrain: "month" }, dataset),
+		).toBe("line");
+		expect(
+			resolveIndicatorDisplay(
+				{ indicatorId: "cash-in", name: "回款金额" },
+				{ cols: [{ name: "label" }, { name: "value" }], rows: [["本月", 100]] },
+			),
+		).toBe("scalar");
+		expect(
+			resolveIndicatorDisplay(
+				{ indicatorId: "cash-in", name: "回款金额" },
+				{ cols: [{ name: "project" }, { name: "value" }], rows: [["A", 100], ["B", 80]] },
+			),
+		).toBe("table");
 	});
 });
