@@ -222,6 +222,25 @@ describe("AgentWorkspacePage", () => {
 		expect(screen.queryByTestId("cold-start-home")).not.toBeInTheDocument();
 	});
 
+	it("falls back to an agent prompt when an archived fixed report link is opened", async () => {
+		getFixedReportCatalogItem.mockRejectedValue(new Error("not found"));
+
+		renderWorkspace("/agent-bi?fixedReport=WH-LOW-STOCK-ALERT");
+
+		const promptRequest = JSON.parse(
+			(await screen.findByTestId("prompt-request")).textContent ?? "{}",
+		);
+		expect(getFixedReportCatalogItem).toHaveBeenCalledWith("WH-LOW-STOCK-ALERT");
+		expect(promptRequest).toMatchObject({
+			reportIntentId: "WH-LOW-STOCK-ALERT",
+			source: "agent-workspace-fixed-report-fallback",
+			submit: true,
+		});
+		expect(promptRequest.prompt).toContain("库存现量-低库存预警");
+		expect(promptRequest.notice).toContain("未在资产目录发布");
+		expect(screen.queryByText("未找到固定报表模板：WH-LOW-STOCK-ALERT")).not.toBeInTheDocument();
+	});
+
 	it("opens a selected signal in the conversation spine", async () => {
 		listCopilotSignals.mockResolvedValue([
 			{

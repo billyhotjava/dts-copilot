@@ -222,20 +222,17 @@ export function MessageList({
 								</div>
 								<div className="copilot-chat__fixed-report-candidates-list">
 									{fixedReportCandidates.map((candidate) =>
-										candidate.templateCode ? (
+										candidate.href ? (
 											<Link
-												key={`${msg.id}-${candidate.templateCode}`}
+												key={`${msg.id}-${candidate.templateCode ?? candidate.label}`}
 												className="copilot-chat__fixed-report-link"
-												to={
-													candidate.href ??
-													`/agent-bi?fixedReport=${encodeURIComponent(candidate.templateCode)}`
-												}
+												to={candidate.href}
 											>
 												{candidate.label}
 											</Link>
 										) : (
 											<span
-												key={`${msg.id}-${candidate.label}`}
+												key={`${msg.id}-${candidate.templateCode ?? candidate.label}`}
 												className="copilot-chat__fixed-report-chip"
 											>
 												{candidate.label}

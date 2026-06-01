@@ -93,7 +93,7 @@ export default function DashboardsPage({ embedded = false }: DashboardsPageProps
 	}, []);
 
 	const fixedReportQuickStarts = useMemo(
-		() => fixedReports.state === "loaded" ? buildFixedReportQuickStartItems(fixedReports.value, 6) : [],
+		() => fixedReports.state === "loaded" ? buildFixedReportQuickStartItems(fixedReports.value, 12) : [],
 		[fixedReports],
 	);
 

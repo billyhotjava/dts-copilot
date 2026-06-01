@@ -124,11 +124,11 @@ describe("PRS fixed report screen entries", () => {
 		]);
 	});
 
-	it("固定报表入口统一回到 AI 报表入口", () => {
+	it("PRS 大屏资产直接打开 Copilot 大屏预览，其他固定报表仍回到 AI 报表入口", () => {
 		expect(buildFixedReportOpenPath({
 			templateCode: "PRS-FLOWERBIZ-OVERVIEW",
 			targetObject: "screen.prs-flowerbiz-overview-v1",
-		})).toBe("/agent-bi?fixedReport=PRS-FLOWERBIZ-OVERVIEW");
+		})).toBe("/screens/290001/preview");
 
 		expect(buildFixedReportOpenPath({ templateCode: "FIN-AR-OVERVIEW" }))
 			.toBe("/agent-bi?fixedReport=FIN-AR-OVERVIEW");

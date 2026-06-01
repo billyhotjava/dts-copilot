@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { analyticsApi } from "../api/analyticsApi";
+import { PRS_SCREEN_SHORTCUTS } from "../shared/prsScreenShortcuts";
 import DashboardsPage from "./DashboardsPage";
 
 vi.mock("react-router", async () => {
@@ -58,7 +59,7 @@ describe("DashboardsPage fixed report assets", () => {
 		]);
 	});
 
-	it("shows PRS screen-backed fixed report assets and opens them through Agent BI", async () => {
+	it("shows PRS screen-backed fixed report assets and opens them through Copilot screen preview", async () => {
 		render(<DashboardsPage embedded />);
 
 		await waitFor(() => {
@@ -68,9 +69,33 @@ describe("DashboardsPage fixed report assets", () => {
 		const link = await screen.findByRole("link", { name: /PRS 项目客户经营看板/ });
 		expect(link).toHaveAttribute(
 			"href",
-			"/agent-bi?fixedReport=PRS-FLOWERBIZ-PROJECT-CUSTOMER",
+			"/screens/290006/preview",
 		);
 		expect(screen.queryByRole("link", { name: /PRS 项目经营 TOP/ })).not.toBeInTheDocument();
 		expect(screen.getByText("public.xycyl_ads_flowerbiz_project_customer")).toBeInTheDocument();
+	});
+
+	it("keeps all 12 PRS v1 screen assets visible in the asset library", async () => {
+		listFixedReportCatalog.mockResolvedValueOnce(
+			PRS_SCREEN_SHORTCUTS.map((shortcut) => ({
+				templateCode: shortcut.templateCode,
+				name: shortcut.name,
+				domain: "PRS租赁",
+				certificationStatus: "CERTIFIED",
+				published: true,
+				assetKind: "DBT_SCREEN",
+				targetObject: `screen.${shortcut.slug}`,
+				primaryDbtModel: "public.xycyl_dwd_flowerbiz_main",
+			})),
+		);
+
+		render(<DashboardsPage embedded />);
+
+		const lastScreenLink = await screen.findByRole("link", { name: /PRS 审批操作链路钻取/ });
+		expect(lastScreenLink).toHaveAttribute(
+			"href",
+			"/screens/290012/preview",
+		);
+		expect(screen.getByText("12")).toBeInTheDocument();
 	});
 });

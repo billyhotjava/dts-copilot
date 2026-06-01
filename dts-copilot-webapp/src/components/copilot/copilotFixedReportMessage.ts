@@ -1,4 +1,5 @@
 import type { AiAgentChatMessage } from "../../api/analyticsApi";
+import { buildAgentFixedReportHref } from "../../shared/fixedReportAvailability";
 import { isPrsScreenTemplateCode } from "../../shared/prsScreenShortcuts.ts";
 
 export type FixedReportCandidate = {
@@ -46,10 +47,7 @@ function hrefForTemplateCode(
 	targetView?: string,
 ): string | undefined {
 	void targetView;
-	if (!templateCode) {
-		return undefined;
-	}
-	return `/agent-bi?fixedReport=${encodeURIComponent(templateCode)}`;
+	return buildAgentFixedReportHref(templateCode);
 }
 
 export function getFixedReportShortcut(
@@ -64,7 +62,7 @@ export function getFixedReportShortcut(
 	}
 	return {
 		label: isPrsScreenTemplateCode(message.templateCode)
-			? "用 AI 报表打开"
+			? "打开可视化大屏"
 			: "回到 AI 报表入口",
 		href,
 	};

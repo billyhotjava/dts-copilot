@@ -18,6 +18,7 @@ const cacheStore = new Map<string, { expiresAt: number; data: CardData }>();
 const inflightStore = new Map<string, Promise<CardData>>();
 
 type CardDataColumn = CardData['cols'][number];
+type DatabaseRef = number | string | null;
 
 function normalizeColumn(raw: unknown, index: number): CardDataColumn {
     const col = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
@@ -145,15 +146,31 @@ function buildApiUrl(baseUrl: string, params?: Record<string, string>): string {
     return url.toString();
 }
 
-function parseDatabaseId(dataSource?: DataSourceConfig): number | null {
+function parseDatabaseRef(dataSource?: DataSourceConfig): DatabaseRef {
     if (!dataSource) return null;
     const sourceType = resolveSourceType(dataSource);
     if (sourceType !== 'sql') return null;
     const sqlConfig = resolveSqlConfig(dataSource);
-    const raw = sqlConfig?.databaseId ?? sqlConfig?.connectionId;
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n <= 0) return null;
-    return n;
+    return normalizeDatabaseRef(sqlConfig?.databaseAlias ?? sqlConfig?.databaseId ?? sqlConfig?.connectionId);
+}
+
+function normalizeDatabaseRef(raw: unknown): DatabaseRef {
+    if (raw == null) return null;
+    if (typeof raw === 'number') {
+        return Number.isFinite(raw) && raw > 0 ? raw : null;
+    }
+    const text = String(raw).trim();
+    if (!text) return null;
+    const n = Number(text);
+    if (Number.isFinite(n) && n > 0 && String(Math.trunc(n)) === text) {
+        return Math.trunc(n);
+    }
+    return text;
+}
+
+function hasDatabaseRef(value: DatabaseRef): value is number | string {
+    if (typeof value === 'number') return Number.isFinite(value) && value > 0;
+    return typeof value === 'string' && value.trim().length > 0;
 }
 
 function resolveSourceType(dataSource?: DataSourceConfig): 'static' | 'card' | 'api' | 'sql' | 'dataset' | 'metric' {
@@ -211,7 +228,7 @@ function getCacheKey(
     sourceType: 'static' | 'card' | 'api' | 'sql' | 'dataset' | 'metric',
     dataSource: DataSourceConfig | undefined,
     cardId: number | undefined,
-    databaseId: number | null,
+    databaseRef: DatabaseRef,
     paramsKey: string,
     contextKey: string,
 ): string | null {
@@ -231,12 +248,12 @@ function getCacheKey(
     }
 
     if (sourceType === 'sql') {
-        if (!databaseId || databaseId <= 0) return null;
+        if (!hasDatabaseRef(databaseRef)) return null;
         const query = (resolveSqlConfig(dataSource)?.query ?? '').trim();
         if (!query) return null;
         const timeout = resolveSqlConfig(dataSource)?.queryTimeoutSeconds ?? '';
         const maxRows = resolveSqlConfig(dataSource)?.maxRows ?? '';
-        return `db:${databaseId}:sql:${query}:params:${paramsKey}:ctx:${contextKey}:timeout:${timeout}:max:${maxRows}`;
+        return `db:${databaseRef}:sql:${query}:params:${paramsKey}:ctx:${contextKey}:timeout:${timeout}:max:${maxRows}`;
     }
 
     if (sourceType === 'dataset') {
@@ -389,7 +406,7 @@ export function useCardDataSource(
             ? dataSource?.metricConfig?.cardId
             : undefined;
     const cardId = overrideCardId ?? baseCardId;
-    const databaseId = parseDatabaseId(dataSource);
+    const databaseRef = parseDatabaseRef(dataSource);
     const refreshInterval = sourceType === 'card'
         ? (dataSource?.cardConfig?.refreshInterval ?? dataSource?.refreshInterval)
         : dataSource?.refreshInterval;
@@ -397,8 +414,8 @@ export function useCardDataSource(
     const paramsKey = useMemo(() => JSON.stringify(queryParameters ?? null), [queryParameters]);
     const contextKey = useMemo(() => JSON.stringify(queryContext ?? null), [queryContext]);
     const cacheKey = useMemo(
-        () => getCacheKey(sourceType, dataSource, cardId, databaseId, paramsKey, contextKey),
-        [sourceType, dataSource, cardId, databaseId, paramsKey, contextKey],
+        () => getCacheKey(sourceType, dataSource, cardId, databaseRef, paramsKey, contextKey),
+        [sourceType, dataSource, cardId, databaseRef, paramsKey, contextKey],
     );
     const queryTimeoutMs = useMemo(
         () => resolveQueryTimeoutMs(sourceType, dataSource),
@@ -527,8 +544,8 @@ export function useCardDataSource(
                         }
 
                         if (sourceType === 'sql') {
-                            if (!databaseId || databaseId <= 0) {
-                                throw new Error('数据库数据源未配置有效 databaseId');
+                            if (!hasDatabaseRef(databaseRef)) {
+                                throw new Error('数据库数据源未配置有效数据源，请在治理后台配置逻辑数据源别名或 databaseId');
                             }
                             const sqlConfig = resolveSqlConfig(dataSource);
                             const query = sqlConfig?.query ?? '';
@@ -539,7 +556,7 @@ export function useCardDataSource(
                             const timeout = Number(sqlConfig?.queryTimeoutSeconds ?? 0);
                             const maxRows = Number(sqlConfig?.maxRows ?? 0);
                             const result = await analyticsApi.runDatasetQuery({
-                                database: databaseId,
+                                database: databaseRef,
                                 type: 'native',
                                 native: { query },
                                 parameters: mergedParams,
@@ -593,7 +610,7 @@ export function useCardDataSource(
                 setLoading(false);
             }
         }
-    }, [cacheKey, cardId, contextKey, dataSource, databaseId, paramsKey, queryTimeoutMs, sourceType]);
+    }, [cacheKey, cardId, contextKey, dataSource, databaseRef, paramsKey, queryTimeoutMs, sourceType]);
 
     useEffect(() => {
         if (intervalRef.current) {

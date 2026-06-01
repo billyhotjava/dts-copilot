@@ -24,6 +24,10 @@ import type { CopilotSessionFocusRequest } from "../components/copilot/copilotSe
 import { getEffectiveLocale, t } from "../i18n";
 import { FIXED_REPORT_TEMPLATE_QUERY_KEY } from "./fixed-reports/fixedReportSurfaceEntry";
 import { getPrsScreenShortcutByTemplateCode } from "../shared/prsScreenShortcuts";
+import {
+	buildFixedReportFallbackPrompt,
+	shouldFallbackFixedReportToPrompt,
+} from "../shared/fixedReportAvailability";
 import "./AgentWorkspacePage.css";
 
 export type AgentWorkspaceView = "home" | "sessions" | "signals";
@@ -132,6 +136,31 @@ function buildFixedReportPromptRequest(
 			notice: `已带入固定报表 ${route.templateCode},正在交给 Agent BI 执行。`,
 			reportIntentId: route.templateCode,
 			source,
+			submit: true,
+		};
+	}
+	return request;
+}
+
+function buildFixedReportFallbackPromptRequest(
+	route: Extract<FixedReportRoute, { state: "present" }>,
+): CopilotPromptRequest | null {
+	if (!shouldFallbackFixedReportToPrompt(route.templateCode)) {
+		return null;
+	}
+	const prompt = buildFixedReportFallbackPrompt(route.templateCode);
+	const request = buildCopilotPromptRequest(prompt, {
+		notice: `固定报表 ${route.templateCode} 未在资产目录发布或已归档，已切换为 Agent 业务对象分析。`,
+		reportIntentId: route.templateCode,
+		source: "agent-workspace-fixed-report-fallback",
+		submit: true,
+	});
+	if (!request) {
+		return {
+			prompt,
+			notice: `固定报表 ${route.templateCode} 未在资产目录发布或已归档，已切换为 Agent 业务对象分析。`,
+			reportIntentId: route.templateCode,
+			source: "agent-workspace-fixed-report-fallback",
 			submit: true,
 		};
 	}
@@ -284,6 +313,18 @@ export default function AgentWorkspacePage() {
 				});
 			} catch {
 				if (!active) return;
+				const fallbackPromptRequest = buildFixedReportFallbackPromptRequest(fixedReportRoute);
+				if (fallbackPromptRequest) {
+					setSubmittedPrompt(null);
+					setPromptRequest(null);
+					setSessionFocusRequest(null);
+					setFixedReportState({
+						state: "ready",
+						templateCode: fixedReportRoute.templateCode,
+						promptRequest: fallbackPromptRequest,
+					});
+					return;
+				}
 				setFixedReportState({
 					state: "error",
 					templateCode: fixedReportRoute.templateCode,
