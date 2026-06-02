@@ -1,14 +1,20 @@
 import { ColdStartCards } from "./ColdStartCards";
 import { ColdStartComposer } from "./ColdStartComposer";
 import { StarterChips } from "./StarterChips";
+import type { CopilotSessionFocusRequest } from "../copilotSessionFocus";
 import "./cold-start.css";
 
 type ColdStartHomeProps = {
 	onSubmit: (text: string) => void;
+	onOpenSession?: (request: CopilotSessionFocusRequest) => void;
 	onOpenAssets?: () => void;
 };
 
-export default function ColdStartHome({ onSubmit, onOpenAssets }: ColdStartHomeProps) {
+export default function ColdStartHome({
+	onSubmit,
+	onOpenSession,
+	onOpenAssets,
+}: ColdStartHomeProps) {
 	return (
 		<section className="cold-start" aria-labelledby="cold-start-title">
 			<div className="cold-start__header">
@@ -20,7 +26,7 @@ export default function ColdStartHome({ onSubmit, onOpenAssets }: ColdStartHomeP
 			</div>
 			<ColdStartComposer onSubmit={onSubmit} />
 			<StarterChips onPick={(prompt) => onSubmit(prompt)} />
-			<ColdStartCards onOpenAssets={onOpenAssets} />
+			<ColdStartCards onOpenSession={onOpenSession} onOpenAssets={onOpenAssets} />
 		</section>
 	);
 }

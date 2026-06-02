@@ -2,6 +2,7 @@ import type {
 	AiAgentChatSession,
 	DatabaseListItem,
 } from "../../api/analyticsApi";
+import { resolveFederatedDatabase } from "../../lib/federatedDatabase";
 
 interface ConversationHeaderProps {
 	copilotEnabled: boolean;
@@ -12,7 +13,6 @@ interface ConversationHeaderProps {
 	sessions: AiAgentChatSession[];
 	onDeleteSession: () => void | Promise<void>;
 	onNewChat: () => void;
-	onSelectDatabase: (databaseId: number | null) => void;
 	onSelectSession: (sessionId: string | null) => void;
 }
 
@@ -25,9 +25,10 @@ export function ConversationHeader({
 	sessions,
 	onDeleteSession,
 	onNewChat,
-	onSelectDatabase,
 	onSelectSession,
 }: ConversationHeaderProps) {
+	const federatedDatabase = resolveFederatedDatabase(databases);
+
 	return (
 		<>
 			<div className="copilot-chat__session-bar">
@@ -65,28 +66,16 @@ export function ConversationHeader({
 				</button>
 			</div>
 
-			{databases.length > 0 && (
+			{federatedDatabase && (
 				<div className="copilot-chat__db-bar">
-					<label className="copilot-chat__db-label" htmlFor="copilot-db-select">
+					<span className="copilot-chat__db-label">
 						数据源
-					</label>
-					<select
-						id="copilot-db-select"
-						className="copilot-chat__db-select"
-						value={selectedDbId ?? ""}
-						onChange={(event) => {
-							const value = Number(event.target.value);
-							onSelectDatabase(Number.isFinite(value) ? value : null);
-						}}
-						disabled={sending || !copilotEnabled}
-					>
-						{databases.map((db) => (
-							<option key={db.id} value={db.id}>
-								{db.name ?? `DB #${db.id}`}
-								{db.engine ? ` (${db.engine})` : ""}
-							</option>
-						))}
-					</select>
+					</span>
+					<span className="copilot-chat__db-value">
+						{federatedDatabase.name ?? `DB #${federatedDatabase.id}`}
+						{federatedDatabase.engine ? ` (${federatedDatabase.engine})` : ""}
+						{selectedDbId !== federatedDatabase.id ? " · 未就绪" : ""}
+					</span>
 				</div>
 			)}
 		</>

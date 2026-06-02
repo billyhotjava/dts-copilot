@@ -264,7 +264,8 @@ export default function AgentWorkspacePage() {
 	const hasActiveConversation =
 		Boolean(fixedReportPromptRequest) ||
 		routePromptEnabled ||
-		(workspaceView === "sessions" ? Boolean(sessionFocusRequest) : Boolean(submittedPrompt));
+		Boolean(sessionFocusRequest) ||
+		Boolean(submittedPrompt);
 	const showColdStart =
 		!hasFixedReportRoute && workspaceView === "home" && !hasActiveConversation;
 	const showSessionsView =
@@ -367,6 +368,12 @@ export default function AgentWorkspacePage() {
 		});
 	};
 
+	const openSessionFromColdStart = (request: CopilotSessionFocusRequest) => {
+		setSubmittedPrompt(null);
+		setPromptRequest(null);
+		setSessionFocusRequest(request);
+	};
+
 	const openSignal = (signal: CopilotSignalSummary) => {
 		const title = signal.title?.trim();
 		if (!title) return;
@@ -408,6 +415,7 @@ export default function AgentWorkspacePage() {
 				<section className="agent-workspace__cold-start">
 					<ColdStartHome
 						onSubmit={startQuestion}
+						onOpenSession={openSessionFromColdStart}
 						onOpenAssets={() => navigate("/assets")}
 					/>
 				</section>

@@ -70,6 +70,15 @@
 	flex-shrink: 0;
 }
 
+.copilot-chat__db-value {
+	flex: 1;
+	min-width: 0;
+	color: var(--color-text-primary, #1f2329);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .copilot-chat__db-select {
 	flex: 1;
 	min-width: 0;

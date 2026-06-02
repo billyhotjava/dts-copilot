@@ -27,7 +27,28 @@ vi.mock("react-router", () => ({
 }));
 
 vi.mock("../components/copilot/cold-start/ColdStartHome", () => ({
-	default: () => createElement("div", { "data-testid": "cold-start-home" }, "冷启动首屏"),
+	default: ({
+		onOpenSession,
+	}: {
+		onOpenSession?: (request: { sessionId: string; notice: string }) => void;
+	}) =>
+		createElement(
+			"div",
+			{ "data-testid": "cold-start-home" },
+			"冷启动首屏",
+			createElement(
+				"button",
+				{
+					type: "button",
+					onClick: () =>
+						onOpenSession?.({
+							sessionId: "cold-session-1",
+							notice: "已回到来源对话：报花月报",
+						}),
+				},
+				"继续上次会话",
+			),
+		),
 }));
 
 vi.mock("../components/copilot/ConversationThread", () => ({
@@ -127,6 +148,21 @@ describe("AgentWorkspacePage", () => {
 			expect(screen.getByTestId("conversation-thread")).toHaveTextContent("session-2");
 		});
 		expect(screen.queryByTestId("canvas-panel")).not.toBeInTheDocument();
+		expect(screen.getByTestId("conversation-thread")).toHaveAttribute(
+			"data-has-artifact-store",
+			"false",
+		);
+	});
+
+	it("opens a cold-start resumable session in the conversation spine", async () => {
+		renderWorkspace("/agent-bi");
+
+		fireEvent.click(await screen.findByRole("button", { name: "继续上次会话" }));
+
+		await waitFor(() => {
+			expect(screen.getByTestId("conversation-thread")).toHaveTextContent("cold-session-1");
+		});
+		expect(screen.queryByTestId("cold-start-home")).not.toBeInTheDocument();
 		expect(screen.getByTestId("conversation-thread")).toHaveAttribute(
 			"data-has-artifact-store",
 			"false",

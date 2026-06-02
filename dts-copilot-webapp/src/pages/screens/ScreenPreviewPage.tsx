@@ -12,6 +12,7 @@ import { normalizeScreenConfig } from './specV2';
 import { buildComponentMap, isComponentEffectivelyVisible } from './componentHierarchy';
 import { safeCssBackgroundUrl } from './sanitize';
 import { useScreenCarousel } from './hooks/useScreenCarousel';
+import { resolveRuntimeFitScale } from './screenRuntimeFit';
 import {
     isVisibleForDevice,
     parseForcedDeviceModeFromWindow,
@@ -70,13 +71,17 @@ export default function ScreenPreviewPage() {
         const viewport = window.visualViewport;
         const vw = viewport?.width ?? window.innerWidth;
         const vh = viewport?.height ?? window.innerHeight;
+        const runtimeViewport = scrollContainerRef.current;
+        const availableWidth = runtimeViewport?.clientWidth || vw;
+        const availableHeight = runtimeViewport?.clientHeight || vh;
         const nextMode: DeviceMode = forcedDeviceMode || resolveDeviceModeByViewport(vw);
         setDeviceMode(nextMode);
-        const safeWidth = Math.max(vw - 24, 320);
-        const safeHeight = Math.max(vh - 64, 240);
-        const sx = safeWidth / (screen.width || 1920);
-        const sy = safeHeight / (screen.height || 1080);
-        const nextAutoScale = Math.max(0.1, Math.min(sx, sy, 1));
+        const nextAutoScale = resolveRuntimeFitScale({
+            viewportWidth: availableWidth,
+            viewportHeight: availableHeight,
+            contentWidth: screen.width || 1920,
+            contentHeight: screen.height || 1080,
+        });
         setAutoScale(nextAutoScale);
         if (manualScale === null) {
             setScale(nextAutoScale);
@@ -86,7 +91,18 @@ export default function ScreenPreviewPage() {
     useEffect(() => {
         computeScale();
         window.addEventListener('resize', computeScale);
-        return () => window.removeEventListener('resize', computeScale);
+        window.visualViewport?.addEventListener('resize', computeScale);
+        const runtimeViewport = scrollContainerRef.current;
+        let observer: ResizeObserver | null = null;
+        if (typeof ResizeObserver !== 'undefined' && runtimeViewport) {
+            observer = new ResizeObserver(() => computeScale());
+            observer.observe(runtimeViewport);
+        }
+        return () => {
+            window.removeEventListener('resize', computeScale);
+            window.visualViewport?.removeEventListener('resize', computeScale);
+            observer?.disconnect();
+        };
     }, [computeScale]);
 
     // Multi-page carousel support

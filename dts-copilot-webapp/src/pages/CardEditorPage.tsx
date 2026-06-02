@@ -30,6 +30,7 @@ import {
 	buildCopilotSessionReturnLabel,
 	requestCopilotSessionFocus,
 } from "../components/copilot/copilotSessionFocus";
+import { resolveFederatedDatabase } from "../lib/federatedDatabase";
 import "./page.css";
 
 const VISUALIZATION_TYPES: { value: VisualizationType; label: string }[] = [
@@ -65,11 +66,6 @@ function extractNativeSql(card: CardDetail): string {
 	const dq: any = card.dataset_query;
 	const q = dq?.native?.query;
 	return typeof q === "string" ? q : "";
-}
-
-function extractDatabaseIdFromDatasetQuery(datasetQuery: Record<string, unknown> | null): number | null {
-	const v: any = datasetQuery?.database;
-	return typeof v === "number" && v > 0 ? v : null;
 }
 
 function resolveCardQueryErrorMessage(result: CardQueryResponse): string {
@@ -128,6 +124,11 @@ export default function CardEditorPage() {
 	const visualizationFocusRef = useRef(false);
 	const visualizationSectionRef = useRef<HTMLDivElement | null>(null);
 	const [visualizationFocused, setVisualizationFocused] = useState(false);
+	const federatedDatabase = useMemo(
+		() => (databases.state === "loaded" ? resolveFederatedDatabase(databases.value) : null),
+		[databases],
+	);
+	const federatedDatabaseId = federatedDatabase?.id ?? null;
 
 	useEffect(() => {
 		let cancelled = false;
@@ -174,7 +175,6 @@ export default function CardEditorPage() {
 				setName(v.name ?? "");
 				setDisplayType((v.display as VisualizationType) || "table");
 				const dq = extractDatasetQuery(v);
-				setDatabaseId(extractDatabaseIdFromDatasetQuery(dq));
 				setCollectionId(typeof v.collection_id === "number" ? v.collection_id : null);
 
 				if (dq?.type === "query") {
@@ -211,7 +211,6 @@ export default function CardEditorPage() {
 					return;
 				}
 				setName(value.title ?? value.question ?? "");
-				setDatabaseId(typeof value.database_id === "number" ? value.database_id : null);
 				setCollectionId(null);
 				setMode("sql");
 				setSql(value.sql_text ?? "");
@@ -232,12 +231,9 @@ export default function CardEditorPage() {
 	}, [analysisDraftLookupId, cardId, location.search]);
 
 	useEffect(() => {
-		if (databaseId) return;
 		if (databases.state !== "loaded") return;
-		if (databases.value.length > 0) {
-			setDatabaseId(databases.value[0].id);
-		}
-	}, [databaseId, databases]);
+		setDatabaseId((current) => (current === federatedDatabaseId ? current : federatedDatabaseId));
+	}, [databases.state, federatedDatabaseId]);
 
 	useEffect(() => {
 		setRunState(null);
@@ -257,37 +253,26 @@ export default function CardEditorPage() {
 		if (analysisDraftId) return;
 		const sp = new URLSearchParams(location.search);
 
-		// Support ?sql=<encoded_sql>&db=<id> for pre-populating SQL mode (e.g. from NL2SQL)
+		// Support ?sql=<encoded_sql>&db=<id> for pre-populating SQL mode (e.g. from NL2SQL).
+		// The db parameter is legacy input; execution is always pinned to the federated entry.
 		const preSql = sp.get("sql");
 		if (preSql) {
-			const preDb = Number.parseInt(sp.get("db") ?? "", 10);
 			setMode("sql");
 			setSql(preSql);
-			if (Number.isFinite(preDb) && preDb > 0 && databases.state === "loaded") {
-				const exists = databases.value.some((db) => db.id === preDb);
-				if (exists) setDatabaseId(preDb);
-			}
 			const preName = sp.get("name");
 			if (preName && !name) setName(preName);
 			return;
 		}
 
-		// Support ?db=<id>&table=<id> for builder mode
-		const preDb = Number.parseInt(sp.get("db") ?? "", 10);
+		// Support legacy ?db=<id>&table=<id> for builder mode; db is ignored.
 		const preTable = Number.parseInt(sp.get("table") ?? "", 10);
-		if (!Number.isFinite(preDb) || preDb <= 0) return;
 		if (!Number.isFinite(preTable) || preTable <= 0) return;
-		if (databases.state !== "loaded") return;
-		const exists = databases.value.some((db) => db.id === preDb);
-		if (!exists) return;
+		if (!federatedDatabaseId) return;
 		setMode("builder");
-		if (databaseId !== preDb) {
-			setDatabaseId(preDb);
-		}
-		const init = { database: preDb, type: "query", query: { "source-table": preTable } } as Record<string, unknown>;
+		const init = { database: federatedDatabaseId, type: "query", query: { "source-table": preTable } } as Record<string, unknown>;
 		setBuilderInitialDatasetQuery(init);
 		setBuilderDatasetQuery(init);
-	}, [analysisDraftId, cardId, location.search, databases, databaseId]);
+	}, [analysisDraftId, cardId, location.search, federatedDatabaseId, name]);
 
 	const loadedDraft = analysisDraft?.state === "loaded" ? analysisDraft.value : null;
 	const isDraftDirty = useMemo(() => {
@@ -303,12 +288,12 @@ export default function CardEditorPage() {
 		? buildAnalysisDraftProvenanceModel(loadedDraft, { surface: "query", isDirty: isDraftDirty })
 		: null;
 
-	const canRun = mode === "sql" ? Boolean(databaseId && sql.trim()) : Boolean(builderDatasetQuery);
+	const canRun = mode === "sql" ? Boolean(databaseId && sql.trim()) : Boolean(databaseId && builderDatasetQuery);
 	const canSave =
 		mode === "sql"
 			? Boolean(name.trim() && databaseId && sql.trim())
 			: Boolean(name.trim() && databaseId && builderDatasetQuery);
-	const dbEmpty = databases.state === "loaded" && databases.value.length === 0;
+	const dbEmpty = databases.state === "loaded" && !federatedDatabaseId;
 
 	const run = async () => {
 		if (!databaseId) return;
@@ -320,7 +305,7 @@ export default function CardEditorPage() {
 		try {
 			const datasetQuery =
 				mode === "builder"
-					? { ...(builderDatasetQuery as Record<string, unknown>), context: "ad-hoc" }
+					? { ...(builderDatasetQuery as Record<string, unknown>), database: databaseId, context: "ad-hoc" }
 					: { database: databaseId, type: "native", native: { query: trimmedSql }, context: "ad-hoc" };
 
 			const res = await analyticsApi.runDatasetQuery(datasetQuery);
@@ -382,7 +367,7 @@ export default function CardEditorPage() {
 
 			const datasetQuery =
 				mode === "builder"
-					? builderDatasetQuery
+					? { ...(builderDatasetQuery as Record<string, unknown>), database: databaseId }
 					: {
 						database: databaseId,
 						type: "native",
@@ -434,10 +419,6 @@ export default function CardEditorPage() {
 		</svg>
 	);
 
-	const databaseOptions = databases.state === "loaded"
-		? databases.value.map((db) => ({ value: String(db.id), label: db.name ?? `db:${db.id}` }))
-		: [{ value: "", label: t(locale, "loading") }];
-
 	const collectionOptions = [
 		{ value: "", label: `${t(locale, "collections.title")} (root)` },
 		...(collections.state === "loaded"
@@ -469,7 +450,7 @@ export default function CardEditorPage() {
 				<Card style={{ marginBottom: "var(--spacing-lg)" }}>
 					<CardBody>
 						<EmptyState
-							title={t(locale, "questions.noDb")}
+							title="未配置联邦查询入口"
 							action={
 								<Link to="/data/new">
 									<Button variant="primary">{t(locale, "data.add")}</Button>
@@ -522,20 +503,12 @@ export default function CardEditorPage() {
 			<Card style={{ marginBottom: "var(--spacing-lg)" }}>
 				<CardHeader title={t(locale, "questions.settings")} />
 				<CardBody>
-					<div className="form-grid" style={{ gridTemplateColumns: "1fr 260px 260px" }}>
+					<div className="form-grid" style={{ gridTemplateColumns: "1fr 260px" }}>
 						<Input
 							label={t(locale, "common.name")}
 							value={name}
 							onChange={(e) => setName(e.target.value)}
 							placeholder="我的查询"
-						/>
-
-						<NativeSelect
-							label={t(locale, "questions.database")}
-							value={databaseId ? String(databaseId) : ""}
-							onChange={(e) => setDatabaseId(Number.parseInt(e.target.value, 10) || null)}
-							options={databaseOptions}
-							disabled={databases.state !== "loaded"}
 						/>
 
 						<NativeSelect
@@ -567,6 +540,11 @@ export default function CardEditorPage() {
 						<span className="text-muted" style={{ marginLeft: "var(--spacing-sm)" }}>
 							{mode === "builder" ? t(locale, "questions.builder") : t(locale, "questions.sql")}
 						</span>
+						{federatedDatabase ? (
+							<span className="text-muted" style={{ marginLeft: "auto" }}>
+								数据源：{federatedDatabase.name ?? `DB #${federatedDatabase.id}`}
+							</span>
+						) : null}
 					</div>
 				</CardBody>
 			</Card>
