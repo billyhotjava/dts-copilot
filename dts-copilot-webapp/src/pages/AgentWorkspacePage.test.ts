@@ -29,8 +29,10 @@ vi.mock("react-router", () => ({
 vi.mock("../components/copilot/cold-start/ColdStartHome", () => ({
 	default: ({
 		onOpenSession,
+		onOpenAssets,
 	}: {
 		onOpenSession?: (request: { sessionId: string; notice: string }) => void;
+		onOpenAssets?: () => void;
 	}) =>
 		createElement(
 			"div",
@@ -47,6 +49,14 @@ vi.mock("../components/copilot/cold-start/ColdStartHome", () => ({
 						}),
 				},
 				"继续上次会话",
+			),
+			createElement(
+				"button",
+				{
+					type: "button",
+					onClick: () => onOpenAssets?.(),
+				},
+				"打开资产库",
 			),
 		),
 }));
@@ -111,7 +121,8 @@ describe("AgentWorkspacePage", () => {
 		expect(PAGE_SOURCE).not.toContain("onArtifactAction");
 		expect(PAGE_SOURCE).toContain("<TracePanel");
 		expect(PAGE_SOURCE).not.toContain("<AssetActionModals");
-		expect(PAGE_SOURCE).toContain('navigate("/assets")');
+		expect(PAGE_SOURCE).toContain('navigate("/asset-library")');
+		expect(PAGE_SOURCE).toContain('navigate("/agent-bi?view=sessions")');
 	});
 
 	it("renders the sessions view when view=sessions is present", async () => {
@@ -154,6 +165,14 @@ describe("AgentWorkspacePage", () => {
 		);
 	});
 
+	it("opens the asset library through the business route from cold start", async () => {
+		renderWorkspace("/agent-bi");
+
+		fireEvent.click(await screen.findByRole("button", { name: "打开资产库" }));
+
+		expect(navigate).toHaveBeenCalledWith("/asset-library");
+	});
+
 	it("opens a cold-start resumable session in the conversation spine", async () => {
 		renderWorkspace("/agent-bi");
 
@@ -167,6 +186,7 @@ describe("AgentWorkspacePage", () => {
 			"data-has-artifact-store",
 			"false",
 		);
+		expect(navigate).toHaveBeenCalledWith("/agent-bi?view=sessions");
 	});
 
 	it("normalizes the signals query view as a first-class workspace view", () => {
@@ -249,10 +269,10 @@ describe("AgentWorkspacePage", () => {
 		expect(screen.queryByTestId("cold-start-home")).not.toBeInTheDocument();
 	});
 
-	it("shows a controlled error when fixedReport query is empty", async () => {
+	it("shows a controlled error when asset template query is empty", async () => {
 		renderWorkspace("/agent-bi?fixedReport=");
 
-		expect(await screen.findByText("固定报表模板参数为空")).toBeInTheDocument();
+		expect(await screen.findByText("资产库模板参数为空")).toBeInTheDocument();
 		expect(getFixedReportCatalogItem).not.toHaveBeenCalled();
 		expect(screen.queryByTestId("conversation-thread")).not.toBeInTheDocument();
 		expect(screen.queryByTestId("cold-start-home")).not.toBeInTheDocument();
@@ -272,9 +292,10 @@ describe("AgentWorkspacePage", () => {
 			source: "agent-workspace-fixed-report-fallback",
 			submit: true,
 		});
-		expect(promptRequest.prompt).toContain("库存现量-低库存预警");
+		expect(promptRequest.prompt).toContain("WH-LOW-STOCK-ALERT");
+		expect(promptRequest.prompt).not.toContain("库存现量-低库存预警");
 		expect(promptRequest.notice).toContain("未在资产目录发布");
-		expect(screen.queryByText("未找到固定报表模板：WH-LOW-STOCK-ALERT")).not.toBeInTheDocument();
+		expect(screen.queryByText("未找到资产库模板：WH-LOW-STOCK-ALERT")).not.toBeInTheDocument();
 	});
 
 	it("opens a selected signal in the conversation spine", async () => {

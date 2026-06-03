@@ -98,7 +98,7 @@ function buildFixedReportRoute(
 	if (!templateCode) {
 		return {
 			state: "invalid",
-			message: "固定报表模板参数为空",
+			message: "资产库模板参数为空",
 		};
 	}
 	return {
@@ -125,7 +125,7 @@ function buildFixedReportPromptRequest(
 			? "agent-workspace-fixed-report-template"
 			: "agent-workspace-fixed-report";
 	const request = buildCopilotPromptRequest(`打开${label}`, {
-		notice: `已带入固定报表 ${route.templateCode},正在交给 Agent BI 执行。`,
+		notice: `已带入资产库模板 ${route.templateCode},正在交给 Agent BI 执行。`,
 		reportIntentId: route.templateCode,
 		source,
 		submit: true,
@@ -133,7 +133,7 @@ function buildFixedReportPromptRequest(
 	if (!request) {
 		return {
 			prompt: `打开${route.templateCode}`,
-			notice: `已带入固定报表 ${route.templateCode},正在交给 Agent BI 执行。`,
+			notice: `已带入资产库模板 ${route.templateCode},正在交给 Agent BI 执行。`,
 			reportIntentId: route.templateCode,
 			source,
 			submit: true,
@@ -150,7 +150,7 @@ function buildFixedReportFallbackPromptRequest(
 	}
 	const prompt = buildFixedReportFallbackPrompt(route.templateCode);
 	const request = buildCopilotPromptRequest(prompt, {
-		notice: `固定报表 ${route.templateCode} 未在资产目录发布或已归档，已切换为 Agent 业务对象分析。`,
+		notice: `资产库模板 ${route.templateCode} 未在资产目录发布或已归档，已切换为 Agent 业务对象分析。`,
 		reportIntentId: route.templateCode,
 		source: "agent-workspace-fixed-report-fallback",
 		submit: true,
@@ -158,7 +158,7 @@ function buildFixedReportFallbackPromptRequest(
 	if (!request) {
 		return {
 			prompt,
-			notice: `固定报表 ${route.templateCode} 未在资产目录发布或已归档，已切换为 Agent 业务对象分析。`,
+			notice: `资产库模板 ${route.templateCode} 未在资产目录发布或已归档，已切换为 Agent 业务对象分析。`,
 			reportIntentId: route.templateCode,
 			source: "agent-workspace-fixed-report-fallback",
 			submit: true,
@@ -188,9 +188,9 @@ function FixedReportRouteStatus({
 	state: FixedReportRouteState;
 }) {
 	const isError = state.state === "error";
-	const title = isError ? state.message : "正在读取固定报表模板...";
+	const title = isError ? state.message : "正在读取资产库模板...";
 	const description = isError
-		? "请从固定报表目录重新进入,或回到新问题继续分析。"
+		? "请从资产库重新进入，或回到新问题继续分析。"
 		: "正在保留模板上下文并准备进入对话脊柱。";
 
 	return (
@@ -199,7 +199,7 @@ function FixedReportRouteStatus({
 			aria-labelledby="agent-fixed-report-route-title"
 		>
 			<div className="agent-fixed-report-route__panel">
-				<p className="agent-fixed-report-route__eyebrow">Fixed Report</p>
+				<p className="agent-fixed-report-route__eyebrow">Asset Library</p>
 				<h1 id="agent-fixed-report-route-title">{title}</h1>
 				<p>{description}</p>
 				{isError ? (
@@ -329,7 +329,7 @@ export default function AgentWorkspacePage() {
 				setFixedReportState({
 					state: "error",
 					templateCode: fixedReportRoute.templateCode,
-					message: `未找到固定报表模板：${fixedReportRoute.templateCode}`,
+					message: `未找到资产库模板：${fixedReportRoute.templateCode}`,
 				});
 			}
 		})();
@@ -372,6 +372,7 @@ export default function AgentWorkspacePage() {
 		setSubmittedPrompt(null);
 		setPromptRequest(null);
 		setSessionFocusRequest(request);
+		navigate("/agent-bi?view=sessions");
 	};
 
 	const openSignal = (signal: CopilotSignalSummary) => {
@@ -416,7 +417,7 @@ export default function AgentWorkspacePage() {
 					<ColdStartHome
 						onSubmit={startQuestion}
 						onOpenSession={openSessionFromColdStart}
-						onOpenAssets={() => navigate("/assets")}
+						onOpenAssets={() => navigate("/asset-library")}
 					/>
 				</section>
 			) : null}

@@ -225,7 +225,7 @@ describe("useCopilotStream", () => {
 				onEvent({ type: "session", sessionId: "fixed-report-session" });
 				onEvent({
 					type: "token",
-					content: "已命中固定报表模板 PRS-FLOWERBIZ-LEASE-EXECUTION。",
+					content: "已命中资产库资产 PRS-FLOWERBIZ-LEASE-EXECUTION。",
 				});
 				onEvent({
 					type: "done",
@@ -253,7 +253,7 @@ describe("useCopilotStream", () => {
 			(message) => message.role === "assistant",
 		);
 		expect(assistant).toMatchObject({
-			content: "已命中固定报表模板 PRS-FLOWERBIZ-LEASE-EXECUTION。",
+			content: "已命中资产库资产 PRS-FLOWERBIZ-LEASE-EXECUTION。",
 			dataSurface: "L2_FIXED_REPORT",
 			qualityLevel: "MEDIUM",
 			reportCode: "prs.flowerbiz.lease_execution_monthly",

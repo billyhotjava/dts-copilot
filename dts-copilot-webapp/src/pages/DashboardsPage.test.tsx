@@ -12,11 +12,13 @@ vi.mock("react-router", async () => {
 			children,
 			className,
 			to,
+			...props
 		}: {
 			children: ReactNode;
 			className?: string;
 			to: string;
-		}) => React.createElement("a", { className, href: to }, children),
+			[key: string]: unknown;
+		}) => React.createElement("a", { ...props, className, href: to }, children),
 	};
 });
 
@@ -71,6 +73,8 @@ describe("DashboardsPage fixed report assets", () => {
 			"href",
 			"/screens/290006/preview",
 		);
+		expect(link).toHaveAttribute("target", "_blank");
+		expect(link).toHaveAttribute("rel", expect.stringContaining("noreferrer"));
 		expect(screen.queryByRole("link", { name: /PRS 项目经营 TOP/ })).not.toBeInTheDocument();
 		expect(screen.getByText("public.xycyl_ads_flowerbiz_project_customer")).toBeInTheDocument();
 	});

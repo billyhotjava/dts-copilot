@@ -21,8 +21,6 @@ const FIXED_REPORT_CANDIDATE_CODE_MAP: Record<string, string> = {
 	配送记录到货及时率: "PROC-ARRIVAL-ONTIME-RATE",
 	入库管理待入库清单: "PROC-PENDING-INBOUND-LIST",
 	配送记录在途采购: "PROC-INTRANSIT-BOARD",
-	库存现量: "WH-STOCK-OVERVIEW",
-	库存现量低库存预警: "WH-LOW-STOCK-ALERT",
 	"PRS 租赁经营总览": "PRS-FLOWERBIZ-OVERVIEW",
 	"PRS 租赁报花执行看板": "PRS-FLOWERBIZ-LEASE-EXECUTION",
 	"PRS 销售坏账与费用看板": "PRS-FLOWERBIZ-FINANCE-COST",
@@ -62,8 +60,8 @@ export function getFixedReportShortcut(
 	}
 	return {
 		label: isPrsScreenTemplateCode(message.templateCode)
-			? "打开可视化大屏"
-			: "回到 AI 报表入口",
+			? "打开资产库大屏"
+			: "打开资产库",
 		href,
 	};
 }

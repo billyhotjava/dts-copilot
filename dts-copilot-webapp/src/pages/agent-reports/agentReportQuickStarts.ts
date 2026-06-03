@@ -342,7 +342,7 @@ export const AGENT_REPORT_BUSINESS_GUIDE: AgentReportBusinessGuide[] = [
 		title: "仓库与库存",
 		subtitle: "库存现量、出入库、调拨、报损、退货和低库存风险。",
 		decisionHint: "库存实时性更强，优先走业务对象和现量表，再判断是否沉淀 ADS。",
-		fixedReports: ["WH-STOCK-OVERVIEW", "WH-LOW-STOCK-ALERT"],
+		fixedReports: [],
 		dbtModels: ["候选 ADS: warehouse_stock_snapshot", "候选 ADS: warehouse_movement_daily"],
 		businessObjects: ["prs.warehouse.stock_info", "prs.warehouse.inout_record"],
 		questions: [

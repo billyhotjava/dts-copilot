@@ -203,6 +203,14 @@ describe("ArtifactCanvas", () => {
 			"href",
 			"/screens/290001/preview",
 		);
+		expect(await screen.findByRole("link", { name: "打开可视化大屏" })).toHaveAttribute(
+			"target",
+			"_blank",
+		);
+		expect(await screen.findByRole("link", { name: "打开可视化大屏" })).toHaveAttribute(
+			"rel",
+			expect.stringContaining("noreferrer"),
+		);
 	});
 
 	it("auto-runs SQL-backed artifacts when the dataset has not been materialized yet", async () => {

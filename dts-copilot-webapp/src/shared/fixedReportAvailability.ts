@@ -17,8 +17,6 @@ const LEGACY_FIXED_REPORT_LABELS: Record<string, string> = {
 	"PROC-ARRIVAL-ONTIME-RATE": "配送记录到货及时率",
 	"PROC-PENDING-INBOUND-LIST": "入库管理待入库清单",
 	"PROC-INTRANSIT-BOARD": "配送记录在途采购",
-	"WH-STOCK-OVERVIEW": "库存现量",
-	"WH-LOW-STOCK-ALERT": "库存现量-低库存预警",
 };
 
 export function normalizeFixedReportTemplateCode(value?: string | null): string {
@@ -62,7 +60,7 @@ export function resolveFixedReportDisplayLabel(
 		getPrsScreenShortcutByTemplateCode(normalizedCode)?.name ||
 		LEGACY_FIXED_REPORT_LABELS[normalizedCode] ||
 		normalizedCode ||
-		"固定报表"
+		"资产库模板"
 	);
 }
 
@@ -75,8 +73,8 @@ export function buildFixedReportFallbackPrompt(
 	return [
 		`查看${label}。`,
 		normalizedCode
-			? `固定报表模板 ${normalizedCode} 当前未在资产目录发布或已归档。`
-			: "固定报表模板当前未在资产目录发布或已归档。",
+			? `资产库模板 ${normalizedCode} 当前未在资产目录发布或已归档。`
+			: "资产库模板当前未在资产目录发布或已归档。",
 		"请优先使用业务对象、dbt 主题表或已认证 PRS 报表口径完成分析，并说明可用数据来源。",
 	].join("");
 }

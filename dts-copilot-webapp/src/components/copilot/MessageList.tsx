@@ -210,6 +210,8 @@ export function MessageList({
 								<Link
 									className="copilot-chat__fixed-report-link"
 									to={fixedReportShortcut.href}
+									target={getScreenPreviewLinkTarget(fixedReportShortcut.href)}
+									rel={getScreenPreviewLinkRel(fixedReportShortcut.href)}
 								>
 									{fixedReportShortcut.label}
 								</Link>
@@ -218,7 +220,7 @@ export function MessageList({
 						{!showClarifications && fixedReportCandidates.length > 0 && (
 							<div className="copilot-chat__fixed-report-candidates">
 								<div className="copilot-chat__fixed-report-candidates-label">
-									固定报表候选
+									资产库候选
 								</div>
 								<div className="copilot-chat__fixed-report-candidates-list">
 									{fixedReportCandidates.map((candidate) =>
@@ -227,6 +229,8 @@ export function MessageList({
 												key={`${msg.id}-${candidate.templateCode ?? candidate.label}`}
 												className="copilot-chat__fixed-report-link"
 												to={candidate.href}
+												target={getScreenPreviewLinkTarget(candidate.href)}
+												rel={getScreenPreviewLinkRel(candidate.href)}
 											>
 												{candidate.label}
 											</Link>
@@ -317,4 +321,16 @@ function getPlatformIndicatorBadge(
 		name,
 		...(version ? { version } : {}),
 	};
+}
+
+function isScreenPreviewHref(href?: string): boolean {
+	return /^\/screens\/[^/]+\/preview(?:[?#].*)?$/.test(String(href ?? ""));
+}
+
+function getScreenPreviewLinkTarget(href?: string): "_blank" | undefined {
+	return isScreenPreviewHref(href) ? "_blank" : undefined;
+}
+
+function getScreenPreviewLinkRel(href?: string): "noreferrer" | undefined {
+	return isScreenPreviewHref(href) ? "noreferrer" : undefined;
 }

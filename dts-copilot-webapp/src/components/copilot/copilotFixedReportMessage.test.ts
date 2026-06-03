@@ -6,7 +6,7 @@ import {
 } from "./copilotFixedReportMessage";
 
 describe("copilotFixedReportMessage", () => {
-	it("为 PRS 固定报表生成可视化大屏入口", () => {
+	it("为 PRS 资产库大屏生成入口", () => {
 		const shortcut = getFixedReportShortcut({
 			responseKind: "FIXED_REPORT",
 			templateCode: "PRS-FLOWERBIZ-OVERVIEW",
@@ -14,12 +14,12 @@ describe("copilotFixedReportMessage", () => {
 		} as AiAgentChatMessage);
 
 		expect(shortcut).toEqual({
-			label: "打开可视化大屏",
+			label: "打开资产库大屏",
 			href: "/screens/290001/preview",
 		});
 	});
 
-	it("为 PRS 候选项生成可视化大屏入口", () => {
+	it("为 PRS 候选项生成资产库大屏入口", () => {
 		const candidates = getFixedReportCandidates({
 			responseKind: "FIXED_REPORT_CANDIDATES",
 			content: "- PRS 租赁经营总览\n- PRS 销售坏账与费用看板",
@@ -39,7 +39,7 @@ describe("copilotFixedReportMessage", () => {
 		]);
 	});
 
-	it("不会为已归档的旧固定报表候选项生成死链接", () => {
+	it("不会为未发布到资产库的旧模板候选项生成死链接", () => {
 		const candidates = getFixedReportCandidates({
 			responseKind: "FIXED_REPORT_CANDIDATES",
 			content: "- 库存现量低库存预警\n- PRS 租赁经营总览",
@@ -48,7 +48,7 @@ describe("copilotFixedReportMessage", () => {
 		expect(candidates).toEqual([
 			{
 				label: "库存现量低库存预警",
-				templateCode: "WH-LOW-STOCK-ALERT",
+				templateCode: undefined,
 				href: undefined,
 			},
 			{
@@ -59,7 +59,7 @@ describe("copilotFixedReportMessage", () => {
 		]);
 	});
 
-	it("不会为已归档的旧固定报表响应生成快捷入口", () => {
+	it("不会为未发布到资产库的旧模板响应生成快捷入口", () => {
 		const shortcut = getFixedReportShortcut({
 			responseKind: "FIXED_REPORT",
 			templateCode: "WH-LOW-STOCK-ALERT",
