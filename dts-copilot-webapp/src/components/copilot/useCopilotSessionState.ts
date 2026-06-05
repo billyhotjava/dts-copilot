@@ -9,10 +9,10 @@ import { analyticsApi } from "../../api/analyticsApi";
 import { attachAnalysisDraftLinksToMessages } from "./copilotAnalysisDraftLinks";
 import type { CopilotSessionFocusRequest } from "./copilotSessionFocus";
 import { shouldRestorePersistedCopilotSession } from "./copilotSessionBootstrap";
+import { resolveFederatedDatabaseId } from "../../lib/federatedDatabase";
 import {
 	DATASOURCE_ID_KEY,
 	SESSION_ID_KEY,
-	getStoredDatasourceId,
 	getStoredSessionId,
 	sortMessages,
 	toArray,
@@ -44,9 +44,7 @@ export function useCopilotSessionState({
 	const [pendingAction, setPendingAction] =
 		useState<AiAgentPendingAction | null>(null);
 	const [databases, setDatabases] = useState<DatabaseListItem[]>([]);
-	const [selectedDbId, setSelectedDbId] = useState<number | null>(() =>
-		getStoredDatasourceId(),
-	);
+	const [selectedDbId, setSelectedDbId] = useState<number | null>(null);
 	const [focusNotice, setFocusNotice] = useState<string | null>(null);
 	const [focusedMessageId, setFocusedMessageId] = useState<string | null>(null);
 
@@ -114,8 +112,7 @@ export function useCopilotSessionState({
 				const list = toArray<DatabaseListItem>(res.data);
 				setDatabases(list);
 				setSelectedDbId((prev) => {
-					if (prev != null && list.some((db) => db.id === prev)) return prev;
-					return list.length > 0 ? list[0].id : null;
+					return resolveFederatedDatabaseId(list, prev);
 				});
 			} catch {
 				/* ignore */

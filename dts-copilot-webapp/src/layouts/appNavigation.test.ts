@@ -61,7 +61,7 @@ describe("appNavigation", () => {
 		const visibleIds = visibleItems.map((item) => item.id);
 
 		expect(visibleIds).toEqual(["newChat", "chatHistory", "assets", "signals"]);
-		expect(visibleItems.find((item) => item.id === "assets")?.to).toBe("/assets");
+		expect(visibleItems.find((item) => item.id === "assets")?.to).toBe("/asset-library");
 	});
 
 	it("keeps governance entries out of the sidebar and visible only to privileged users", () => {

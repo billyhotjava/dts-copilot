@@ -210,6 +210,8 @@ export function MessageList({
 								<Link
 									className="copilot-chat__fixed-report-link"
 									to={fixedReportShortcut.href}
+									target={getScreenPreviewLinkTarget(fixedReportShortcut.href)}
+									rel={getScreenPreviewLinkRel(fixedReportShortcut.href)}
 								>
 									{fixedReportShortcut.label}
 								</Link>
@@ -218,24 +220,23 @@ export function MessageList({
 						{!showClarifications && fixedReportCandidates.length > 0 && (
 							<div className="copilot-chat__fixed-report-candidates">
 								<div className="copilot-chat__fixed-report-candidates-label">
-									固定报表候选
+									资产库候选
 								</div>
 								<div className="copilot-chat__fixed-report-candidates-list">
 									{fixedReportCandidates.map((candidate) =>
-										candidate.templateCode ? (
+										candidate.href ? (
 											<Link
-												key={`${msg.id}-${candidate.templateCode}`}
+												key={`${msg.id}-${candidate.templateCode ?? candidate.label}`}
 												className="copilot-chat__fixed-report-link"
-												to={
-													candidate.href ??
-													`/agent-bi?fixedReport=${encodeURIComponent(candidate.templateCode)}`
-												}
+												to={candidate.href}
+												target={getScreenPreviewLinkTarget(candidate.href)}
+												rel={getScreenPreviewLinkRel(candidate.href)}
 											>
 												{candidate.label}
 											</Link>
 										) : (
 											<span
-												key={`${msg.id}-${candidate.label}`}
+												key={`${msg.id}-${candidate.templateCode ?? candidate.label}`}
 												className="copilot-chat__fixed-report-chip"
 											>
 												{candidate.label}
@@ -320,4 +321,16 @@ function getPlatformIndicatorBadge(
 		name,
 		...(version ? { version } : {}),
 	};
+}
+
+function isScreenPreviewHref(href?: string): boolean {
+	return /^\/screens\/[^/]+\/preview(?:[?#].*)?$/.test(String(href ?? ""));
+}
+
+function getScreenPreviewLinkTarget(href?: string): "_blank" | undefined {
+	return isScreenPreviewHref(href) ? "_blank" : undefined;
+}
+
+function getScreenPreviewLinkRel(href?: string): "noreferrer" | undefined {
+	return isScreenPreviewHref(href) ? "noreferrer" : undefined;
 }

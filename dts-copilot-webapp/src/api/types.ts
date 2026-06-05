@@ -274,10 +274,52 @@ export type CopilotTraceSource = {
 	role?: string;
 };
 
+export type CopilotTraceFinanceAuditRule = {
+	ruleId?: string;
+	description?: string;
+	severity?: string;
+	guardrailText?: string;
+	appliesTo?: string[];
+};
+
+export type CopilotTraceFinanceAuditInvariant = {
+	invariantId?: string;
+	statement?: string;
+	severity?: string;
+	sourceRuleIds?: string[];
+	sourceRefs?: string[];
+};
+
+export type CopilotTraceFinanceAuditLineageNode = {
+	level?: string;
+	name?: string;
+	role?: string;
+	refs?: string[];
+};
+
+export type CopilotTraceFinanceAuditOracleStatus = {
+	bindingId?: string;
+	reportName?: string;
+	oracleLevel?: string;
+	chain?: string;
+	covered?: boolean;
+	healthStatus?: string;
+	maxDifference?: string | number;
+	failureMessage?: string;
+};
+
+export type CopilotTraceFinanceAudit = {
+	oracleStatus?: CopilotTraceFinanceAuditOracleStatus;
+	appliedRules?: CopilotTraceFinanceAuditRule[];
+	appliedInvariants?: CopilotTraceFinanceAuditInvariant[];
+	lineage?: CopilotTraceFinanceAuditLineageNode[];
+};
+
 export type CopilotTrace = {
 	metricCaliber?: CopilotTraceMetricCaliber;
 	sources?: CopilotTraceSource[];
 	sql?: string;
+	financeAudit?: CopilotTraceFinanceAudit;
 };
 
 export type AiAgentChatResponse = {

@@ -27,7 +27,38 @@ vi.mock("react-router", () => ({
 }));
 
 vi.mock("../components/copilot/cold-start/ColdStartHome", () => ({
-	default: () => createElement("div", { "data-testid": "cold-start-home" }, "冷启动首屏"),
+	default: ({
+		onOpenSession,
+		onOpenAssets,
+	}: {
+		onOpenSession?: (request: { sessionId: string; notice: string }) => void;
+		onOpenAssets?: () => void;
+	}) =>
+		createElement(
+			"div",
+			{ "data-testid": "cold-start-home" },
+			"冷启动首屏",
+			createElement(
+				"button",
+				{
+					type: "button",
+					onClick: () =>
+						onOpenSession?.({
+							sessionId: "cold-session-1",
+							notice: "已回到来源对话：报花月报",
+						}),
+				},
+				"继续上次会话",
+			),
+			createElement(
+				"button",
+				{
+					type: "button",
+					onClick: () => onOpenAssets?.(),
+				},
+				"打开资产库",
+			),
+		),
 }));
 
 vi.mock("../components/copilot/ConversationThread", () => ({
@@ -90,7 +121,8 @@ describe("AgentWorkspacePage", () => {
 		expect(PAGE_SOURCE).not.toContain("onArtifactAction");
 		expect(PAGE_SOURCE).toContain("<TracePanel");
 		expect(PAGE_SOURCE).not.toContain("<AssetActionModals");
-		expect(PAGE_SOURCE).toContain('navigate("/assets")');
+		expect(PAGE_SOURCE).toContain('navigate("/asset-library")');
+		expect(PAGE_SOURCE).toContain('navigate("/agent-bi?view=sessions")');
 	});
 
 	it("renders the sessions view when view=sessions is present", async () => {
@@ -131,6 +163,30 @@ describe("AgentWorkspacePage", () => {
 			"data-has-artifact-store",
 			"false",
 		);
+	});
+
+	it("opens the asset library through the business route from cold start", async () => {
+		renderWorkspace("/agent-bi");
+
+		fireEvent.click(await screen.findByRole("button", { name: "打开资产库" }));
+
+		expect(navigate).toHaveBeenCalledWith("/asset-library");
+	});
+
+	it("opens a cold-start resumable session in the conversation spine", async () => {
+		renderWorkspace("/agent-bi");
+
+		fireEvent.click(await screen.findByRole("button", { name: "继续上次会话" }));
+
+		await waitFor(() => {
+			expect(screen.getByTestId("conversation-thread")).toHaveTextContent("cold-session-1");
+		});
+		expect(screen.queryByTestId("cold-start-home")).not.toBeInTheDocument();
+		expect(screen.getByTestId("conversation-thread")).toHaveAttribute(
+			"data-has-artifact-store",
+			"false",
+		);
+		expect(navigate).toHaveBeenCalledWith("/agent-bi?view=sessions");
 	});
 
 	it("normalizes the signals query view as a first-class workspace view", () => {
@@ -213,13 +269,33 @@ describe("AgentWorkspacePage", () => {
 		expect(screen.queryByTestId("cold-start-home")).not.toBeInTheDocument();
 	});
 
-	it("shows a controlled error when fixedReport query is empty", async () => {
+	it("shows a controlled error when asset template query is empty", async () => {
 		renderWorkspace("/agent-bi?fixedReport=");
 
-		expect(await screen.findByText("固定报表模板参数为空")).toBeInTheDocument();
+		expect(await screen.findByText("资产库模板参数为空")).toBeInTheDocument();
 		expect(getFixedReportCatalogItem).not.toHaveBeenCalled();
 		expect(screen.queryByTestId("conversation-thread")).not.toBeInTheDocument();
 		expect(screen.queryByTestId("cold-start-home")).not.toBeInTheDocument();
+	});
+
+	it("falls back to an agent prompt when an archived fixed report link is opened", async () => {
+		getFixedReportCatalogItem.mockRejectedValue(new Error("not found"));
+
+		renderWorkspace("/agent-bi?fixedReport=WH-LOW-STOCK-ALERT");
+
+		const promptRequest = JSON.parse(
+			(await screen.findByTestId("prompt-request")).textContent ?? "{}",
+		);
+		expect(getFixedReportCatalogItem).toHaveBeenCalledWith("WH-LOW-STOCK-ALERT");
+		expect(promptRequest).toMatchObject({
+			reportIntentId: "WH-LOW-STOCK-ALERT",
+			source: "agent-workspace-fixed-report-fallback",
+			submit: true,
+		});
+		expect(promptRequest.prompt).toContain("WH-LOW-STOCK-ALERT");
+		expect(promptRequest.prompt).not.toContain("库存现量-低库存预警");
+		expect(promptRequest.notice).toContain("未在资产目录发布");
+		expect(screen.queryByText("未找到资产库模板：WH-LOW-STOCK-ALERT")).not.toBeInTheDocument();
 	});
 
 	it("opens a selected signal in the conversation spine", async () => {

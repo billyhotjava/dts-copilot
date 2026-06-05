@@ -311,7 +311,6 @@ export function ConversationThread({
 				sessions={sessions}
 				onDeleteSession={handleDeleteSession}
 				onNewChat={handleNewChat}
-				onSelectDatabase={setSelectedDbId}
 				onSelectSession={(nextSessionId) => {
 					if (!nextSessionId) {
 						handleNewChat();

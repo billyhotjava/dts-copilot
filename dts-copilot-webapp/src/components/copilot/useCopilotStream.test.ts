@@ -219,6 +219,56 @@ describe("useCopilotStream", () => {
 		expect(probe().reloadSessions).toHaveBeenCalledTimes(1);
 	});
 
+	it("keeps fixed report metadata from streaming done events", async () => {
+		vi.mocked(aiAgentChatSendStream).mockImplementation(
+			async (_body, onEvent: (event: CopilotStreamEvent) => void) => {
+				onEvent({ type: "session", sessionId: "fixed-report-session" });
+				onEvent({
+					type: "token",
+					content: "已命中资产库资产 PRS-FLOWERBIZ-LEASE-EXECUTION。",
+				});
+				onEvent({
+					type: "done",
+					dataSurface: "L2_FIXED_REPORT",
+					qualityLevel: "MEDIUM",
+					reportCode: "prs.flowerbiz.lease_execution_monthly",
+					responseKind: "FIXED_REPORT",
+					routedDomain: "flowerbiz",
+					sourceRefs: [
+						"fixed-report:PRS-FLOWERBIZ-LEASE-EXECUTION",
+						"dbt-model:public.xycyl_ads_flowerbiz_lease_summary",
+					],
+					targetView: "public.xycyl_ads_flowerbiz_lease_summary",
+					templateCode: "PRS-FLOWERBIZ-LEASE-EXECUTION",
+				});
+			},
+		);
+		const probe = await renderStreamProbe();
+
+		await act(async () => {
+			await probe().stream.handleSendText("打开报花月报");
+		});
+
+		const assistant = probe().snapshot.messages.find(
+			(message) => message.role === "assistant",
+		);
+		expect(assistant).toMatchObject({
+			content: "已命中资产库资产 PRS-FLOWERBIZ-LEASE-EXECUTION。",
+			dataSurface: "L2_FIXED_REPORT",
+			qualityLevel: "MEDIUM",
+			reportCode: "prs.flowerbiz.lease_execution_monthly",
+			responseKind: "FIXED_REPORT",
+			routedDomain: "flowerbiz",
+			sourceRefs: [
+				"fixed-report:PRS-FLOWERBIZ-LEASE-EXECUTION",
+				"dbt-model:public.xycyl_ads_flowerbiz_lease_summary",
+			],
+			targetView: "public.xycyl_ads_flowerbiz_lease_summary",
+			templateCode: "PRS-FLOWERBIZ-LEASE-EXECUTION",
+		});
+		expect(analyticsApi.createAnalysisDraft).not.toHaveBeenCalled();
+	});
+
 	it("passes clarification answers into the stream request body", async () => {
 		vi.mocked(aiAgentChatSendStream).mockImplementation(
 			async (_body, onEvent: (event: CopilotStreamEvent) => void) => {
@@ -425,8 +475,11 @@ describe("useCopilotStream", () => {
 			},
 		);
 		const probe = await renderStreamProbe({
-			databases: [{ id: 7, name: "main", engine: "mysql" }],
-			selectedDbId: 7,
+			databases: [
+				{ id: 7, name: "main", engine: "mysql" },
+				{ id: 9, name: "联邦查询入口", engine: "trino" },
+			],
+			selectedDbId: 9,
 		});
 
 		await act(async () => {

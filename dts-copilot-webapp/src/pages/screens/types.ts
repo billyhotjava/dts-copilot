@@ -196,7 +196,8 @@ export interface DataSourceConfig {
     };
     databaseConfig?: {
         // Prefer analytics database id; keep connectionId for backward compatibility.
-        databaseId?: number;
+        databaseId?: number | string;
+        databaseAlias?: string;
         connectionId?: string;
         query: string;
         queryTimeoutSeconds?: number;
@@ -205,7 +206,8 @@ export interface DataSourceConfig {
     };
     sqlConfig?: {
         // Prefer analytics database id; keep connectionId for backward compatibility.
-        databaseId?: number;
+        databaseId?: number | string;
+        databaseAlias?: string;
         connectionId?: string;
         query: string;
         queryTimeoutSeconds?: number;

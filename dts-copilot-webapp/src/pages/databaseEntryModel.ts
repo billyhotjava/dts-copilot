@@ -73,6 +73,35 @@ export function buildManagedDataSourcePayload(
 	}
 }
 
+export function normalizeLogicalSourceAliases(value: unknown): string[] {
+	const raw = Array.isArray(value)
+		? value
+		: typeof value === 'string'
+			? value.split(/[,\n;]/)
+			: []
+	const seen = new Set<string>()
+	const aliases: string[] = []
+	for (const item of raw) {
+		const alias = String(item ?? '').trim()
+		if (!alias || seen.has(alias)) continue
+		seen.add(alias)
+		aliases.push(alias)
+	}
+	return aliases
+}
+
+export function buildDatabaseDetailsWithLogicalAliases(
+	dataSourceId: string | number,
+	logicalAliases: unknown,
+): Record<string, unknown> {
+	const details: Record<string, unknown> = { dataSourceId }
+	const aliases = normalizeLogicalSourceAliases(logicalAliases)
+	if (aliases.length > 0) {
+		details.logicalSourceAliases = aliases
+	}
+	return details
+}
+
 export function buildManagedDatabaseImportPayload(
 	item: Pick<PlatformDataSourceItem, 'id' | 'name' | 'type' | 'jdbcUrl'>,
 ) {

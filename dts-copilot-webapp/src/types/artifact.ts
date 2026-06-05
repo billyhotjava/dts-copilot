@@ -4,6 +4,7 @@ import type {
 	VisualizationSettings,
 	VisualizationType,
 } from "../components/charts/ChartRenderer";
+import { buildAgentFixedReportHref } from "../shared/fixedReportAvailability";
 
 export interface ArtifactDataset {
 	cols: { name: string; display_name?: string; base_type?: string }[];
@@ -203,12 +204,15 @@ export function artifactFromMessage(
 	const display = normalizeVisualizationType(message.suggestedDisplay);
 	const type = resolveArtifactType(message, display);
 	const reportCode = message.reportCode ?? message.templateCode;
+	const reportHref = message.templateCode
+		? buildAgentFixedReportHref(message.templateCode)
+		: undefined;
 	const spec: ArtifactSpec = {
 		display,
 		...(options.settings ? { settings: options.settings } : {}),
 		...(type !== "report" && dataset ? { dataset } : {}),
 		...(reportCode ? { reportCode } : {}),
-		...(message.templateCode ? { reportHref: buildFixedReportHref(message.templateCode) } : {}),
+		...(reportHref ? { reportHref } : {}),
 		...(message.generatedSql ? { generatedSql: message.generatedSql } : {}),
 		...(message.targetView ? { targetView: message.targetView } : {}),
 		...(message.dataSurface ? { dataSurface: message.dataSurface } : {}),
@@ -265,10 +269,6 @@ function normalizeSourceRefs(value: AiAgentChatMessage["sourceRefs"]): string[] 
 		.split(/[；;\n]/)
 		.map((item) => item.trim())
 		.filter(Boolean);
-}
-
-function buildFixedReportHref(templateCode: string): string {
-	return `/agent-bi?fixedReport=${encodeURIComponent(templateCode)}`;
 }
 
 function resolveArtifactTitle(

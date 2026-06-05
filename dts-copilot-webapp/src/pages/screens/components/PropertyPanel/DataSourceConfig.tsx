@@ -24,6 +24,7 @@ export function renderDataSourceConfig(
     const ds = component.dataSource as DataSourceConfig | undefined;
     const dsType = resolveDataSourceType(ds);
     const sqlConfig = resolveSqlConfig(ds);
+    const numericSqlDatabaseId = toPositiveNumberId(sqlConfig?.databaseId);
 
     const cardBindings: CardParameterBinding[] = ds?.type === 'card' ? (ds.cardConfig?.parameterBindings ?? []) : [];
     const metricBindings: CardParameterBinding[] = dsType === 'metric' ? (ds?.metricConfig?.parameterBindings ?? []) : [];
@@ -52,6 +53,7 @@ export function renderDataSourceConfig(
                 ...(base ?? { query: '' }),
                 query: base?.query ?? '',
                 databaseId: base?.databaseId,
+                databaseAlias: base?.databaseAlias,
                 connectionId: base?.connectionId,
                 queryTimeoutSeconds: base?.queryTimeoutSeconds,
                 maxRows: base?.maxRows,
@@ -118,6 +120,7 @@ export function renderDataSourceConfig(
                 refreshInterval: dsType === 'sql' ? ds?.refreshInterval : undefined,
                 sqlConfig: {
                     databaseId: base?.databaseId,
+                    databaseAlias: base?.databaseAlias,
                     connectionId: base?.connectionId,
                     query: base?.query ?? 'select 1',
                     queryTimeoutSeconds: base?.queryTimeoutSeconds,
@@ -352,7 +355,7 @@ export function renderDataSourceConfig(
                     <div className="property-row">
                         <label className="property-label">数据库</label>
                         <DatabaseIdPicker
-                            value={sqlConfig?.databaseId ?? 0}
+                            value={numericSqlDatabaseId}
                             onChange={(databaseId) => {
                                 const base = resolveSqlConfig(ds);
                                 setDataSource({
@@ -362,6 +365,7 @@ export function renderDataSourceConfig(
                                     sqlConfig: {
                                         ...(base ?? { query: '' }),
                                         databaseId: databaseId > 0 ? databaseId : undefined,
+                                        databaseAlias: undefined,
                                         query: base?.query ?? '',
                                     },
                                 });
@@ -374,7 +378,7 @@ export function renderDataSourceConfig(
                             type="number"
                             className="property-input"
                             min={1}
-                            value={sqlConfig?.databaseId ?? 0}
+                            value={numericSqlDatabaseId}
                             onChange={(e) => {
                                 const n = Number(e.target.value);
                                 const base = resolveSqlConfig(ds);
@@ -385,11 +389,34 @@ export function renderDataSourceConfig(
                                     sqlConfig: {
                                         ...(base ?? { query: '' }),
                                         databaseId: Number.isFinite(n) && n > 0 ? n : undefined,
+                                        databaseAlias: undefined,
                                         query: base?.query ?? '',
                                     },
                                 });
                             }}
                             placeholder="用于离线环境或未同步数据库列表"
+                        />
+                    </div>
+                    <div className="property-row">
+                        <label className="property-label">逻辑数据源别名</label>
+                        <input
+                            className="property-input"
+                            value={sqlConfig?.databaseAlias ?? (typeof sqlConfig?.databaseId === 'string' && Number.isNaN(Number(sqlConfig.databaseId)) ? sqlConfig.databaseId : '')}
+                            onChange={(e) => {
+                                const alias = e.target.value.trim();
+                                const base = resolveSqlConfig(ds);
+                                setDataSource({
+                                    type: 'sql',
+                                    sourceType: 'sql',
+                                    refreshInterval: dsType === 'sql' ? ds?.refreshInterval : undefined,
+                                    sqlConfig: {
+                                        ...(base ?? { query: '' }),
+                                        databaseAlias: alias || undefined,
+                                        query: base?.query ?? '',
+                                    },
+                                });
+                            }}
+                            placeholder="prs.flowerbiz.federated"
                         />
                     </div>
                     <div className="property-row">
@@ -664,4 +691,14 @@ export function renderDataSourceConfig(
             )}
         </>
     );
+}
+
+function toPositiveNumberId(value: unknown): number {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) && value > 0 ? value : 0;
+    }
+    const text = String(value ?? '').trim();
+    if (!text) return 0;
+    const n = Number(text);
+    return Number.isFinite(n) && n > 0 ? n : 0;
 }

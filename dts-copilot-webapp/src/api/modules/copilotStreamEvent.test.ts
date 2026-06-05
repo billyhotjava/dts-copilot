@@ -37,6 +37,19 @@ describe("normalizeCopilotDoneStreamEvent", () => {
 						{ table: "xycyl_dws_profit", fields: ["revenue", "cost"] },
 					],
 					sql: "select revenue - cost from mart",
+					financeAudit: {
+						oracleStatus: {
+							bindingId: "month-settlement",
+							healthStatus: "PASS",
+							maxDifference: "0.00",
+						},
+						appliedRules: [
+							{ ruleId: "CAL-MONTH-AMOUNT-TIER", description: "amount tier" },
+						],
+						lineage: [
+							{ level: "SOURCE_TABLE", name: "a_month_accounting", role: "adminapi-source" },
+						],
+					},
 				},
 			}),
 		).toMatchObject({
@@ -73,6 +86,19 @@ describe("normalizeCopilotDoneStreamEvent", () => {
 					{ table: "xycyl_dws_profit", fields: ["revenue", "cost"] },
 				],
 				sql: "select revenue - cost from mart",
+				financeAudit: {
+					oracleStatus: {
+						bindingId: "month-settlement",
+						healthStatus: "PASS",
+						maxDifference: "0.00",
+					},
+					appliedRules: [
+						{ ruleId: "CAL-MONTH-AMOUNT-TIER", description: "amount tier" },
+					],
+					lineage: [
+						{ level: "SOURCE_TABLE", name: "a_month_accounting", role: "adminapi-source" },
+					],
+				},
 			},
 		});
 	});

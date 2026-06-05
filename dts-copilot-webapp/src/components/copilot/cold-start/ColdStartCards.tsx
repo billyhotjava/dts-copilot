@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { analyticsApi, type AiAgentChatSession } from "../../../api/analyticsApi";
 import {
 	buildCopilotSessionFocusRequest,
+	type CopilotSessionFocusRequest,
 	requestCopilotSessionFocus,
 } from "../copilotSessionFocus";
 import { pickResumableSession } from "./coldStartCardsModel";
@@ -14,6 +15,7 @@ type ColdStartCardsState = {
 };
 
 type ColdStartCardsProps = {
+	onOpenSession?: (request: CopilotSessionFocusRequest) => void;
 	onOpenAssets?: () => void;
 };
 
@@ -24,7 +26,7 @@ const INITIAL_STATE: ColdStartCardsState = {
 	session: null,
 };
 
-export function ColdStartCards({ onOpenAssets }: ColdStartCardsProps) {
+export function ColdStartCards({ onOpenSession, onOpenAssets }: ColdStartCardsProps) {
 	const [state, setState] = useState<ColdStartCardsState>(INITIAL_STATE);
 
 	useEffect(() => {
@@ -56,7 +58,12 @@ export function ColdStartCards({ onOpenAssets }: ColdStartCardsProps) {
 			sessionId: state.session?.id,
 			question: state.session?.title,
 		});
-		if (request) requestCopilotSessionFocus(request);
+		if (!request) return;
+		if (onOpenSession) {
+			onOpenSession(request);
+			return;
+		}
+		requestCopilotSessionFocus(request);
 	};
 
 	return (

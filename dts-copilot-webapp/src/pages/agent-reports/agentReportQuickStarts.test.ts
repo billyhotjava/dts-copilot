@@ -114,12 +114,15 @@ describe("agentReportQuickStarts", () => {
 		expect(
 			AGENT_REPORT_BUSINESS_GUIDE.every(
 				(item) =>
-					item.fixedReports.length > 0 &&
 					item.dbtModels.length > 0 &&
 					item.businessObjects.length > 0 &&
 					item.questions.length > 0,
 			),
 		).toBe(true);
+		expect(
+			AGENT_REPORT_BUSINESS_GUIDE.find((item) => item.id === "warehouse-inventory")
+				?.fixedReports,
+		).toEqual([]);
 		expect(
 			AGENT_REPORT_BUSINESS_GUIDE.flatMap((item) => item.businessObjects),
 			).toContain("prs.procurement.delivery_record");

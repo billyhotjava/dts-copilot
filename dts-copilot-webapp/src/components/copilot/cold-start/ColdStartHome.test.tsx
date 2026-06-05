@@ -107,6 +107,18 @@ describe("ColdStartHome", () => {
 		});
 	});
 
+	it("opens the resumable session from the cold-start card", async () => {
+		const onOpenSession = vi.fn();
+		render(<ColdStartHome onSubmit={vi.fn()} onOpenSession={onOpenSession} />);
+
+		fireEvent.click(await screen.findByRole("button", { name: /报花趋势复盘/ }));
+
+		expect(onOpenSession).toHaveBeenCalledWith({
+			sessionId: "session-1",
+			notice: "已回到来源对话：报花趋势复盘",
+		});
+	});
+
 	it("keeps the composer usable when suggestion and card APIs fail", async () => {
 		listSuggestedQuestions.mockRejectedValueOnce(new Error("suggestion failed"));
 		listDashboards.mockRejectedValueOnce(new Error("dashboard failed"));

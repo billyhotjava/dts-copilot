@@ -37,6 +37,7 @@ const COMPONENT_TYPES = new Set<ScreenComponent['type']>([
     'filter-input',
     'filter-select',
     'filter-date-range',
+    'richtext',
 ]);
 
 const THEMES = new Set<ScreenTheme>(['legacy-dark', 'titanium', 'glacier']);

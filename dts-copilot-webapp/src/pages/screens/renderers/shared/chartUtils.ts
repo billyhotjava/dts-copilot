@@ -166,7 +166,7 @@ export function resolveFilterOptions(raw: unknown): Array<{ label: string; value
 export function resolveFilterDefaultValue(
     currentValue: string,
     configuredDefault: unknown,
-    options: Array<{ label: string; value: string }> = [],
+    _options: Array<{ label: string; value: string }> = [],
 ): string {
     const current = String(currentValue ?? '').trim();
     if (current) {
@@ -176,7 +176,7 @@ export function resolveFilterDefaultValue(
     if (fallback) {
         return fallback;
     }
-    return String(options[0]?.value ?? '').trim();
+    return '';
 }
 
 export function resolveDateRangeDefaultValues(

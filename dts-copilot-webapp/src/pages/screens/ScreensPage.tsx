@@ -293,7 +293,7 @@ export default function ScreensPage() {
         return filtered;
     }, [publishFilter, screens, searchKeyword, sortMode]);
     const fixedReportQuickStarts = useMemo(
-        () => buildFixedReportQuickStartItems(fixedReports, 6),
+        () => buildFixedReportQuickStartItems(fixedReports, 12),
         [fixedReports],
     );
     const analysisDraftProvenance = selectedAnalysisDraft

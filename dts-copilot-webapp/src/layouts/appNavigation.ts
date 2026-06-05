@@ -60,7 +60,7 @@ export const PRIMARY_NAV_SECTIONS: NavigationSection[] = [
 			},
 			{
 				id: "assets",
-				to: "/assets",
+				to: "/asset-library",
 				labelKey: "nav.assets",
 				icon: "assets",
 				end: false,

@@ -147,6 +147,74 @@ export function TracePanel({
 					<pre className="trace-panel__json">{traceModel.sql || "暂无生成 SQL"}</pre>
 				</details>
 
+				{traceModel.financeAudit ? (
+					<section className="trace-panel__section">
+						<div className="trace-panel__section-label">财务审计</div>
+						<div className="trace-panel__audit">
+							{traceModel.financeAudit.oracleStatus ? (
+								<div className="trace-panel__audit-status">
+									{formatOracleStatus(traceModel.financeAudit.oracleStatus)}
+								</div>
+							) : null}
+							{traceModel.financeAudit.appliedRules?.length ? (
+								<div className="trace-panel__audit-group">
+									<div className="trace-panel__audit-group-label">口径规则</div>
+									<div className="trace-panel__audit-list">
+										{traceModel.financeAudit.appliedRules.map((rule) => (
+											<div
+												key={rule.ruleId}
+												className="trace-panel__audit-row"
+											>
+												<span className="trace-panel__audit-code">{rule.ruleId}</span>
+												{rule.description ? <span>{rule.description}</span> : null}
+											</div>
+										))}
+									</div>
+								</div>
+							) : null}
+							{traceModel.financeAudit.appliedInvariants?.length ? (
+								<div className="trace-panel__audit-group">
+									<div className="trace-panel__audit-group-label">不变量</div>
+									<div className="trace-panel__audit-list">
+										{traceModel.financeAudit.appliedInvariants.map((invariant) => (
+											<div
+												key={invariant.invariantId}
+												className="trace-panel__audit-row"
+											>
+												<span className="trace-panel__audit-code">
+													{invariant.invariantId}
+												</span>
+												{invariant.statement ? <span>{invariant.statement}</span> : null}
+											</div>
+										))}
+									</div>
+								</div>
+							) : null}
+							{traceModel.financeAudit.lineage?.length ? (
+								<div className="trace-panel__audit-group">
+									<div className="trace-panel__audit-group-label">Lineage</div>
+									<div className="trace-panel__audit-list">
+										{traceModel.financeAudit.lineage.map((node, index) => (
+											<div
+												key={`${node.level ?? "node"}-${node.name}-${index}`}
+												className="trace-panel__audit-row trace-panel__audit-row--lineage"
+											>
+												<span className="trace-panel__audit-code">
+													{node.level || "NODE"}
+												</span>
+												<span>{node.name}</span>
+												{node.role ? (
+													<span className="trace-panel__audit-muted">{node.role}</span>
+												) : null}
+											</div>
+										))}
+									</div>
+								</div>
+							) : null}
+						</div>
+					</section>
+				) : null}
+
 				<section className="trace-panel__section">
 					<div className="trace-panel__section-label">口径纠正</div>
 					{correctionOpen ? (
@@ -267,7 +335,16 @@ function buildTraceModel(message: AiAgentChatMessage | null) {
 		caliberText: formatCaliber(message),
 		sources: structuredSources.length > 0 ? structuredSources : fallbackSources,
 		sql: message?.trace?.sql ?? message?.generatedSql ?? "",
+		financeAudit: message?.trace?.financeAudit,
 	};
+}
+
+function formatOracleStatus(
+	oracleStatus: NonNullable<NonNullable<AiAgentChatMessage["trace"]>["financeAudit"]>["oracleStatus"],
+): string {
+	const status = oracleStatus?.healthStatus || "UNKNOWN";
+	const difference = oracleStatus?.maxDifference ?? "0.00";
+	return `对账状态 ${status} · 差异 ${difference}`;
 }
 
 function formatCaliber(message: AiAgentChatMessage | null): string {

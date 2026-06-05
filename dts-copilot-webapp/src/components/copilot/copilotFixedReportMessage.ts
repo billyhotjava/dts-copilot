@@ -1,4 +1,5 @@
 import type { AiAgentChatMessage } from "../../api/analyticsApi";
+import { buildAgentFixedReportHref } from "../../shared/fixedReportAvailability";
 import { isPrsScreenTemplateCode } from "../../shared/prsScreenShortcuts.ts";
 
 export type FixedReportCandidate = {
@@ -20,8 +21,6 @@ const FIXED_REPORT_CANDIDATE_CODE_MAP: Record<string, string> = {
 	配送记录到货及时率: "PROC-ARRIVAL-ONTIME-RATE",
 	入库管理待入库清单: "PROC-PENDING-INBOUND-LIST",
 	配送记录在途采购: "PROC-INTRANSIT-BOARD",
-	库存现量: "WH-STOCK-OVERVIEW",
-	库存现量低库存预警: "WH-LOW-STOCK-ALERT",
 	"PRS 租赁经营总览": "PRS-FLOWERBIZ-OVERVIEW",
 	"PRS 租赁报花执行看板": "PRS-FLOWERBIZ-LEASE-EXECUTION",
 	"PRS 销售坏账与费用看板": "PRS-FLOWERBIZ-FINANCE-COST",
@@ -46,10 +45,7 @@ function hrefForTemplateCode(
 	targetView?: string,
 ): string | undefined {
 	void targetView;
-	if (!templateCode) {
-		return undefined;
-	}
-	return `/agent-bi?fixedReport=${encodeURIComponent(templateCode)}`;
+	return buildAgentFixedReportHref(templateCode);
 }
 
 export function getFixedReportShortcut(
@@ -64,8 +60,8 @@ export function getFixedReportShortcut(
 	}
 	return {
 		label: isPrsScreenTemplateCode(message.templateCode)
-			? "用 AI 报表打开"
-			: "回到 AI 报表入口",
+			? "打开资产库大屏"
+			: "打开资产库",
 		href,
 	};
 }

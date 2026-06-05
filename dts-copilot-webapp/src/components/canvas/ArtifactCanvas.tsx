@@ -407,8 +407,8 @@ function ReportArtifact({ artifact }: { artifact: Artifact }) {
 				<h3>{reportCode}</h3>
 			</div>
 			{artifact.spec.reportHref ? (
-				<a className="artifact-canvas__report-link" href={artifact.spec.reportHref}>
-					用 AI 报表打开
+				<a className="artifact-canvas__report-link" href={artifact.spec.reportHref} target="_blank" rel="noreferrer">
+					打开可视化大屏
 				</a>
 			) : null}
 		</div>

@@ -4,6 +4,7 @@ import type {
 	CopilotClarification,
 	CopilotClarificationOption,
 	CopilotTrace,
+	CopilotTraceFinanceAudit,
 	CopilotTraceSource,
 } from './types.ts'
 
@@ -152,6 +153,94 @@ function normalizeTraceSources(value: unknown): CopilotTraceSource[] | undefined
 	return sources.length > 0 ? sources : undefined
 }
 
+function normalizeStringArray(value: unknown): string[] | undefined {
+	if (!Array.isArray(value)) return undefined
+	const values = value
+		.map((item) => (typeof item === 'string' ? item.trim() : ''))
+		.filter(Boolean)
+	return values.length > 0 ? values : undefined
+}
+
+function normalizeFinanceAudit(value: unknown): CopilotTraceFinanceAudit | undefined {
+	const row = asObject(value)
+	if (!row) return undefined
+	const oracleStatusRow = asObject(row.oracleStatus)
+	const oracleStatus = oracleStatusRow
+		? {
+				...(pickString(oracleStatusRow, ['bindingId'])
+					? { bindingId: pickString(oracleStatusRow, ['bindingId']) }
+					: {}),
+				...(pickString(oracleStatusRow, ['reportName'])
+					? { reportName: pickString(oracleStatusRow, ['reportName']) }
+					: {}),
+				...(pickString(oracleStatusRow, ['oracleLevel'])
+					? { oracleLevel: pickString(oracleStatusRow, ['oracleLevel']) }
+					: {}),
+				...(pickString(oracleStatusRow, ['chain'])
+					? { chain: pickString(oracleStatusRow, ['chain']) }
+					: {}),
+				...(typeof oracleStatusRow.covered === 'boolean' ? { covered: oracleStatusRow.covered } : {}),
+				...(pickString(oracleStatusRow, ['healthStatus'])
+					? { healthStatus: pickString(oracleStatusRow, ['healthStatus']) }
+					: {}),
+				...(typeof oracleStatusRow.maxDifference === 'number' || typeof oracleStatusRow.maxDifference === 'string'
+					? { maxDifference: oracleStatusRow.maxDifference }
+					: {}),
+				...(pickString(oracleStatusRow, ['failureMessage'])
+					? { failureMessage: pickString(oracleStatusRow, ['failureMessage']) }
+					: {}),
+			}
+		: undefined
+	const appliedRules = Array.isArray(row.appliedRules)
+		? row.appliedRules.flatMap((item) => {
+				const rule = asObject(item)
+				const ruleId = rule ? pickString(rule, ['ruleId']) : undefined
+				if (!rule || !ruleId) return []
+				return [{
+					ruleId,
+					...(pickString(rule, ['description']) ? { description: pickString(rule, ['description']) } : {}),
+					...(pickString(rule, ['severity']) ? { severity: pickString(rule, ['severity']) } : {}),
+					...(pickString(rule, ['guardrailText']) ? { guardrailText: pickString(rule, ['guardrailText']) } : {}),
+					...(normalizeStringArray(rule.appliesTo) ? { appliesTo: normalizeStringArray(rule.appliesTo) } : {}),
+				}]
+			})
+		: undefined
+	const appliedInvariants = Array.isArray(row.appliedInvariants)
+		? row.appliedInvariants.flatMap((item) => {
+				const invariant = asObject(item)
+				const invariantId = invariant ? pickString(invariant, ['invariantId']) : undefined
+				if (!invariant || !invariantId) return []
+				return [{
+					invariantId,
+					...(pickString(invariant, ['statement']) ? { statement: pickString(invariant, ['statement']) } : {}),
+					...(pickString(invariant, ['severity']) ? { severity: pickString(invariant, ['severity']) } : {}),
+					...(normalizeStringArray(invariant.sourceRuleIds) ? { sourceRuleIds: normalizeStringArray(invariant.sourceRuleIds) } : {}),
+					...(normalizeStringArray(invariant.sourceRefs) ? { sourceRefs: normalizeStringArray(invariant.sourceRefs) } : {}),
+				}]
+			})
+		: undefined
+	const lineage = Array.isArray(row.lineage)
+		? row.lineage.flatMap((item) => {
+				const node = asObject(item)
+				const name = node ? pickString(node, ['name']) : undefined
+				if (!node || !name) return []
+				return [{
+					name,
+					...(pickString(node, ['level']) ? { level: pickString(node, ['level']) } : {}),
+					...(pickString(node, ['role']) ? { role: pickString(node, ['role']) } : {}),
+					...(normalizeStringArray(node.refs) ? { refs: normalizeStringArray(node.refs) } : {}),
+				}]
+			})
+		: undefined
+	const financeAudit: CopilotTraceFinanceAudit = {
+		...(oracleStatus && Object.keys(oracleStatus).length > 0 ? { oracleStatus } : {}),
+		...(appliedRules && appliedRules.length > 0 ? { appliedRules } : {}),
+		...(appliedInvariants && appliedInvariants.length > 0 ? { appliedInvariants } : {}),
+		...(lineage && lineage.length > 0 ? { lineage } : {}),
+	}
+	return Object.keys(financeAudit).length > 0 ? financeAudit : undefined
+}
+
 function normalizeTrace(value: unknown): CopilotTrace | undefined {
 	const row = asObject(value)
 	if (!row) return undefined
@@ -177,12 +266,14 @@ function normalizeTrace(value: unknown): CopilotTrace | undefined {
 		: undefined
 	const sources = normalizeTraceSources(row.sources)
 	const sql = pickString(row, ['sql'])
+	const financeAudit = normalizeFinanceAudit(row.financeAudit)
 	const trace: CopilotTrace = {
 		...(metricCaliber && Object.keys(metricCaliber).length > 0
 			? { metricCaliber }
 			: {}),
 		...(sources ? { sources } : {}),
 		...(sql ? { sql } : {}),
+		...(financeAudit ? { financeAudit } : {}),
 	}
 	return Object.keys(trace).length > 0 ? trace : undefined
 }

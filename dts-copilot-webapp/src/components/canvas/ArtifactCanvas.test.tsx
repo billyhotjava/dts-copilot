@@ -185,13 +185,13 @@ describe("ArtifactCanvas", () => {
 		);
 	});
 
-	it("renders report artifacts as an AI report entry link", async () => {
+	it("renders report artifacts as a visualization screen link", async () => {
 		render(
 			<ArtifactCanvas
 				artifact={artifact({
 					spec: {
 						reportCode: "PRS-FLOWERBIZ-OVERVIEW",
-						reportHref: "/agent-bi?fixedReport=PRS-FLOWERBIZ-OVERVIEW",
+						reportHref: "/screens/290001/preview",
 					},
 					type: "report",
 				})}
@@ -199,9 +199,17 @@ describe("ArtifactCanvas", () => {
 		);
 
 		expect(await screen.findByText("PRS-FLOWERBIZ-OVERVIEW")).toBeInTheDocument();
-		expect(await screen.findByRole("link", { name: "用 AI 报表打开" })).toHaveAttribute(
+		expect(await screen.findByRole("link", { name: "打开可视化大屏" })).toHaveAttribute(
 			"href",
-			"/agent-bi?fixedReport=PRS-FLOWERBIZ-OVERVIEW",
+			"/screens/290001/preview",
+		);
+		expect(await screen.findByRole("link", { name: "打开可视化大屏" })).toHaveAttribute(
+			"target",
+			"_blank",
+		);
+		expect(await screen.findByRole("link", { name: "打开可视化大屏" })).toHaveAttribute(
+			"rel",
+			expect.stringContaining("noreferrer"),
 		);
 	});
 

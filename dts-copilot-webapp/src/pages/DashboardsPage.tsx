@@ -93,7 +93,7 @@ export default function DashboardsPage({ embedded = false }: DashboardsPageProps
 	}, []);
 
 	const fixedReportQuickStarts = useMemo(
-		() => fixedReports.state === "loaded" ? buildFixedReportQuickStartItems(fixedReports.value, 6) : [],
+		() => fixedReports.state === "loaded" ? buildFixedReportQuickStartItems(fixedReports.value, 12) : [],
 		[fixedReports],
 	);
 
@@ -143,33 +143,38 @@ export default function DashboardsPage({ embedded = false }: DashboardsPageProps
 					)}
 					{fixedReports.state === "loaded" && fixedReportQuickStarts.length > 0 && (
 						<div style={{ display: "flex", flexWrap: "wrap", gap: "var(--spacing-sm)" }}>
-							{fixedReportQuickStarts.map((item) => (
-								<Link
-									key={item.templateCode || item.name}
-									to={buildFixedReportOpenPath(item)}
-									className="link"
-									style={{
-										display: "flex",
-										flexDirection: "column",
-										alignItems: "flex-start",
-										gap: "var(--spacing-xs)",
-										minWidth: 220,
-										padding: "var(--spacing-sm)",
-										borderRadius: "var(--radius-md)",
-										background: "var(--color-bg-secondary)",
-										border: "1px solid var(--color-border)",
-									}}
-								>
-									<span style={{ fontWeight: 600 }}>{item.name || item.templateCode || "固定报表"}</span>
-									<span className="small muted">
-										{isScreenBackedFixedReport(item) ? "PRS 大屏" : "固定报表"}
-										{item.domain ? ` · ${item.domain}` : ""}
-									</span>
-									{item.primaryDbtModel ? (
-										<span className="small muted">{item.primaryDbtModel}</span>
-									) : null}
-								</Link>
-							))}
+							{fixedReportQuickStarts.map((item) => {
+								const screenBacked = isScreenBackedFixedReport(item);
+								return (
+									<Link
+										key={item.templateCode || item.name}
+										to={buildFixedReportOpenPath(item)}
+										target={screenBacked ? "_blank" : undefined}
+										rel={screenBacked ? "noreferrer" : undefined}
+										className="link"
+										style={{
+											display: "flex",
+											flexDirection: "column",
+											alignItems: "flex-start",
+											gap: "var(--spacing-xs)",
+											minWidth: 220,
+											padding: "var(--spacing-sm)",
+											borderRadius: "var(--radius-md)",
+											background: "var(--color-bg-secondary)",
+											border: "1px solid var(--color-border)",
+										}}
+									>
+										<span style={{ fontWeight: 600 }}>{item.name || item.templateCode || "固定报表"}</span>
+										<span className="small muted">
+											{screenBacked ? "PRS 大屏" : "固定报表"}
+											{item.domain ? ` · ${item.domain}` : ""}
+										</span>
+										{item.primaryDbtModel ? (
+											<span className="small muted">{item.primaryDbtModel}</span>
+										) : null}
+									</Link>
+								);
+							})}
 						</div>
 					)}
 				</CardBody>

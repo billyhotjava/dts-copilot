@@ -11,13 +11,45 @@ function ModernAliasRedirect() {
 	return null;
 }
 
+const CHUNK_RELOAD_STORAGE_KEY = "dts-copilot:last-dynamic-import-reload";
+const DYNAMIC_IMPORT_ERROR_PATTERN =
+	/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i;
+
+function ReloadingRoute() {
+	return null;
+}
+
+function isDynamicImportFailure(error: unknown): boolean {
+	const message = error instanceof Error ? error.message : String(error ?? "");
+	return DYNAMIC_IMPORT_ERROR_PATTERN.test(message);
+}
+
+function reloadOnceForDynamicImportFailure(): boolean {
+	if (typeof window === "undefined") return false;
+	const now = Date.now();
+	const lastReload = Number(window.sessionStorage.getItem(CHUNK_RELOAD_STORAGE_KEY) ?? "0");
+	if (Number.isFinite(lastReload) && now - lastReload < 60_000) return false;
+	window.sessionStorage.setItem(CHUNK_RELOAD_STORAGE_KEY, String(now));
+	window.location.reload();
+	return true;
+}
+
 const lazyComponent = (importer: () => Promise<{ default: unknown }>) => async () => {
-	const mod = await importer();
-	return { Component: mod.default as never };
+	try {
+		const mod = await importer();
+		return { Component: mod.default as never };
+	} catch (error) {
+		if (isDynamicImportFailure(error) && reloadOnceForDynamicImportFailure()) {
+			return { Component: ReloadingRoute as never };
+		}
+		throw error;
+	}
 };
 
 const redirectAssetList = (tab: "dashboards" | "cards" | "collections") => () =>
-	redirect(`/assets?tab=${tab}`);
+	redirect(`/asset-library?tab=${tab}`);
+
+const redirectAssetLibrary = () => redirect("/asset-library");
 
 export function createRoutes() {
 	return createBrowserRouter(
@@ -37,7 +69,8 @@ export function createRoutes() {
 					{ path: "/", Component: ModernAliasRedirect },
 					...APP_HOME_ALIASES.map((path) => ({ path, Component: ModernAliasRedirect })),
 					{ path: "/agent-bi", lazy: lazyComponent(() => import("./pages/AgentWorkspacePage")) },
-					{ path: "/assets", lazy: lazyComponent(() => import("./pages/AssetLibraryPage")) },
+					{ path: "/assets", loader: redirectAssetLibrary },
+					{ path: "/asset-library", lazy: lazyComponent(() => import("./pages/AssetLibraryPage")) },
 					{ path: "/collections", loader: redirectAssetList("collections") },
 					{ path: "/collections/:id", lazy: lazyComponent(() => import("./pages/CollectionItemsPage")) },
 					{ path: "/dashboards", loader: redirectAssetList("dashboards") },

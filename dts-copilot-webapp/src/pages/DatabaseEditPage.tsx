@@ -12,6 +12,8 @@ import { Spinner } from "../ui/Loading/Spinner";
 import { getEffectiveLocale, t, type Locale } from "../i18n";
 import {
 	MANAGED_DATA_SOURCE_TYPE_OPTIONS,
+	buildDatabaseDetailsWithLogicalAliases,
+	normalizeLogicalSourceAliases,
 	validateManagedDataSourceForm,
 	type ManagedDataSourceFormErrors,
 	type ManagedDataSourceFormValues,
@@ -83,6 +85,7 @@ export default function DatabaseEditPage() {
 		description: "",
 	});
 	const [dataSourceId, setDataSourceId] = useState<number | null>(null);
+	const [logicalAliases, setLogicalAliases] = useState("");
 	const [formErrors, setFormErrors] = useState<ManagedDataSourceFormErrors>({});
 	const [testing, setTesting] = useState(false);
 	const [saving, setSaving] = useState(false);
@@ -96,6 +99,15 @@ export default function DatabaseEditPage() {
 			.getDatabase(dbId)
 			.then(async (db: any) => {
 				const dsId = db?.details?.dataSourceId ?? db?.details?.datasourceId;
+				setLogicalAliases(
+					normalizeLogicalSourceAliases(
+						db?.details?.logicalSourceAliases
+							?? db?.details?.logicalDatasourceAliases
+							?? db?.details?.dataSourceAliases
+							?? db?.details?.databaseAlias
+							?? db?.details?.logicalSourceAlias,
+					).join(", "),
+				);
 				if (dsId != null) {
 					setDataSourceId(Number(dsId));
 					try {
@@ -209,14 +221,14 @@ export default function DatabaseEditPage() {
 				await analyticsApi.updateManagedDataSource(dataSourceId, payload);
 				// Also update analytics database record to refresh name/engine
 				await analyticsApi.updateDatabase(dbId!, {
-					details: { dataSourceId },
+					details: buildDatabaseDetailsWithLogicalAliases(dataSourceId, logicalAliases),
 				});
 			} else {
 				// Create new copilot-ai datasource and link it
 				const created = await analyticsApi.createManagedDataSource(payload);
 				const newDsId = created.id;
 				await analyticsApi.updateDatabase(dbId!, {
-					details: { dataSourceId: newDsId },
+					details: buildDatabaseDetailsWithLogicalAliases(newDsId, logicalAliases),
 				});
 				setDataSourceId(Number(newDsId));
 			}
@@ -333,6 +345,14 @@ export default function DatabaseEditPage() {
 								value={form.password}
 								placeholder={dataSourceId != null ? t(locale, "data.passwordPlaceholder") : undefined}
 								onChange={(e) => updateField("password", e.target.value)}
+							/>
+						</div>
+						<div style={{ marginTop: "var(--spacing-md)" }}>
+							<Input
+								label="逻辑数据源别名"
+								value={logicalAliases}
+								placeholder="prs.flowerbiz.federated, prs.flowerbiz.mart"
+								onChange={(e) => setLogicalAliases(e.target.value)}
 							/>
 						</div>
 						<div style={{ marginTop: "var(--spacing-md)" }}>

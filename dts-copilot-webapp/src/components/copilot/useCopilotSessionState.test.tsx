@@ -103,7 +103,7 @@ describe("useCopilotSessionState", () => {
 		});
 	});
 
-	it("restores a persisted business session with sorted draft-linked messages and the stored datasource", async () => {
+	it("restores a persisted business session while pinning datasource to the federated entry", async () => {
 		sessionStorage.setItem(SESSION_ID_KEY, "session-1");
 		sessionStorage.setItem(DATASOURCE_ID_KEY, "7");
 		vi.mocked(analyticsApi.listAiAgentSessions).mockResolvedValue([
@@ -112,7 +112,7 @@ describe("useCopilotSessionState", () => {
 		vi.mocked(analyticsApi.listDatabases).mockResolvedValue({
 			data: [
 				{ engine: "mysql", id: 7, name: "main" },
-				{ engine: "postgres", id: 9, name: "backup" },
+				{ engine: "trino", id: 9, name: "联邦查询入口" },
 			],
 			total: 2,
 		});
@@ -152,7 +152,7 @@ describe("useCopilotSessionState", () => {
 		});
 
 		expect(probe().state.sessionId).toBe("session-1");
-		expect(probe().state.selectedDbId).toBe(7);
+		expect(probe().state.selectedDbId).toBe(9);
 		expect(probe().state.messages.map((message) => message.id)).toEqual([
 			"user-1",
 			"assistant-1",
@@ -163,7 +163,7 @@ describe("useCopilotSessionState", () => {
 			suggestedDisplay: "table",
 		});
 		expect(sessionStorage.getItem(SESSION_ID_KEY)).toBe("session-1");
-		expect(sessionStorage.getItem(DATASOURCE_ID_KEY)).toBe("7");
+		expect(sessionStorage.getItem(DATASOURCE_ID_KEY)).toBe("9");
 	});
 
 	it("sorts history sessions by last active time before exposing them to the spine", async () => {

@@ -1,4 +1,8 @@
-import { PRS_SCREEN_SHORTCUTS } from "../../shared/prsScreenShortcuts.ts"
+import {
+	buildPrsScreenPreviewPath,
+	getPrsScreenShortcutByTemplateCode,
+	PRS_SCREEN_SHORTCUTS,
+} from "../../shared/prsScreenShortcuts.ts"
 
 export type FixedReportCatalogItem = {
 	id?: number | string
@@ -210,6 +214,12 @@ export function buildFixedReportLegacyPageHref(path?: string | null): string | n
 
 export function buildFixedReportOpenPath(item?: FixedReportCatalogItem | null): string {
 	const templateCode = normalizeText(item?.templateCode)
+	const screenPreviewPath = buildPrsScreenPreviewPath(
+		getPrsScreenShortcutByTemplateCode(templateCode),
+	)
+	if (screenPreviewPath) {
+		return screenPreviewPath
+	}
 	return `/agent-bi?fixedReport=${encodeURIComponent(templateCode)}`
 }
 

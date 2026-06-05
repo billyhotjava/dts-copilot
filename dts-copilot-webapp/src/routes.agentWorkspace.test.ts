@@ -29,6 +29,7 @@ describe("agent workspace routes", () => {
 	});
 
 	it("redirects legacy asset list routes to the asset library tabs", () => {
+		expect(ROUTES_SOURCE).toContain("redirect(`/asset-library?tab=${tab}`)");
 		expect(ROUTES_SOURCE).toContain('redirectAssetList("dashboards")');
 		expect(ROUTES_SOURCE).toContain('redirectAssetList("cards")');
 		expect(ROUTES_SOURCE).toContain('redirectAssetList("collections")');
@@ -38,7 +39,8 @@ describe("agent workspace routes", () => {
 	});
 
 	it("preserves retained asset detail and governance routes", () => {
-		expect(ROUTES_SOURCE).toContain('path: "/assets"');
+		expect(ROUTES_SOURCE).toContain('path: "/assets", loader: redirectAssetLibrary');
+		expect(ROUTES_SOURCE).toContain('path: "/asset-library"');
 		expect(ROUTES_SOURCE).toContain('import("./pages/AssetLibraryPage")');
 		expect(ROUTES_SOURCE).toContain('path: "/dashboards"');
 		expect(ROUTES_SOURCE).toContain('path: "/dashboards/new"');
@@ -56,6 +58,11 @@ describe("agent workspace routes", () => {
 		expect(ROUTES_SOURCE).toContain('path: "/models"');
 		expect(ROUTES_SOURCE).toContain('path: "/metrics"');
 		expect(ROUTES_SOURCE).toContain('path: "/admin/users"');
+	});
+
+	it("guards stale dynamic import chunks with a one-shot reload", () => {
+		expect(ROUTES_SOURCE).toContain("isDynamicImportFailure");
+		expect(ROUTES_SOURCE).toContain("window.location.reload()");
 	});
 
 	it("does not keep the removed NL2SQL eval page as an orphan file", () => {

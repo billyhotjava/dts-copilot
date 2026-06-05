@@ -93,10 +93,25 @@ describe("artifact model", () => {
 			type: "report",
 			spec: {
 				reportCode: "prs.flowerbiz.overview",
-				reportHref: "/agent-bi?fixedReport=PRS-FLOWERBIZ-OVERVIEW",
+				reportHref: "/screens/290001/preview",
 			},
 		});
 		expect(artifact.spec.dataset).toBeUndefined();
+	});
+
+	it("does not attach a report href for archived legacy fixed report templates", () => {
+		const artifact = artifactFromMessage(
+			message({
+				reportCode: "authority.inventory.low_stock_alert",
+				responseKind: "FIXED_REPORT",
+				templateCode: "WH-LOW-STOCK-ALERT",
+			}),
+			null,
+			{ createdAt: 1000, id: "artifact-legacy-report" },
+		);
+
+		expect(artifact.spec.reportCode).toBe("authority.inventory.low_stock_alert");
+		expect(artifact.spec.reportHref).toBeUndefined();
 	});
 
 	it("keeps generated SQL from fixed-report classified messages visible as a query artifact", () => {

@@ -10,7 +10,7 @@ it('resolveFilterDefaultValue prefers current runtime value when present', () =>
     ])).toBe('QMS二期');
 });
 
-it('resolveFilterDefaultValue falls back to configured default or first option', () => {
+it('resolveFilterDefaultValue falls back to configured default only', () => {
     expect(resolveFilterDefaultValue('', 'PLM整合', [
         { label: 'QMS二期', value: 'QMS二期' },
         { label: 'PLM整合', value: 'PLM整合' },
@@ -19,7 +19,7 @@ it('resolveFilterDefaultValue falls back to configured default or first option',
     expect(resolveFilterDefaultValue('', '', [
         { label: 'QMS二期', value: 'QMS二期' },
         { label: 'PLM整合', value: 'PLM整合' },
-    ])).toBe('QMS二期');
+    ])).toBe('');
 });
 
 it('resolveDateRangeDefaultValues fills missing values only', () => {
