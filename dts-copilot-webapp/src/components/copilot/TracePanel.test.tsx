@@ -42,6 +42,50 @@ const toolMessage: AiAgentChatMessage = {
 	toolResult: '{"success":true,"rows":1}',
 };
 
+const financeAuditMessage: AiAgentChatMessage = {
+	content: "月对账折后实收已生成",
+	generatedSql: "select sum(folding_after_total_amount) from xycyl_ads_month_settlement_summary",
+	id: "assistant-finance-audit",
+	role: "assistant",
+	sessionId: "session-1",
+	trace: {
+		metricCaliber: {
+			name: "月对账折后实收",
+			formula: "sum(folding_after_total_amount)",
+			domain: "finance",
+			version: "L3",
+			ontologyRef: "finance.month_settlement",
+		},
+		sources: [
+			{ table: "xycyl_ads_month_settlement_summary", role: "ADS" },
+		],
+		sql: "select sum(folding_after_total_amount) from xycyl_ads_month_settlement_summary",
+		financeAudit: {
+			oracleStatus: {
+				bindingId: "month-settlement",
+				healthStatus: "PASS",
+				maxDifference: "0.00",
+			},
+			appliedRules: [
+				{
+					ruleId: "CAL-MONTH-AMOUNT-TIER",
+					description: "月对账金额必须区分名义租金、应收折前、折后实收和已回款四层。",
+				},
+			],
+			appliedInvariants: [
+				{
+					invariantId: "FIN-INV-03-PAYMENT-NOT-EXCEED-DISCOUNTED",
+					statement: "任意条件下已回款金额不能超过折后应收金额。",
+				},
+			],
+			lineage: [
+				{ level: "ADS_MODEL", name: "xycyl_ads_month_settlement_summary", role: "auditable-result-model" },
+				{ level: "SOURCE_TABLE", name: "a_month_accounting", role: "adminapi-source" },
+			],
+		},
+	},
+};
+
 vi.mock("../../api/analyticsApi", () => ({
 	analyticsApi: {
 		submitCaliberCorrection: vi.fn().mockResolvedValue({
@@ -112,6 +156,23 @@ describe("TracePanel", () => {
 		expect(screen.getByText("field:revenue")).toBeInTheDocument();
 		await userEvent.click(screen.getByText("生成 SQL"));
 		expect(screen.getByText("select revenue from mart")).toBeVisible();
+	});
+
+	it("renders finance audit status, applied rules, invariants, and lineage", async () => {
+		render(
+			<TracePanel
+				message={financeAuditMessage}
+				onClose={vi.fn()}
+				open
+				toolMessages={[]}
+			/>,
+		);
+
+		expect(await screen.findByText("财务审计")).toBeInTheDocument();
+		expect(screen.getByText("对账状态 PASS · 差异 0.00")).toBeInTheDocument();
+		expect(screen.getByText("CAL-MONTH-AMOUNT-TIER")).toBeInTheDocument();
+		expect(screen.getByText("FIN-INV-03-PAYMENT-NOT-EXCEED-DISCOUNTED")).toBeInTheDocument();
+		expect(screen.getByText("a_month_accounting")).toBeInTheDocument();
 	});
 
 	it("closes on backdrop, close button, and Escape", async () => {

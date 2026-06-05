@@ -29,6 +29,7 @@ import type {
 	CopilotSignalSummary,
 	CopilotStreamEvent,
 	CopilotTrace,
+	CopilotTraceFinanceAudit,
 	CopilotTraceSource,
 } from "../types.ts";
 
@@ -207,6 +208,104 @@ function normalizeTraceSources(value: unknown): CopilotTraceSource[] | undefined
 	return sources.length > 0 ? sources : undefined;
 }
 
+function normalizeStringArray(value: unknown): string[] | undefined {
+	if (!Array.isArray(value)) {
+		return undefined;
+	}
+	const values = value
+		.map((item) => (typeof item === "string" ? item.trim() : ""))
+		.filter(Boolean);
+	return values.length > 0 ? values : undefined;
+}
+
+function normalizeFinanceAudit(value: unknown): CopilotTraceFinanceAudit | undefined {
+	const row = asObject(value);
+	if (!row) {
+		return undefined;
+	}
+	const oracleStatusRow = asObject(row.oracleStatus);
+	const oracleStatus = oracleStatusRow
+		? {
+				...(pickNonEmptyString(oracleStatusRow, "bindingId")
+					? { bindingId: pickNonEmptyString(oracleStatusRow, "bindingId") }
+					: {}),
+				...(pickNonEmptyString(oracleStatusRow, "reportName")
+					? { reportName: pickNonEmptyString(oracleStatusRow, "reportName") }
+					: {}),
+				...(pickNonEmptyString(oracleStatusRow, "oracleLevel")
+					? { oracleLevel: pickNonEmptyString(oracleStatusRow, "oracleLevel") }
+					: {}),
+				...(pickNonEmptyString(oracleStatusRow, "chain")
+					? { chain: pickNonEmptyString(oracleStatusRow, "chain") }
+					: {}),
+				...(typeof oracleStatusRow.covered === "boolean" ? { covered: oracleStatusRow.covered } : {}),
+				...(pickNonEmptyString(oracleStatusRow, "healthStatus")
+					? { healthStatus: pickNonEmptyString(oracleStatusRow, "healthStatus") }
+					: {}),
+				...(typeof oracleStatusRow.maxDifference === "number" || typeof oracleStatusRow.maxDifference === "string"
+					? { maxDifference: oracleStatusRow.maxDifference }
+					: {}),
+				...(pickNonEmptyString(oracleStatusRow, "failureMessage")
+					? { failureMessage: pickNonEmptyString(oracleStatusRow, "failureMessage") }
+					: {}),
+			}
+		: undefined;
+	const appliedRules = Array.isArray(row.appliedRules)
+		? row.appliedRules.flatMap((item) => {
+				const rule = asObject(item);
+				const ruleId = rule ? pickNonEmptyString(rule, "ruleId") : undefined;
+				if (!rule || !ruleId) {
+					return [];
+				}
+				return [{
+					ruleId,
+					...(pickNonEmptyString(rule, "description") ? { description: pickNonEmptyString(rule, "description") } : {}),
+					...(pickNonEmptyString(rule, "severity") ? { severity: pickNonEmptyString(rule, "severity") } : {}),
+					...(pickNonEmptyString(rule, "guardrailText") ? { guardrailText: pickNonEmptyString(rule, "guardrailText") } : {}),
+					...(normalizeStringArray(rule.appliesTo) ? { appliesTo: normalizeStringArray(rule.appliesTo) } : {}),
+				}];
+			})
+		: undefined;
+	const appliedInvariants = Array.isArray(row.appliedInvariants)
+		? row.appliedInvariants.flatMap((item) => {
+				const invariant = asObject(item);
+				const invariantId = invariant ? pickNonEmptyString(invariant, "invariantId") : undefined;
+				if (!invariant || !invariantId) {
+					return [];
+				}
+				return [{
+					invariantId,
+					...(pickNonEmptyString(invariant, "statement") ? { statement: pickNonEmptyString(invariant, "statement") } : {}),
+					...(pickNonEmptyString(invariant, "severity") ? { severity: pickNonEmptyString(invariant, "severity") } : {}),
+					...(normalizeStringArray(invariant.sourceRuleIds) ? { sourceRuleIds: normalizeStringArray(invariant.sourceRuleIds) } : {}),
+					...(normalizeStringArray(invariant.sourceRefs) ? { sourceRefs: normalizeStringArray(invariant.sourceRefs) } : {}),
+				}];
+			})
+		: undefined;
+	const lineage = Array.isArray(row.lineage)
+		? row.lineage.flatMap((item) => {
+				const node = asObject(item);
+				const name = node ? pickNonEmptyString(node, "name") : undefined;
+				if (!node || !name) {
+					return [];
+				}
+				return [{
+					name,
+					...(pickNonEmptyString(node, "level") ? { level: pickNonEmptyString(node, "level") } : {}),
+					...(pickNonEmptyString(node, "role") ? { role: pickNonEmptyString(node, "role") } : {}),
+					...(normalizeStringArray(node.refs) ? { refs: normalizeStringArray(node.refs) } : {}),
+				}];
+			})
+		: undefined;
+	const financeAudit: CopilotTraceFinanceAudit = {
+		...(oracleStatus && Object.keys(oracleStatus).length > 0 ? { oracleStatus } : {}),
+		...(appliedRules && appliedRules.length > 0 ? { appliedRules } : {}),
+		...(appliedInvariants && appliedInvariants.length > 0 ? { appliedInvariants } : {}),
+		...(lineage && lineage.length > 0 ? { lineage } : {}),
+	};
+	return Object.keys(financeAudit).length > 0 ? financeAudit : undefined;
+}
+
 function normalizeCopilotTrace(value: unknown): CopilotTrace | undefined {
 	const row = asObject(value);
 	if (!row) {
@@ -234,12 +333,14 @@ function normalizeCopilotTrace(value: unknown): CopilotTrace | undefined {
 		: undefined;
 	const sources = normalizeTraceSources(row.sources);
 	const sql = pickNonEmptyString(row, "sql");
+	const financeAudit = normalizeFinanceAudit(row.financeAudit);
 	const trace: CopilotTrace = {
 		...(metricCaliber && Object.keys(metricCaliber).length > 0
 			? { metricCaliber }
 			: {}),
 		...(sources ? { sources } : {}),
 		...(sql ? { sql } : {}),
+		...(financeAudit ? { financeAudit } : {}),
 	};
 	return Object.keys(trace).length > 0 ? trace : undefined;
 }

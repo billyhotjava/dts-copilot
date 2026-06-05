@@ -22,6 +22,16 @@ describe('aiChatCompatibility', () => {
 						version: 'v1',
 						ontologyRef: '29000000-0000-4000-8000-000000000029',
 					},
+					financeAudit: {
+						oracleStatus: {
+							bindingId: 'month-settlement',
+							healthStatus: 'PASS',
+							maxDifference: '0.00',
+						},
+						appliedRules: [
+							{ ruleId: 'CAL-MONTH-AMOUNT-TIER', description: 'amount tier' },
+						],
+					},
 				},
 			}),
 		).toMatchObject({
@@ -37,6 +47,16 @@ describe('aiChatCompatibility', () => {
 				metricCaliber: {
 					name: 'Sprint29 验证指标',
 					ontologyRef: '29000000-0000-4000-8000-000000000029',
+				},
+				financeAudit: {
+					oracleStatus: {
+						bindingId: 'month-settlement',
+						healthStatus: 'PASS',
+						maxDifference: '0.00',
+					},
+					appliedRules: [
+						{ ruleId: 'CAL-MONTH-AMOUNT-TIER', description: 'amount tier' },
+					],
 				},
 			},
 		})
