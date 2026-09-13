@@ -149,10 +149,11 @@ describe("useCopilotSessionState", () => {
 
 		await waitFor(() => {
 			expect(probe().state.messages).toHaveLength(2);
+			expect(probe().state.selectedDbId).toBe(9);
+			expect(sessionStorage.getItem(DATASOURCE_ID_KEY)).toBe("9");
 		});
 
 		expect(probe().state.sessionId).toBe("session-1");
-		expect(probe().state.selectedDbId).toBe(9);
 		expect(probe().state.messages.map((message) => message.id)).toEqual([
 			"user-1",
 			"assistant-1",
@@ -163,7 +164,6 @@ describe("useCopilotSessionState", () => {
 			suggestedDisplay: "table",
 		});
 		expect(sessionStorage.getItem(SESSION_ID_KEY)).toBe("session-1");
-		expect(sessionStorage.getItem(DATASOURCE_ID_KEY)).toBe("9");
 	});
 
 	it("sorts history sessions by last active time before exposing them to the spine", async () => {

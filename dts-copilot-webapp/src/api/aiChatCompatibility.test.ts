@@ -61,4 +61,34 @@ describe('aiChatCompatibility', () => {
 			},
 		})
 	})
+
+	it('accepts authorityStatus as the finance audit status contract', () => {
+		expect(
+			normalizeLegacyAiChatResponse({
+				sessionId: 'sess-1',
+				response: 'ok',
+				trace: {
+					financeAudit: {
+						authorityStatus: {
+							bindingId: 'month-settlement',
+							authorityLevel: 'L2 应用报表端点',
+							healthStatus: 'PASS',
+							maxDifference: '0.00',
+						},
+					},
+				},
+			}),
+		).toMatchObject({
+			trace: {
+				financeAudit: {
+					authorityStatus: {
+						bindingId: 'month-settlement',
+						authorityLevel: 'L2 应用报表端点',
+						healthStatus: 'PASS',
+						maxDifference: '0.00',
+					},
+				},
+			},
+		})
+	})
 })

@@ -21,6 +21,7 @@ import type {
 	AiAgentChatResponse,
 	AiAgentChatSession,
 	AiAgentChatSessionDetail,
+	CopilotAccuracyEvidence,
 	CopilotAssumption,
 	CopilotAssumptionOption,
 	CopilotClarification,
@@ -223,33 +224,10 @@ function normalizeFinanceAudit(value: unknown): CopilotTraceFinanceAudit | undef
 	if (!row) {
 		return undefined;
 	}
+	const authorityStatusRow = asObject(row.authorityStatus) ?? asObject(row.oracleStatus);
+	const authorityStatus = authorityStatusRow ? normalizeFinanceAuditStatus(authorityStatusRow) : undefined;
 	const oracleStatusRow = asObject(row.oracleStatus);
-	const oracleStatus = oracleStatusRow
-		? {
-				...(pickNonEmptyString(oracleStatusRow, "bindingId")
-					? { bindingId: pickNonEmptyString(oracleStatusRow, "bindingId") }
-					: {}),
-				...(pickNonEmptyString(oracleStatusRow, "reportName")
-					? { reportName: pickNonEmptyString(oracleStatusRow, "reportName") }
-					: {}),
-				...(pickNonEmptyString(oracleStatusRow, "oracleLevel")
-					? { oracleLevel: pickNonEmptyString(oracleStatusRow, "oracleLevel") }
-					: {}),
-				...(pickNonEmptyString(oracleStatusRow, "chain")
-					? { chain: pickNonEmptyString(oracleStatusRow, "chain") }
-					: {}),
-				...(typeof oracleStatusRow.covered === "boolean" ? { covered: oracleStatusRow.covered } : {}),
-				...(pickNonEmptyString(oracleStatusRow, "healthStatus")
-					? { healthStatus: pickNonEmptyString(oracleStatusRow, "healthStatus") }
-					: {}),
-				...(typeof oracleStatusRow.maxDifference === "number" || typeof oracleStatusRow.maxDifference === "string"
-					? { maxDifference: oracleStatusRow.maxDifference }
-					: {}),
-				...(pickNonEmptyString(oracleStatusRow, "failureMessage")
-					? { failureMessage: pickNonEmptyString(oracleStatusRow, "failureMessage") }
-					: {}),
-			}
-		: undefined;
+	const oracleStatus = oracleStatusRow ? normalizeFinanceAuditStatus(oracleStatusRow) : undefined;
 	const appliedRules = Array.isArray(row.appliedRules)
 		? row.appliedRules.flatMap((item) => {
 				const rule = asObject(item);
@@ -298,12 +276,74 @@ function normalizeFinanceAudit(value: unknown): CopilotTraceFinanceAudit | undef
 			})
 		: undefined;
 	const financeAudit: CopilotTraceFinanceAudit = {
+		...(authorityStatus && Object.keys(authorityStatus).length > 0 ? { authorityStatus } : {}),
 		...(oracleStatus && Object.keys(oracleStatus).length > 0 ? { oracleStatus } : {}),
 		...(appliedRules && appliedRules.length > 0 ? { appliedRules } : {}),
 		...(appliedInvariants && appliedInvariants.length > 0 ? { appliedInvariants } : {}),
 		...(lineage && lineage.length > 0 ? { lineage } : {}),
 	};
 	return Object.keys(financeAudit).length > 0 ? financeAudit : undefined;
+}
+
+function normalizeFinanceAuditStatus(
+	statusRow: Record<string, unknown>,
+): CopilotTraceFinanceAudit["authorityStatus"] {
+	const authorityLevel = pickNonEmptyString(statusRow, "authorityLevel")
+		?? pickNonEmptyString(statusRow, "oracleLevel");
+	return {
+		...(pickNonEmptyString(statusRow, "bindingId")
+			? { bindingId: pickNonEmptyString(statusRow, "bindingId") }
+			: {}),
+		...(pickNonEmptyString(statusRow, "reportName")
+			? { reportName: pickNonEmptyString(statusRow, "reportName") }
+			: {}),
+		...(authorityLevel ? { authorityLevel } : {}),
+		...(pickNonEmptyString(statusRow, "chain")
+			? { chain: pickNonEmptyString(statusRow, "chain") }
+			: {}),
+		...(typeof statusRow.covered === "boolean" ? { covered: statusRow.covered } : {}),
+		...(pickNonEmptyString(statusRow, "healthStatus")
+			? { healthStatus: pickNonEmptyString(statusRow, "healthStatus") }
+			: {}),
+		...(typeof statusRow.maxDifference === "number" || typeof statusRow.maxDifference === "string"
+			? { maxDifference: statusRow.maxDifference }
+			: {}),
+		...(pickNonEmptyString(statusRow, "failureMessage")
+			? { failureMessage: pickNonEmptyString(statusRow, "failureMessage") }
+			: {}),
+	};
+}
+
+function normalizeAccuracyEvidence(value: unknown): CopilotAccuracyEvidence | undefined {
+	const row = asObject(value);
+	if (!row) {
+		return undefined;
+	}
+	const grade = pickNonEmptyString(row, "grade");
+	const score = pickFiniteNumber(row.score);
+	const reasons = normalizeStringArrayPreservingEmpty(row.reasons);
+	const warnings = normalizeStringArrayPreservingEmpty(row.warnings);
+	const evidence: CopilotAccuracyEvidence = {
+		...(grade ? { grade } : {}),
+		...(score !== undefined ? { score } : {}),
+		...(reasons !== undefined ? { reasons } : {}),
+		...(warnings !== undefined ? { warnings } : {}),
+		...(asObject(row.intent) ? { intent: asObject(row.intent) as Record<string, unknown> } : {}),
+		...(asObject(row.route) ? { route: asObject(row.route) as Record<string, unknown> } : {}),
+		...(asObject(row.sql) ? { sql: asObject(row.sql) as Record<string, unknown> } : {}),
+		...(asObject(row.data) ? { data: asObject(row.data) as Record<string, unknown> } : {}),
+		...(asObject(row.tieout) ? { tieout: asObject(row.tieout) as Record<string, unknown> } : {}),
+	};
+	return Object.keys(evidence).length > 0 ? evidence : undefined;
+}
+
+function normalizeStringArrayPreservingEmpty(value: unknown): string[] | undefined {
+	if (!Array.isArray(value)) {
+		return undefined;
+	}
+	return value
+		.map((item) => (typeof item === "string" ? item.trim() : ""))
+		.filter(Boolean);
 }
 
 function normalizeCopilotTrace(value: unknown): CopilotTrace | undefined {
@@ -334,6 +374,7 @@ function normalizeCopilotTrace(value: unknown): CopilotTrace | undefined {
 	const sources = normalizeTraceSources(row.sources);
 	const sql = pickNonEmptyString(row, "sql");
 	const financeAudit = normalizeFinanceAudit(row.financeAudit);
+	const accuracyEvidence = normalizeAccuracyEvidence(row.accuracyEvidence);
 	const trace: CopilotTrace = {
 		...(metricCaliber && Object.keys(metricCaliber).length > 0
 			? { metricCaliber }
@@ -341,6 +382,7 @@ function normalizeCopilotTrace(value: unknown): CopilotTrace | undefined {
 		...(sources ? { sources } : {}),
 		...(sql ? { sql } : {}),
 		...(financeAudit ? { financeAudit } : {}),
+		...(accuracyEvidence ? { accuracyEvidence } : {}),
 	};
 	return Object.keys(trace).length > 0 ? trace : undefined;
 }
@@ -406,6 +448,10 @@ export function normalizeCopilotDoneStreamEvent(
 	if (trace) {
 		event.trace = trace;
 	}
+	const accuracyEvidence = normalizeAccuracyEvidence(parsed.accuracyEvidence) ?? trace?.accuracyEvidence;
+	if (accuracyEvidence) {
+		event.accuracyEvidence = accuracyEvidence;
+	}
 	return event;
 }
 
@@ -413,6 +459,7 @@ async function sendAiAgentChatViaSessionProxy(body: {
 	sessionId?: string;
 	userMessage: string;
 	datasourceId?: string;
+	freshness?: Record<string, string>;
 	clarificationAnswers?: Record<string, string>;
 	assumptionOverrides?: Record<string, string>;
 }): Promise<AiAgentChatResponse> {
@@ -420,6 +467,7 @@ async function sendAiAgentChatViaSessionProxy(body: {
 		sessionId: body.sessionId,
 		userMessage: body.userMessage,
 		datasourceId: body.datasourceId,
+		freshness: body.freshness,
 		clarificationAnswers: body.clarificationAnswers,
 		assumptionOverrides: body.assumptionOverrides,
 	});
@@ -448,6 +496,7 @@ async function sendAiAgentChatCompat(body: {
 	sessionId?: string;
 	userMessage: string;
 	datasourceId?: string;
+	freshness?: Record<string, string>;
 	clarificationAnswers?: Record<string, string>;
 	assumptionOverrides?: Record<string, string>;
 }): Promise<AiAgentChatResponse> {
@@ -465,6 +514,7 @@ async function sendAiAgentChatCompat(body: {
 			sessionId: body.sessionId,
 			userId: resolveLegacyAiUserId(),
 			message: body.userMessage,
+			freshness: body.freshness,
 			clarificationAnswers: body.clarificationAnswers,
 			assumptionOverrides: body.assumptionOverrides,
 		};
@@ -534,6 +584,7 @@ export const copilotApi = {
 		sessionId?: string;
 		userMessage: string;
 		datasourceId?: string;
+		freshness?: Record<string, string>;
 		schemaName?: string;
 		objectContext?: {
 			typeId?: string;
@@ -631,6 +682,7 @@ export async function aiAgentChatSendStream(
 		sessionId?: string;
 		userMessage: string;
 		datasourceId?: string;
+		freshness?: Record<string, string>;
 		clarificationAnswers?: Record<string, string>;
 		assumptionOverrides?: Record<string, string>;
 	},
@@ -676,9 +728,15 @@ export async function aiAgentChatSendStream(
 				case "done":
 					onEvent(normalizeCopilotDoneStreamEvent(parsed));
 					break;
-				case "error":
-					onEvent({ type: "error", error: parsed.error });
+				case "error": {
+					const accuracyEvidence = normalizeAccuracyEvidence(parsed.accuracyEvidence);
+					onEvent({
+						type: "error",
+						error: parsed.error,
+						...(accuracyEvidence ? { accuracyEvidence } : {}),
+					});
 					break;
+				}
 			}
 		} catch {
 			// ignore malformed events

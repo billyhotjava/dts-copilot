@@ -3,119 +3,44 @@ import './auth.css'
 
 const basePath = import.meta.env.VITE_BASE_PATH?.replace(/\/$/, '') || ''
 
-const safetyChips = [
-	'Schema 感知',
-	'权限约束',
-	'SQL 安全校验',
-]
+const agentSteps = [
+	{ label: '理解任务意图', state: 'done' },
+	{ label: '规划执行步骤', state: 'done' },
+	{ label: '调用工具与数据', state: 'done' },
+	{ label: '生成工作成果', state: 'active' },
+] as const
 
-const sqlLines = [
-	'SELECT region, SUM(order_amount) AS revenue',
-	'FROM sales_orders',
-	"WHERE order_date >= CURRENT_DATE - INTERVAL '30 days'",
-	'GROUP BY region',
-	'ORDER BY revenue DESC',
-]
+const agentHighlights = ['任务规划', '工具调用', '数据分析', '成果交付']
 
-const resultRows = [
-	{ name: '华东', count: '128.6w' },
-	{ name: '华南', count: '96.4w' },
-	{ name: '华北', count: '74.8w' },
-]
-
-const capabilityCards = [
-	{
-		title: 'NL2SQL 智能生成',
-		description: '自然语言问题自动转成可执行 SQL。',
-	},
-	{
-		title: '多数据源分析',
-		description: '统一接入多类数据源，保持同一分析入口。',
-	},
-	{
-		title: 'AI 对话与可视化',
-		description: '从提问到结果表格与图表输出一体完成。',
-	},
-]
-
-function AnalysisChainShowcase() {
+function AgentShowcase() {
 	return (
-		<div className="analysis-chain" aria-hidden="true">
-			<span className="analysis-chain__halo analysis-chain__halo--primary" />
-			<span className="analysis-chain__halo analysis-chain__halo--secondary" />
+		<div className="agent-demo" aria-hidden="true">
+			<span className="agent-demo__halo agent-demo__halo--primary" />
+			<span className="agent-demo__halo agent-demo__halo--secondary" />
 
-			<div className="analysis-flow">
-				<article className="analysis-node analysis-node--prompt">
-					<div className="analysis-node__step">01</div>
-					<div className="analysis-node__eyebrow">PROMPT</div>
-					<div className="analysis-node__title">自然语言提问</div>
-					<div className="analysis-node__bubble">
-						最近30天各区域销售额排名
-					</div>
-					<div className="analysis-node__meta">用户只描述问题，不需要手写 SQL。</div>
-				</article>
+			<div className="agent-demo__bubble">
+				整理本周各区域的销售情况，生成一份工作汇报
+			</div>
 
-				<div className="analysis-flow__beam analysis-flow__beam--1">
-					<span className="analysis-flow__pulse" />
+			<div className="agent-demo__card">
+				<div className="agent-demo__card-head">
+					<span className="agent-demo__avatar" />
+					<span className="agent-demo__name">DTS Agent</span>
+					<span className="agent-demo__status">执行中</span>
 				</div>
-
-				<article className="analysis-node analysis-node--guard">
-					<div className="analysis-node__step">02</div>
-					<div className="analysis-node__eyebrow">GUARD</div>
-					<div className="analysis-node__title">Schema 感知与 SQL 安全校验</div>
-					<div className="analysis-node__chips">
-						{safetyChips.map((chip) => (
-							<span key={chip} className="analysis-chip">
-								{chip}
-							</span>
-						))}
-					</div>
-					<div className="analysis-node__meta">自动识别字段、表结构与访问边界。</div>
-				</article>
-
-				<div className="analysis-flow__beam analysis-flow__beam--2">
-					<span className="analysis-flow__pulse" />
-				</div>
-
-				<article className="analysis-node analysis-node--sql">
-					<div className="analysis-node__step">03</div>
-					<div className="analysis-node__eyebrow">SQL</div>
-					<div className="analysis-node__title">生成 SQL</div>
-					<pre className="analysis-node__code">
-						{sqlLines.map((line) => (
-							<div key={line}>{line}</div>
-						))}
-					</pre>
-				</article>
-
-				<div className="analysis-flow__beam analysis-flow__beam--3">
-					<span className="analysis-flow__pulse" />
-				</div>
-
-				<article className="analysis-node analysis-node--result">
-					<div className="analysis-node__step">04</div>
-					<div className="analysis-node__eyebrow">RESULT</div>
-					<div className="analysis-node__title">结果表格 / 图表输出</div>
-					<div className="analysis-result">
-						<div className="analysis-table">
-							<div className="analysis-table__head">
-								<span>区域</span>
-								<span>销售额</span>
-							</div>
-							{resultRows.map((row) => (
-								<div key={row.name} className="analysis-table__row">
-									<span>{row.name}</span>
-									<span>{row.count}</span>
-								</div>
-							))}
-						</div>
-						<div className="analysis-chart">
-							<span className="analysis-chart__bar analysis-chart__bar--1" />
-							<span className="analysis-chart__bar analysis-chart__bar--2" />
-							<span className="analysis-chart__bar analysis-chart__bar--3" />
-						</div>
-					</div>
-				</article>
+				<ul className="agent-demo__steps">
+					{agentSteps.map((step, index) => (
+						<li
+							key={step.label}
+							className={`agent-demo__step agent-demo__step--${step.state}`}
+							style={{ animationDelay: `${0.4 + index * 0.5}s` }}
+						>
+							<span className="agent-demo__step-mark" />
+							<span>{step.label}</span>
+						</li>
+					))}
+				</ul>
+				<div className="agent-demo__result">汇报已生成，可在工作台查看与分发</div>
 			</div>
 		</div>
 	)
@@ -173,41 +98,36 @@ export default function LoginPage() {
 			<div className="login-layout">
 				<header className="login-layout__header">
 					<div className="login-layout__heading">
-						<div className="login-layout__title">DTS 智能数据分析助手</div>
-						<div className="login-layout__subtitle">AI-Native 智能数据分析平台</div>
+						<div className="login-layout__title">DTS 智能体工作助手</div>
+						<div className="login-layout__subtitle">AI-Native 智能体工作平台</div>
 					</div>
 				</header>
 
 				<div className="login-layout__body">
-					<section className="dashboard-stage" aria-label="NL2SQL 封面">
+					<section className="dashboard-stage" aria-label="智能体工作助手介绍">
 						<div className="dashboard-surface dashboard-surface--showcase">
 							<div className="showcase-header">
-								<span className="showcase-header__eyebrow">NL2SQL COPILOT</span>
+								<span className="showcase-header__eyebrow">AI Agent Workspace</span>
 								<h1 className="showcase-header__title">
-									自然语言提问，
+									把任务交给智能体，
 									<br />
-									直接生成安全 SQL 与分析结果
+									自动规划、执行、交付
 								</h1>
 								<p className="showcase-header__subtitle">
-									从问题、Schema 理解到安全 SQL 与结果呈现，形成一条可解释的智能分析链。
+									一句话描述工作目标，智能体理解意图、调度工具、完成任务并交付成果。
 								</p>
 							</div>
 
-							<AnalysisChainShowcase />
+							<AgentShowcase />
 
-							<div className="showcase-capabilities" aria-label="平台能力">
-								{capabilityCards.map((card) => (
-									<article key={card.title} className="showcase-capability-card">
-										<div className="showcase-capability-card__title">{card.title}</div>
-										<div className="showcase-capability-card__description">
-											{card.description}
-										</div>
-									</article>
+							<div className="showcase-highlights" aria-label="平台能力">
+								{agentHighlights.map((item) => (
+									<span key={item} className="showcase-highlight">
+										{item}
+									</span>
 								))}
 							</div>
 						</div>
-
-						<p className="dashboard-caption">让问题沿分析链直接抵达结果</p>
 					</section>
 
 					<aside className="login-side-panel" aria-label="登录区域">
@@ -215,7 +135,7 @@ export default function LoginPage() {
 							<div className="login-side-panel__intro">
 								<span className="login-side-panel__eyebrow">Copilot 登录</span>
 								<h1 className="login-title">欢迎登录</h1>
-								<p className="login-subtitle">进入 DTS 智能数据分析助手</p>
+								<p className="login-subtitle">进入 DTS 智能体工作助手</p>
 							</div>
 
 							{error && <div className="auth-error auth-error--dashboard">{error}</div>}

@@ -99,7 +99,10 @@ export function MessageList({
 				const fixedReportShortcut = getFixedReportShortcut(msg);
 				const fixedReportCandidates = getFixedReportCandidates(msg);
 				const generatedReportNotice = getGeneratedReportDraftNotice(msg);
-				const platformIndicatorBadge = getPlatformIndicatorBadge(msg);
+				const lowTrustNotice = getLowTrustNotice(msg);
+				const platformIndicatorBadge = lowTrustNotice
+					? null
+					: getPlatformIndicatorBadge(msg);
 				const suggestedDisplay = extractedSql
 					? inferGeneratedReportSuggestedDisplay({
 							message: msg,
@@ -175,6 +178,26 @@ export function MessageList({
 									<span>{platformIndicatorBadge.name}</span>
 									{platformIndicatorBadge.version ? (
 										<span>口径 {platformIndicatorBadge.version}</span>
+									) : null}
+								</div>
+							) : null}
+							{lowTrustNotice ? (
+								<div
+									className={`copilot-chat__low-trust copilot-chat__low-trust--${lowTrustNotice.grade.toLowerCase()}`}
+								>
+									<div className="copilot-chat__low-trust-head">
+										<span>可信度不足</span>
+										<span>{lowTrustNotice.statusText}</span>
+									</div>
+									<div className="copilot-chat__low-trust-body">
+										{lowTrustNotice.guidance}
+									</div>
+									{lowTrustNotice.items.length > 0 ? (
+										<div className="copilot-chat__low-trust-list">
+											{lowTrustNotice.items.map((item) => (
+												<span key={item}>{item}</span>
+											))}
+										</div>
 									) : null}
 								</div>
 							) : null}
@@ -265,10 +288,11 @@ export function MessageList({
 						)}
 						{!showClarifications &&
 							msg.role === "assistant" &&
-							msg.responseKind === "PUBLISHED_INDICATOR" && (
+							msg.responseKind === "PUBLISHED_INDICATOR" &&
+							!lowTrustNotice?.blocksResult && (
 								<InlineIndicatorPreview message={msg} />
 							)}
-						{!showClarifications && extractedSql && (
+						{!showClarifications && extractedSql && !lowTrustNotice?.blocksResult && (
 							<InlineSqlPreview
 								sql={extractedSql}
 								databaseId={previewDatabaseId ?? undefined}
@@ -303,6 +327,39 @@ export function MessageList({
 			{children}
 		</div>
 	);
+}
+
+type LowTrustNotice = {
+	blocksResult: boolean;
+	grade: "LOW" | "UNTRUSTED";
+	guidance: string;
+	items: string[];
+	statusText: string;
+};
+
+function getLowTrustNotice(message: AiAgentChatMessage): LowTrustNotice | null {
+	if (message.role !== "assistant") {
+		return null;
+	}
+	const evidence = message.accuracyEvidence ?? message.trace?.accuracyEvidence;
+	const grade = String(evidence?.grade ?? "").trim().toUpperCase();
+	if (grade !== "LOW" && grade !== "UNTRUSTED") {
+		return null;
+	}
+	const items = [...(evidence?.warnings ?? []), ...(evidence?.reasons ?? [])]
+		.map((item) => String(item ?? "").trim())
+		.filter(Boolean)
+		.slice(0, 4);
+	const blocksResult = grade === "UNTRUSTED";
+	return {
+		blocksResult,
+		grade,
+		guidance: blocksResult
+			? "证据不足或路径不可信，当前回答不作为统计结论。请先执行入湖、dbt 构建或补齐对账证据。"
+			: "当前只适合作为探索结果。建议补充条件、构建 ADS 或执行对账后再用于经营判断。",
+		items,
+		statusText: blocksResult ? "不作为统计结论" : "仅供探索参考",
+	};
 }
 
 function getPlatformIndicatorBadge(

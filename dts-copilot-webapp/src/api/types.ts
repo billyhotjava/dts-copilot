@@ -300,6 +300,7 @@ export type CopilotTraceFinanceAuditLineageNode = {
 export type CopilotTraceFinanceAuditOracleStatus = {
 	bindingId?: string;
 	reportName?: string;
+	authorityLevel?: string;
 	oracleLevel?: string;
 	chain?: string;
 	covered?: boolean;
@@ -309,10 +310,25 @@ export type CopilotTraceFinanceAuditOracleStatus = {
 };
 
 export type CopilotTraceFinanceAudit = {
+	authorityStatus?: CopilotTraceFinanceAuditOracleStatus;
 	oracleStatus?: CopilotTraceFinanceAuditOracleStatus;
 	appliedRules?: CopilotTraceFinanceAuditRule[];
 	appliedInvariants?: CopilotTraceFinanceAuditInvariant[];
 	lineage?: CopilotTraceFinanceAuditLineageNode[];
+};
+
+export type CopilotAccuracyGrade = "HIGH" | "MEDIUM" | "LOW" | "UNTRUSTED" | string;
+
+export type CopilotAccuracyEvidence = {
+	grade?: CopilotAccuracyGrade;
+	score?: number;
+	reasons?: string[];
+	warnings?: string[];
+	intent?: Record<string, unknown>;
+	route?: Record<string, unknown>;
+	sql?: Record<string, unknown>;
+	data?: Record<string, unknown>;
+	tieout?: Record<string, unknown>;
 };
 
 export type CopilotTrace = {
@@ -320,6 +336,7 @@ export type CopilotTrace = {
 	sources?: CopilotTraceSource[];
 	sql?: string;
 	financeAudit?: CopilotTraceFinanceAudit;
+	accuracyEvidence?: CopilotAccuracyEvidence;
 };
 
 export type AiAgentChatResponse = {
@@ -333,6 +350,7 @@ export type AiAgentChatResponse = {
 	confidence?: number;
 	clarifications?: CopilotClarification[];
 	trace?: CopilotTrace;
+	accuracyEvidence?: CopilotAccuracyEvidence;
 };
 
 export type AiAgentChatSession = {
@@ -370,6 +388,7 @@ export type AiAgentChatMessage = {
 	confidence?: number;
 	clarifications?: CopilotClarification[];
 	trace?: CopilotTrace;
+	accuracyEvidence?: CopilotAccuracyEvidence;
 	clarificationAnswered?: boolean;
 	assumptionRecomputing?: boolean;
 	analysisDraftId?: number | string;
@@ -1559,5 +1578,6 @@ export type CopilotStreamEvent =
 		confidence?: number;
 		clarifications?: CopilotClarification[];
 		trace?: CopilotTrace;
+		accuracyEvidence?: CopilotAccuracyEvidence;
 	}
-	| { type: "error"; error: string };
+	| { type: "error"; error: string; accuracyEvidence?: CopilotAccuracyEvidence };

@@ -25,6 +25,8 @@ export type {
 	MicroFormSchema,
 	CopilotAssumption,
 	CopilotAssumptionOption,
+	CopilotAccuracyEvidence,
+	CopilotAccuracyGrade,
 	CopilotClarification,
 	CopilotClarificationOption,
 	CopilotTrace,

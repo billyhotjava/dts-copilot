@@ -147,13 +147,51 @@ export function TracePanel({
 					<pre className="trace-panel__json">{traceModel.sql || "暂无生成 SQL"}</pre>
 				</details>
 
+				{traceModel.accuracyEvidence ? (
+					<section className="trace-panel__section">
+						<div className="trace-panel__section-label">准确性证据</div>
+						<div className="trace-panel__evidence">
+							<div className={`trace-panel__evidence-grade trace-panel__evidence-grade--${String(traceModel.accuracyEvidence.grade ?? "unknown").toLowerCase()}`}>
+								{formatAccuracyGrade(traceModel.accuracyEvidence)}
+							</div>
+							{formatTieoutStatus(traceModel.accuracyEvidence) ? (
+								<div className="trace-panel__evidence-tieout">
+									{formatTieoutStatus(traceModel.accuracyEvidence)}
+								</div>
+							) : null}
+							{traceModel.accuracyEvidence.reasons?.length ? (
+								<div className="trace-panel__evidence-group">
+									<div className="trace-panel__audit-group-label">原因</div>
+									<div className="trace-panel__evidence-list">
+										{traceModel.accuracyEvidence.reasons.map((reason) => (
+											<span key={reason}>{reason}</span>
+										))}
+									</div>
+								</div>
+							) : null}
+							{traceModel.accuracyEvidence.warnings?.length ? (
+								<div className="trace-panel__evidence-group">
+									<div className="trace-panel__audit-group-label">告警</div>
+									<div className="trace-panel__evidence-list trace-panel__evidence-list--warning">
+										{traceModel.accuracyEvidence.warnings.map((warning) => (
+											<span key={warning}>{warning}</span>
+										))}
+									</div>
+								</div>
+							) : null}
+						</div>
+					</section>
+				) : null}
+
 				{traceModel.financeAudit ? (
 					<section className="trace-panel__section">
 						<div className="trace-panel__section-label">财务审计</div>
 						<div className="trace-panel__audit">
-							{traceModel.financeAudit.oracleStatus ? (
+							{traceModel.financeAudit.authorityStatus || traceModel.financeAudit.oracleStatus ? (
 								<div className="trace-panel__audit-status">
-									{formatOracleStatus(traceModel.financeAudit.oracleStatus)}
+									{formatOracleStatus(
+										traceModel.financeAudit.authorityStatus ?? traceModel.financeAudit.oracleStatus,
+									)}
 								</div>
 							) : null}
 							{traceModel.financeAudit.appliedRules?.length ? (
@@ -336,11 +374,26 @@ function buildTraceModel(message: AiAgentChatMessage | null) {
 		sources: structuredSources.length > 0 ? structuredSources : fallbackSources,
 		sql: message?.trace?.sql ?? message?.generatedSql ?? "",
 		financeAudit: message?.trace?.financeAudit,
+		accuracyEvidence: message?.accuracyEvidence ?? message?.trace?.accuracyEvidence,
 	};
 }
 
+function formatAccuracyGrade(
+	evidence: NonNullable<AiAgentChatMessage["accuracyEvidence"]>,
+): string {
+	const grade = evidence.grade || "UNKNOWN";
+	return typeof evidence.score === "number" ? `${grade} · ${evidence.score.toFixed(2)}` : grade;
+}
+
+function formatTieoutStatus(
+	evidence: NonNullable<AiAgentChatMessage["accuracyEvidence"]>,
+): string | null {
+	const status = evidence.tieout?.status;
+	return typeof status === "string" && status.trim() ? `Tie-out ${status.trim()}` : null;
+}
+
 function formatOracleStatus(
-	oracleStatus: NonNullable<NonNullable<AiAgentChatMessage["trace"]>["financeAudit"]>["oracleStatus"],
+	oracleStatus: NonNullable<NonNullable<AiAgentChatMessage["trace"]>["financeAudit"]>["authorityStatus"],
 ): string {
 	const status = oracleStatus?.healthStatus || "UNKNOWN";
 	const difference = oracleStatus?.maxDifference ?? "0.00";

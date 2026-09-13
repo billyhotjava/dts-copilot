@@ -93,6 +93,36 @@ describe("MessageList platform indicator badge", () => {
 		expect(screen.queryByText("来自平台指标")).not.toBeInTheDocument();
 	});
 
+	it("downgrades untrusted L0 profile answers instead of presenting them as platform indicators", async () => {
+		renderMessages([
+			{
+				content: "I encountered an error during processing: java.lang.InterruptedException",
+				id: "assistant-1",
+				role: "assistant",
+				sequenceNum: 1,
+				sessionId: "session-1",
+				dataSurface: "L0_BUSINESS_OBJECT_PROFILE",
+				trace: {
+					metricCaliber: {
+						name: "凭证画像",
+						version: "L0_BUSINESS_OBJECT_PROFILE",
+						ontologyRef: "prs.finance.voucher.profile",
+					},
+				},
+				accuracyEvidence: {
+					grade: "UNTRUSTED",
+					reasons: ["L0_BUSINESS_OBJECT_PROFILE", "java.lang.InterruptedException"],
+					warnings: ["请先执行入湖或 dbt 构建，再查看统计结果"],
+				},
+			},
+		]);
+
+		expect(await screen.findByText("可信度不足")).toBeInTheDocument();
+		expect(screen.queryByText("来自平台指标")).not.toBeInTheDocument();
+		expect(screen.getByText("不作为统计结论")).toBeInTheDocument();
+		expect(screen.getByText("请先执行入湖或 dbt 构建，再查看统计结果")).toBeInTheDocument();
+	});
+
 	it("renders published indicator values inline in the single conversation window", async () => {
 		renderMessages([
 			{

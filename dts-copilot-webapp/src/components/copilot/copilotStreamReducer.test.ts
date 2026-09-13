@@ -118,6 +118,18 @@ describe("reduceCopilotStreamMessages", () => {
 						{ table: "xycyl_dws_profit", fields: ["revenue", "cost"] },
 					],
 					sql: "select revenue - cost from mart",
+					accuracyEvidence: {
+						grade: "MEDIUM",
+						score: 0.78,
+						reasons: ["ADS"],
+						warnings: ["缺少对账证据"],
+					},
+				},
+				accuracyEvidence: {
+					grade: "MEDIUM",
+					score: 0.78,
+					reasons: ["ADS"],
+					warnings: ["缺少对账证据"],
 				},
 			},
 			{
@@ -170,6 +182,18 @@ describe("reduceCopilotStreamMessages", () => {
 					{ table: "xycyl_dws_profit", fields: ["revenue", "cost"] },
 				],
 				sql: "select revenue - cost from mart",
+				accuracyEvidence: {
+					grade: "MEDIUM",
+					score: 0.78,
+					reasons: ["ADS"],
+					warnings: ["缺少对账证据"],
+				},
+			},
+			accuracyEvidence: {
+				grade: "MEDIUM",
+				score: 0.78,
+				reasons: ["ADS"],
+				warnings: ["缺少对账证据"],
 			},
 		});
 	});
@@ -177,7 +201,16 @@ describe("reduceCopilotStreamMessages", () => {
 	it("renders stream errors as assistant content and clears pending reasoning", () => {
 		const messages = reduceCopilotStreamMessages(
 			[assistantMessage()],
-			{ type: "error", error: "模型不可用" },
+			{
+				type: "error",
+				error: "模型不可用",
+				accuracyEvidence: {
+					grade: "UNTRUSTED",
+					score: 0.2,
+					reasons: ["执行异常"],
+					warnings: ["模型不可用"],
+				},
+			},
 			{
 				assistantId,
 				streamedContent: "",
@@ -188,6 +221,12 @@ describe("reduceCopilotStreamMessages", () => {
 		expect(messages[0]).toMatchObject({
 			content: "模型不可用",
 			reasoningContent: undefined,
+			accuracyEvidence: {
+				grade: "UNTRUSTED",
+				score: 0.2,
+				reasons: ["执行异常"],
+				warnings: ["模型不可用"],
+			},
 		});
 	});
 });

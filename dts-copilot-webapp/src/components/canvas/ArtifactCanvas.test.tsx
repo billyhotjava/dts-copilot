@@ -155,11 +155,17 @@ describe("ArtifactCanvas", () => {
 			/>,
 		);
 
-		fireEvent.change(await screen.findByLabelText("下钻维度"), {
+		const dimensionSelect = await screen.findByLabelText("下钻维度");
+		const periodInput = screen.getByLabelText("下钻周期");
+		fireEvent.change(dimensionSelect, {
 			target: { value: "customer_id" },
 		});
-		fireEvent.change(screen.getByLabelText("下钻周期"), {
+		fireEvent.change(periodInput, {
 			target: { value: "2026-05" },
+		});
+		await waitFor(() => {
+			expect(dimensionSelect).toHaveValue("customer_id");
+			expect(periodInput).toHaveValue("2026-05");
 		});
 		fireEvent.click(screen.getByRole("button", { name: "下钻" }));
 

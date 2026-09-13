@@ -37,6 +37,13 @@ describe("normalizeCopilotDoneStreamEvent", () => {
 						{ table: "xycyl_dws_profit", fields: ["revenue", "cost"] },
 					],
 					sql: "select revenue - cost from mart",
+					accuracyEvidence: {
+						grade: "HIGH",
+						score: 0.92,
+						reasons: ["ADS", "对账通过"],
+						warnings: [],
+						tieout: { status: "PASS" },
+					},
 					financeAudit: {
 						oracleStatus: {
 							bindingId: "month-settlement",
@@ -50,8 +57,15 @@ describe("normalizeCopilotDoneStreamEvent", () => {
 							{ level: "SOURCE_TABLE", name: "a_month_accounting", role: "adminapi-source" },
 						],
 					},
-				},
-			}),
+					},
+					accuracyEvidence: {
+						grade: "HIGH",
+						score: 0.92,
+						reasons: ["ADS", "对账通过"],
+						warnings: [],
+						tieout: { status: "PASS" },
+					},
+				}),
 		).toMatchObject({
 			type: "done",
 			generatedSql: "select revenue from mart",
@@ -86,6 +100,13 @@ describe("normalizeCopilotDoneStreamEvent", () => {
 					{ table: "xycyl_dws_profit", fields: ["revenue", "cost"] },
 				],
 				sql: "select revenue - cost from mart",
+				accuracyEvidence: {
+					grade: "HIGH",
+					score: 0.92,
+					reasons: ["ADS", "对账通过"],
+					warnings: [],
+					tieout: { status: "PASS" },
+				},
 				financeAudit: {
 					oracleStatus: {
 						bindingId: "month-settlement",
@@ -99,8 +120,15 @@ describe("normalizeCopilotDoneStreamEvent", () => {
 						{ level: "SOURCE_TABLE", name: "a_month_accounting", role: "adminapi-source" },
 					],
 				},
-			},
-		});
+				},
+				accuracyEvidence: {
+					grade: "HIGH",
+					score: 0.92,
+					reasons: ["ADS", "对账通过"],
+					warnings: [],
+					tieout: { status: "PASS" },
+				},
+			});
 	});
 
 	it("keeps zero confidence and ignores malformed assumptions", () => {
@@ -112,6 +140,34 @@ describe("normalizeCopilotDoneStreamEvent", () => {
 		).toEqual({
 			type: "done",
 			confidence: 0,
+		});
+	});
+
+	it("accepts authorityStatus as the finance audit status contract", () => {
+		expect(
+			normalizeCopilotDoneStreamEvent({
+				trace: {
+					financeAudit: {
+						authorityStatus: {
+							bindingId: "month-settlement",
+							authorityLevel: "L2 应用报表端点",
+							healthStatus: "PASS",
+							maxDifference: "0.00",
+						},
+					},
+				},
+			}),
+		).toMatchObject({
+			trace: {
+				financeAudit: {
+					authorityStatus: {
+						bindingId: "month-settlement",
+						authorityLevel: "L2 应用报表端点",
+						healthStatus: "PASS",
+						maxDifference: "0.00",
+					},
+				},
+			},
 		});
 	});
 });

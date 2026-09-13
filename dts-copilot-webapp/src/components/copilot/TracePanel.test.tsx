@@ -86,6 +86,34 @@ const financeAuditMessage: AiAgentChatMessage = {
 	},
 };
 
+const accuracyEvidenceMessage: AiAgentChatMessage = {
+	content: "凭证统计已生成",
+	generatedSql: "select account_period, voucher_count from public.xycyl_ads_finance_voucher_monthly",
+	id: "assistant-accuracy",
+	role: "assistant",
+	sessionId: "session-1",
+	trace: {
+		sources: [
+			{ table: "public.xycyl_ads_finance_voucher_monthly", role: "ADS" },
+		],
+		sql: "select account_period, voucher_count from public.xycyl_ads_finance_voucher_monthly",
+		accuracyEvidence: {
+			grade: "HIGH",
+			score: 0.92,
+			reasons: ["命中受控模板 TPL-57", "财务对账通过"],
+			warnings: [],
+			tieout: { status: "PASS" },
+		},
+	},
+	accuracyEvidence: {
+		grade: "HIGH",
+		score: 0.92,
+		reasons: ["命中受控模板 TPL-57", "财务对账通过"],
+		warnings: [],
+		tieout: { status: "PASS" },
+	},
+};
+
 vi.mock("../../api/analyticsApi", () => ({
 	analyticsApi: {
 		submitCaliberCorrection: vi.fn().mockResolvedValue({
@@ -173,6 +201,23 @@ describe("TracePanel", () => {
 		expect(screen.getByText("CAL-MONTH-AMOUNT-TIER")).toBeInTheDocument();
 		expect(screen.getByText("FIN-INV-03-PAYMENT-NOT-EXCEED-DISCOUNTED")).toBeInTheDocument();
 		expect(screen.getByText("a_month_accounting")).toBeInTheDocument();
+	});
+
+	it("renders accuracy evidence grade, reasons, warnings, and tieout", async () => {
+		render(
+			<TracePanel
+				message={accuracyEvidenceMessage}
+				onClose={vi.fn()}
+				open
+				toolMessages={[]}
+			/>,
+		);
+
+		expect(await screen.findByText("准确性证据")).toBeInTheDocument();
+		expect(screen.getByText("HIGH · 0.92")).toBeInTheDocument();
+		expect(screen.getByText("命中受控模板 TPL-57")).toBeInTheDocument();
+		expect(screen.getByText("财务对账通过")).toBeInTheDocument();
+		expect(screen.getByText("Tie-out PASS")).toBeInTheDocument();
 	});
 
 	it("closes on backdrop, close button, and Escape", async () => {

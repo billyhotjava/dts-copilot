@@ -82,6 +82,7 @@ export function reduceCopilotStreamMessages(
 				confidence: event.confidence,
 				clarifications: event.clarifications,
 				trace: event.trace,
+				accuracyEvidence: event.accuracyEvidence ?? event.trace?.accuracyEvidence,
 			}));
 		case "error":
 			return updateAssistantMessage(messages, options.assistantId, (message) => ({
@@ -91,6 +92,7 @@ export function reduceCopilotStreamMessages(
 					message.reasoningContent,
 					options.pendingReasoning,
 				),
+				accuracyEvidence: event.accuracyEvidence,
 			}));
 	}
 }

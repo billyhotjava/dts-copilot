@@ -1,4 +1,5 @@
 import type {
+	CopilotAccuracyEvidence,
 	CopilotAssumption,
 	CopilotAssumptionOption,
 	CopilotClarification,
@@ -164,33 +165,10 @@ function normalizeStringArray(value: unknown): string[] | undefined {
 function normalizeFinanceAudit(value: unknown): CopilotTraceFinanceAudit | undefined {
 	const row = asObject(value)
 	if (!row) return undefined
+	const authorityStatusRow = asObject(row.authorityStatus) ?? asObject(row.oracleStatus)
+	const authorityStatus = authorityStatusRow ? normalizeFinanceAuditStatus(authorityStatusRow) : undefined
 	const oracleStatusRow = asObject(row.oracleStatus)
-	const oracleStatus = oracleStatusRow
-		? {
-				...(pickString(oracleStatusRow, ['bindingId'])
-					? { bindingId: pickString(oracleStatusRow, ['bindingId']) }
-					: {}),
-				...(pickString(oracleStatusRow, ['reportName'])
-					? { reportName: pickString(oracleStatusRow, ['reportName']) }
-					: {}),
-				...(pickString(oracleStatusRow, ['oracleLevel'])
-					? { oracleLevel: pickString(oracleStatusRow, ['oracleLevel']) }
-					: {}),
-				...(pickString(oracleStatusRow, ['chain'])
-					? { chain: pickString(oracleStatusRow, ['chain']) }
-					: {}),
-				...(typeof oracleStatusRow.covered === 'boolean' ? { covered: oracleStatusRow.covered } : {}),
-				...(pickString(oracleStatusRow, ['healthStatus'])
-					? { healthStatus: pickString(oracleStatusRow, ['healthStatus']) }
-					: {}),
-				...(typeof oracleStatusRow.maxDifference === 'number' || typeof oracleStatusRow.maxDifference === 'string'
-					? { maxDifference: oracleStatusRow.maxDifference }
-					: {}),
-				...(pickString(oracleStatusRow, ['failureMessage'])
-					? { failureMessage: pickString(oracleStatusRow, ['failureMessage']) }
-					: {}),
-			}
-		: undefined
+	const oracleStatus = oracleStatusRow ? normalizeFinanceAuditStatus(oracleStatusRow) : undefined
 	const appliedRules = Array.isArray(row.appliedRules)
 		? row.appliedRules.flatMap((item) => {
 				const rule = asObject(item)
@@ -233,12 +211,57 @@ function normalizeFinanceAudit(value: unknown): CopilotTraceFinanceAudit | undef
 			})
 		: undefined
 	const financeAudit: CopilotTraceFinanceAudit = {
+		...(authorityStatus && Object.keys(authorityStatus).length > 0 ? { authorityStatus } : {}),
 		...(oracleStatus && Object.keys(oracleStatus).length > 0 ? { oracleStatus } : {}),
 		...(appliedRules && appliedRules.length > 0 ? { appliedRules } : {}),
 		...(appliedInvariants && appliedInvariants.length > 0 ? { appliedInvariants } : {}),
 		...(lineage && lineage.length > 0 ? { lineage } : {}),
 	}
 	return Object.keys(financeAudit).length > 0 ? financeAudit : undefined
+}
+
+function normalizeFinanceAuditStatus(statusRow: Record<string, unknown>): CopilotTraceFinanceAudit['authorityStatus'] {
+	const authorityLevel = pickString(statusRow, ['authorityLevel']) ?? pickString(statusRow, ['oracleLevel'])
+	return {
+		...(pickString(statusRow, ['bindingId']) ? { bindingId: pickString(statusRow, ['bindingId']) } : {}),
+		...(pickString(statusRow, ['reportName']) ? { reportName: pickString(statusRow, ['reportName']) } : {}),
+		...(authorityLevel ? { authorityLevel } : {}),
+		...(pickString(statusRow, ['chain']) ? { chain: pickString(statusRow, ['chain']) } : {}),
+		...(typeof statusRow.covered === 'boolean' ? { covered: statusRow.covered } : {}),
+		...(pickString(statusRow, ['healthStatus']) ? { healthStatus: pickString(statusRow, ['healthStatus']) } : {}),
+		...(typeof statusRow.maxDifference === 'number' || typeof statusRow.maxDifference === 'string'
+			? { maxDifference: statusRow.maxDifference }
+			: {}),
+		...(pickString(statusRow, ['failureMessage']) ? { failureMessage: pickString(statusRow, ['failureMessage']) } : {}),
+	}
+}
+
+function normalizeAccuracyEvidence(value: unknown): CopilotAccuracyEvidence | undefined {
+	const row = asObject(value)
+	if (!row) return undefined
+	const grade = pickString(row, ['grade'])
+	const score = pickFiniteNumber(row, ['score'])
+	const reasons = normalizeStringArrayPreservingEmpty(row.reasons)
+	const warnings = normalizeStringArrayPreservingEmpty(row.warnings)
+	const evidence: CopilotAccuracyEvidence = {
+		...(grade ? { grade } : {}),
+		...(score !== undefined ? { score } : {}),
+		...(reasons !== undefined ? { reasons } : {}),
+		...(warnings !== undefined ? { warnings } : {}),
+		...(asObject(row.intent) ? { intent: asObject(row.intent) as Record<string, unknown> } : {}),
+		...(asObject(row.route) ? { route: asObject(row.route) as Record<string, unknown> } : {}),
+		...(asObject(row.sql) ? { sql: asObject(row.sql) as Record<string, unknown> } : {}),
+		...(asObject(row.data) ? { data: asObject(row.data) as Record<string, unknown> } : {}),
+		...(asObject(row.tieout) ? { tieout: asObject(row.tieout) as Record<string, unknown> } : {}),
+	}
+	return Object.keys(evidence).length > 0 ? evidence : undefined
+}
+
+function normalizeStringArrayPreservingEmpty(value: unknown): string[] | undefined {
+	if (!Array.isArray(value)) return undefined
+	return value
+		.map((item) => (typeof item === 'string' ? item.trim() : ''))
+		.filter(Boolean)
 }
 
 function normalizeTrace(value: unknown): CopilotTrace | undefined {
@@ -267,6 +290,7 @@ function normalizeTrace(value: unknown): CopilotTrace | undefined {
 	const sources = normalizeTraceSources(row.sources)
 	const sql = pickString(row, ['sql'])
 	const financeAudit = normalizeFinanceAudit(row.financeAudit)
+	const accuracyEvidence = normalizeAccuracyEvidence(row.accuracyEvidence)
 	const trace: CopilotTrace = {
 		...(metricCaliber && Object.keys(metricCaliber).length > 0
 			? { metricCaliber }
@@ -274,6 +298,7 @@ function normalizeTrace(value: unknown): CopilotTrace | undefined {
 		...(sources ? { sources } : {}),
 		...(sql ? { sql } : {}),
 		...(financeAudit ? { financeAudit } : {}),
+		...(accuracyEvidence ? { accuracyEvidence } : {}),
 	}
 	return Object.keys(trace).length > 0 ? trace : undefined
 }
@@ -319,6 +344,7 @@ export function normalizeLegacyAiChatSessionDetail(payload: unknown) {
 			confidence?: number
 			clarifications?: CopilotClarification[]
 			trace?: CopilotTrace
+			accuracyEvidence?: CopilotAccuracyEvidence
 			createdAt?: string
 		} = {
 			id: toStringId(message.id),
@@ -342,6 +368,7 @@ export function normalizeLegacyAiChatSessionDetail(payload: unknown) {
 		const confidence = pickFiniteNumber(message, ['confidence'])
 		const clarifications = normalizeClarifications(message.clarifications)
 		const trace = normalizeTrace(message.trace)
+		const accuracyEvidence = normalizeAccuracyEvidence(message.accuracyEvidence) ?? trace?.accuracyEvidence
 		const createdAt = pickString(message, ['createdAt'])
 		if (content) normalized.content = content
 		if (reasoningContent) normalized.reasoningContent = reasoningContent
@@ -360,6 +387,7 @@ export function normalizeLegacyAiChatSessionDetail(payload: unknown) {
 		if (confidence !== undefined) normalized.confidence = confidence
 		if (clarifications) normalized.clarifications = clarifications
 		if (trace) normalized.trace = trace
+		if (accuracyEvidence) normalized.accuracyEvidence = accuracyEvidence
 		if (createdAt) normalized.createdAt = createdAt
 		return normalized
 	})
@@ -387,6 +415,7 @@ export function normalizeLegacyAiChatResponse(payload: unknown) {
 	const confidence = pickFiniteNumber(row, ['confidence'])
 	const clarifications = normalizeClarifications(row.clarifications)
 	const trace = normalizeTrace(row.trace)
+	const accuracyEvidence = normalizeAccuracyEvidence(row.accuracyEvidence) ?? trace?.accuracyEvidence
 	return {
 		sessionId: toStringId(row.sessionId || row.id),
 		agentMessage: pickString(row, ['response', 'content', 'message']),
@@ -408,5 +437,6 @@ export function normalizeLegacyAiChatResponse(payload: unknown) {
 		...(confidence !== undefined ? { confidence } : {}),
 		...(clarifications ? { clarifications } : {}),
 		...(trace ? { trace } : {}),
+		...(accuracyEvidence ? { accuracyEvidence } : {}),
 	}
 }
